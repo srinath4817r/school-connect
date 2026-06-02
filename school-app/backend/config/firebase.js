@@ -5,17 +5,25 @@ const path = require('path');
 let firebaseApp = null;
 
 try {
-  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './config/firebase-service-account.json';
-  const absolutePath = path.resolve(serviceAccountPath);
-  
-  if (fs.existsSync(absolutePath)) {
-    const serviceAccount = require(absolutePath);
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
     firebaseApp = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
-    console.log('Firebase Admin initialized successfully.');
+    console.log('Firebase Admin initialized successfully from Environment Variable JSON.');
   } else {
-    console.warn(`Warning: Firebase service account file not found at ${absolutePath}. Push notifications will not be functional.`);
+    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './config/firebase-service-account.json';
+    const absolutePath = path.resolve(serviceAccountPath);
+    
+    if (fs.existsSync(absolutePath)) {
+      const serviceAccount = require(absolutePath);
+      firebaseApp = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+      console.log('Firebase Admin initialized successfully from file.');
+    } else {
+      console.warn(`Warning: Firebase service account credentials not found in env (FIREBASE_SERVICE_ACCOUNT_JSON) or file (${absolutePath}). Push notifications will not be functional.`);
+    }
   }
 } catch (error) {
   console.error(`Error initializing Firebase Admin: ${error.message}`);
