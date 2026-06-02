@@ -1559,17 +1559,18 @@ const DashboardLayout = ({
     if (activeTab === tabId) return;
     const targetTab = tabs.find(t => t.id === tabId);
     const label = targetTab?.label || 'Loading';
+    const IconComponent = targetTab?.icon || Building;
 
-    setTransitionTab({ id: tabId, label, isFromMore });
+    setTransitionTab({ id: tabId, label, isFromMore, icon: IconComponent });
 
-    const delay = (tabId === 'bus' || tabId === 'fleet') ? 1300 : 1000;
+    // Exactly 1s transition delay for all page navigation transitions
     setTimeout(() => {
       setActiveTab(tabId);
       setTransitionTab(null);
-    }, delay);
+    }, 1000);
   };
 
-  const renderThemedTransition = (tabId) => {
+  const renderThemedTransition = (tabId, IconComponent) => {
     if (tabId === 'bus' || tabId === 'fleet') {
       return (
         <div style={{
@@ -1754,17 +1755,19 @@ const DashboardLayout = ({
       );
     }
 
+    const ActiveIcon = IconComponent || Building;
     return (
       <div style={{
-        width: '80px',
-        height: '80px',
-        borderRadius: '50%',
-        border: '6px solid rgba(168, 85, 247, 0.1)',
-        borderTop: '6px solid #a855f7',
-        borderRight: '6px solid #60a5fa',
-        animation: 'zoomSpin 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
-        boxShadow: '0 0 40px rgba(168, 85, 247, 0.5), inset 0 0 20px rgba(96, 165, 250, 0.3)'
-      }} />
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '120px',
+        height: '120px',
+        animation: 'iconBigScaleFade 1s cubic-bezier(0.25, 1, 0.5, 1) forwards',
+        color: 'var(--accent, #a855f7)'
+      }}>
+        <ActiveIcon size={80} />
+      </div>
     );
   };
 
@@ -2703,13 +2706,13 @@ const DashboardLayout = ({
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 99999,
-          animation: `overlayFade ${(transitionTab.id === 'bus' || transitionTab.id === 'fleet') ? '1.3s' : '1s'} forwards`,
+          animation: 'overlayFade 1s forwards',
           color: '#fff',
           overflow: 'hidden',
           gap: '30px'
         }}>
           {/* Custom Themed Illustration */}
-          {renderThemedTransition(transitionTab.id)}
+          {renderThemedTransition(transitionTab.id, transitionTab.icon)}
           
           <div style={{
             fontFamily: 'var(--font-title)',
