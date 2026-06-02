@@ -1,0 +1,39 @@
+# Dependency directories
+node_modules/
+**/node_modules/
+
+# Production build directories
+dist/
+build/
+out/
+
+# Local environmental configs
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Expo directories
+.expo/
+web-build/
+
+# Logs and databases
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.mongo
+*.log
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db

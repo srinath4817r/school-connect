@@ -1,0 +1,313 @@
+/* Import Outfit/Inter fonts from Google Fonts for modern feel */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* Design System Colors */
+  --primary: #7C3AED;
+  --primary-light: #9F67FF;
+  --primary-dark: #5B21B6;
+  --secondary: #3B82F6;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  
+  --bg-main: #0A0A1B;
+  --bg-card: #12122A;
+  --bg-card-hover: #1A1A35;
+  --border: rgba(255, 255, 255, 0.08);
+  --text-primary: #FFFFFF;
+  --text-secondary: #9CA3AF;
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  
+  /* Legacy/Role mappings */
+  --accent: var(--primary);
+  --accent-glow: rgba(124, 58, 237, 0.15);
+  --border-focus: rgba(124, 58, 237, 0.4);
+  --bg: var(--bg-main);
+  --bg-gradient: radial-gradient(circle at 50% 50%, #171738 0%, #0A0A1B 100%);
+  --card-bg: var(--bg-card);
+  --card-hover: var(--bg-card-hover);
+  --text-muted: #64748B;
+  
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-title: 'Outfit', var(--font-sans);
+  
+  /* Radii spacing */
+  --radius-sm: 8px;
+  --radius-md: 16px; /* Cards */
+  --radius-lg: 20px; /* Large cards / greeting banner */
+  --radius-xl: 24px; /* Modals */
+  --radius-input: 12px;
+  
+  /* Shadows */
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  --shadow-hover: 0 8px 40px rgba(124, 58, 237, 0.2);
+  --shadow-btn: 0 4px 12px rgba(124, 58, 237, 0.4);
+  
+  --blur: blur(12px);
+  --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Role Theme Overrides */
+.theme-super_admin {
+  --accent: #7C3AED;
+  --accent-glow: rgba(124, 58, 237, 0.15);
+  --border-focus: rgba(124, 58, 237, 0.5);
+}
+
+.theme-school_admin {
+  --accent: #3B82F6;
+  --accent-glow: rgba(59, 130, 246, 0.15);
+  --border-focus: rgba(59, 130, 246, 0.5);
+}
+
+.theme-principal {
+  --accent: #10B981;
+  --accent-glow: rgba(16, 185, 129, 0.15);
+  --border-focus: rgba(16, 185, 129, 0.5);
+}
+
+.theme-teacher {
+  --accent: #F59E0B;
+  --accent-glow: rgba(245, 158, 11, 0.15);
+  --border-focus: rgba(245, 158, 11, 0.5);
+}
+
+.theme-parent {
+  --accent: #EC4899;
+  --accent-glow: rgba(236, 72, 153, 0.15);
+  --border-focus: rgba(236, 72, 153, 0.5);
+}
+
+/* Reset & Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  background-image: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Global Page Transition class */
+.page-transition {
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+/* Keyframe animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes toast-slide-in {
+  from {
+    transform: translateX(120%) translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes modal-zoom-in {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes icon-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Global Cards Style */
+.glass-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow) !important;
+  transition: var(--transition) !important;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+}
+
+.glass-card:hover {
+  background: var(--bg-card-hover) !important;
+  border-color: rgba(124, 58, 237, 0.3) !important;
+  transform: translateY(-4px) !important;
+  box-shadow: var(--shadow-hover) !important;
+}
+
+/* Base button and interaction smoothing with springy feel */
+button, 
+a.btn,
+.tab-btn, 
+.dashboard-btn-primary, 
+.code-action-btn, 
+.btn-incident, 
+.logout-btn, 
+.logout-icon-btn,
+.code-save-btn,
+.toggle-btn {
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+}
+
+input,
+select,
+textarea,
+a:not(.btn) {
+  transition: var(--transition);
+}
+
+/* Premium Hover Overlay */
+button::after,
+.tab-btn::after,
+.dashboard-btn-primary::after,
+.code-action-btn::after,
+.logout-btn::after,
+.code-save-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0);
+  transition: background-color 0.25s ease;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+
+button:hover::after,
+.tab-btn:hover::after,
+.dashboard-btn-primary:hover::after,
+.code-action-btn:hover::after,
+.logout-btn:hover::after,
+.code-save-btn:hover::after {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Spring scale-down on active/click */
+button:active, 
+a.btn:active, 
+.tab-btn:active, 
+.dashboard-btn-primary:active, 
+.code-action-btn:active, 
+.btn-incident:active,
+.logout-btn:active,
+.logout-icon-btn:active,
+.code-save-btn:active,
+.toggle-btn:active {
+  transform: scale(0.95) !important;
+  transition: transform 0.1s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Lucide Icon sidebar animations */
+.sidebar-item:hover svg {
+  animation: icon-bounce 0.6s ease;
+  transform: scale(1.1);
+}
+
+/* Loading skeleton style */
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Form Input default */
+input.form-input, 
+select.form-select,
+textarea.form-textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-input);
+  padding: 14px 16px;
+  color: white;
+  font-size: 15px;
+  transition: var(--transition);
+  width: 100%;
+}
+
+input.form-input:focus, 
+select.form-select:focus,
+textarea.form-textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2) !important;
+  background: rgba(124, 58, 237, 0.05) !important;
+  outline: none !important;
+}
+
+input.form-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+select option {
+  background-color: #12122A !important;
+  color: #FFFFFF !important;
+}
