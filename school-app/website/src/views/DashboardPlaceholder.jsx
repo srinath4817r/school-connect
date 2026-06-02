@@ -1532,6 +1532,52 @@ const DashboardLayout = ({
     }
   }, []);
 
+  // Automatic mobile table row expander and cell labeler
+  useEffect(() => {
+    const handleTableClick = (e) => {
+      const tr = e.target.closest('.dashboard-table tr');
+      if (!tr) return;
+      
+      // Only run in mobile viewport width
+      if (window.innerWidth > 768) return;
+
+      // Skip toggling if clicking inside a form input, button, or link
+      if (e.target.closest('button, a, input, select, label, textarea')) return;
+
+      tr.classList.toggle('row-expanded');
+    };
+
+    const updateTableLabels = () => {
+      const tables = document.querySelectorAll('.dashboard-table');
+      tables.forEach(table => {
+        const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          cells.forEach((cell, index) => {
+            if (headers[index] && !cell.getAttribute('data-label')) {
+              cell.setAttribute('data-label', headers[index]);
+            }
+          });
+        });
+      });
+    };
+
+    updateTableLabels();
+    document.addEventListener('click', handleTableClick);
+
+    // Watch for dynamic page updates and tab switching to re-apply labels
+    const observer = new MutationObserver(() => {
+      updateTableLabels();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      document.removeEventListener('click', handleTableClick);
+      observer.disconnect();
+    };
+  }, []);
+
   const handleDownloadApp = () => {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const downloadFileName = isMobile ? 'school-connect.apk' : 'school-connect-setup.exe';
