@@ -652,8 +652,8 @@ const Landing = () => {
             <div className="footer-col">
               <h4 className="footer-title">Contact Office</h4>
               <ul className="footer-links">
-                <li>📞 Phone: +91 98765 43210</li>
-                <li>📧 Email: support@schoolconnect.com</li>
+                <li>📞 Phone: <a href="tel:9346022857" style={{ color: 'inherit', textDecoration: 'none' }}>+91 93460 22857</a></li>
+                <li>📧 Email: <a href="mailto:thinkerslab001@gmail.com" style={{ color: 'inherit', textDecoration: 'none' }}>thinkerslab001@gmail.com</a></li>
                 <li>🏢 Head Office: Bangalore, India</li>
               </ul>
             </div>
@@ -680,20 +680,20 @@ const Landing = () => {
                 To register and set up your school profile on the <strong>School Connect</strong> platform, please contact our administrator or onboarding team to get your unique <strong>School Registration Secret Code</strong>.
               </p>
               <div className="contact-card-grid">
-                <div className="contact-card">
+                <a href="tel:9346022857" className="contact-card" style={{ textDecoration: 'none', color: 'inherit' }}>
                   <span className="contact-icon">📞</span>
                   <div>
                     <h4>Call Support</h4>
-                    <p className="contact-detail">+91 98765 43210</p>
+                    <p className="contact-detail">+91 93460 22857</p>
                   </div>
-                </div>
-                <div className="contact-card">
+                </a>
+                <a href="mailto:thinkerslab001@gmail.com?subject=School%20Connect%20Registration%20Request" className="contact-card" style={{ textDecoration: 'none', color: 'inherit' }}>
                   <span className="contact-icon">📧</span>
                   <div>
                     <h4>Email Onboarding</h4>
-                    <p className="contact-detail">support@schoolconnect.com</p>
+                    <p className="contact-detail">thinkerslab001@gmail.com</p>
                   </div>
-                </div>
+                </a>
                 <div className="contact-card">
                   <span className="contact-icon">🏢</span>
                   <div>
@@ -707,7 +707,7 @@ const Landing = () => {
               </p>
             </div>
             <div className="landing-modal-actions">
-              <a href="mailto:support@schoolconnect.com?subject=School%20Connect%20Registration%20Request" className="btn btn-primary modal-action-btn">
+              <a href="mailto:thinkerslab001@gmail.com?subject=School%20Connect%20Registration%20Request" className="btn btn-primary modal-action-btn">
                 Request Onboarding Code
               </a>
               <button className="btn btn-secondary modal-action-btn" onClick={() => setShowContactModal(false)}>

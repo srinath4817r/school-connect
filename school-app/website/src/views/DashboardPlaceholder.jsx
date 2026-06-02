@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext, saveUserToLocalStorage } from '../context/AuthContext';
-import { Menu, MoreHorizontal, Users, UserCheck, ShieldAlert, Building, Phone, MapPin, GraduationCap, Bus, Play, Square, Compass, RefreshCw, Milestone, Navigation, BookOpen, Image, Calendar, Award, DollarSign, CheckSquare, Trash2, Camera, Clock, LogOut, AlertTriangle, CheckCircle, RefreshCcw, Edit2, X, Save, Plus, School, Upload, Bell, Wifi, User } from 'lucide-react';
+import { Menu, MoreHorizontal, Users, UserCheck, ShieldAlert, Building, Phone, MapPin, GraduationCap, Bus, Play, Square, Compass, RefreshCw, Milestone, Navigation, BookOpen, Image, Calendar, Award, DollarSign, CheckSquare, Trash2, Camera, Clock, LogOut, AlertTriangle, CheckCircle, RefreshCcw, Edit2, X, Save, Plus, School, Upload, Bell, Wifi, User, Lock, Unlock, Key, Mail, MailOpen } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -1586,12 +1586,11 @@ const DashboardLayout = ({
           <div style={{
             position: 'absolute',
             bottom: '16px',
-            fontSize: '80px',
-            lineHeight: 1,
             animation: 'busDrive 1.3s cubic-bezier(0.4, 0, 0.2, 1) forwards, busBob 0.15s infinite alternate',
-            transformOrigin: 'bottom center'
+            transformOrigin: 'bottom center',
+            color: 'var(--accent, #a855f7)'
           }}>
-            🚌
+            <Bus size={80} />
           </div>
         </div>
       );
@@ -1600,10 +1599,12 @@ const DashboardLayout = ({
     if (tabId === 'fees' || tabId === 'manage-fees') {
       return (
         <div style={{ position: 'relative', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontSize: '70px', animation: 'cardPulse 0.5s ease-in-out infinite alternate', zIndex: 2 }}>💳</div>
-          <div style={{ position: 'absolute', fontSize: '26px', animation: 'floatUp 0.8s ease-in-out infinite', left: '10px' }}>💵</div>
-          <div style={{ position: 'absolute', fontSize: '24px', animation: 'floatUp 1s ease-in-out infinite', right: '15px', animationDelay: '0.2s' }}>🪙</div>
-          <div style={{ position: 'absolute', fontSize: '26px', animation: 'floatUp 0.9s ease-in-out infinite', left: '45px', animationDelay: '0.4s' }}>💵</div>
+          <div style={{ animation: 'cardPulse 0.5s ease-in-out infinite alternate', zIndex: 2, color: '#10b981' }}>
+            <DollarSign size={70} />
+          </div>
+          <div style={{ position: 'absolute', animation: 'floatUp 0.8s ease-in-out infinite', left: '10px', color: '#10b981' }}><DollarSign size={26} /></div>
+          <div style={{ position: 'absolute', animation: 'floatUp 1s ease-in-out infinite', right: '15px', animationDelay: '0.2s', color: '#60a5fa' }}><CheckSquare size={24} /></div>
+          <div style={{ position: 'absolute', animation: 'floatUp 0.9s ease-in-out infinite', left: '45px', animationDelay: '0.4s', color: '#10b981' }}><DollarSign size={26} /></div>
         </div>
       );
     }
@@ -1611,10 +1612,12 @@ const DashboardLayout = ({
     if (tabId === 'marks' || tabId === 'performance') {
       return (
         <div style={{ position: 'relative', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontSize: '75px', animation: 'trophyBounce 0.6s ease-in-out infinite alternate', zIndex: 2 }}>🏆</div>
-          <div style={{ position: 'absolute', top: '10px', left: '10px', fontSize: '28px', animation: 'starTwinkle 0.9s infinite' }}>✨</div>
-          <div style={{ position: 'absolute', bottom: '25px', right: '5px', fontSize: '22px', animation: 'starTwinkle 1.3s infinite', animationDelay: '0.3s' }}>✨</div>
-          <div style={{ position: 'absolute', top: '25px', right: '15px', fontSize: '20px', animation: 'starTwinkle 0.7s infinite', animationDelay: '0.15s' }}>✨</div>
+          <div style={{ animation: 'trophyBounce 0.6s ease-in-out infinite alternate', zIndex: 2, color: '#fbbf24' }}>
+            <Award size={75} />
+          </div>
+          <div style={{ position: 'absolute', top: '10px', left: '10px', color: '#fbbf24', animation: 'starTwinkle 0.9s infinite' }}><Award size={20} /></div>
+          <div style={{ position: 'absolute', bottom: '25px', right: '5px', color: '#a855f7', animation: 'starTwinkle 1.3s infinite', animationDelay: '0.3s' }}><GraduationCap size={20} /></div>
+          <div style={{ position: 'absolute', top: '25px', right: '15px', color: '#60a5fa', animation: 'starTwinkle 0.7s infinite', animationDelay: '0.15s' }}><Award size={18} /></div>
         </div>
       );
     }
@@ -1622,17 +1625,18 @@ const DashboardLayout = ({
     if (tabId === 'attendance' || tabId === 'staff-attendance' || tabId === 'checkin') {
       return (
         <div style={{ position: 'relative', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontSize: '70px', opacity: 0.9 }}>📅</div>
+          <div style={{ color: '#60a5fa', opacity: 0.9 }}>
+            <Calendar size={70} />
+          </div>
           <div style={{
             position: 'absolute',
             bottom: '10px',
             right: '10px',
-            fontSize: '52px',
-            lineHeight: 1,
+            color: '#10b981',
             animation: 'checkPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-            textShadow: '0 0 10px rgba(0,255,0,0.4)'
+            filter: 'drop-shadow(0 0 8px rgba(16,185,129,0.4))'
           }}>
-            ✅
+            <CheckCircle size={48} />
           </div>
           {(tabId === 'checkin' || tabId === 'staff-attendance') && (
             <div style={{
@@ -1650,7 +1654,9 @@ const DashboardLayout = ({
     if (tabId === 'timetable') {
       return (
         <div style={{ position: 'relative', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontSize: '75px', animation: 'clockShake 0.15s ease-in-out infinite' }}>⏰</div>
+          <div style={{ color: '#f59e0b', animation: 'clockShake 0.15s ease-in-out infinite' }}>
+            <Clock size={75} />
+          </div>
         </div>
       );
     }
@@ -1658,9 +1664,9 @@ const DashboardLayout = ({
     if (tabId === 'diary' || tabId === 'diaries') {
       return (
         <div style={{ position: 'relative', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontSize: '75px' }}>📖</div>
-          <div style={{ position: 'absolute', top: '15px', fontSize: '20px', animation: 'starRise 0.9s infinite', left: '15px' }}>⭐</div>
-          <div style={{ position: 'absolute', top: '20px', fontSize: '20px', animation: 'starRise 1.2s infinite', right: '15px', animationDelay: '0.35s' }}>✨</div>
+          <div style={{ color: '#a855f7' }}><BookOpen size={75} /></div>
+          <div style={{ position: 'absolute', top: '15px', color: '#fbbf24', animation: 'starRise 0.9s infinite', left: '15px' }}><Plus size={16} /></div>
+          <div style={{ position: 'absolute', top: '20px', color: '#60a5fa', animation: 'starRise 1.2s infinite', right: '15px', animationDelay: '0.35s' }}><Plus size={18} /></div>
         </div>
       );
     }
@@ -1679,7 +1685,7 @@ const DashboardLayout = ({
           border: '1.5px solid rgba(255,255,255,0.08)',
           overflow: 'hidden'
         }}>
-          <div style={{ fontSize: '70px' }}>🪪</div>
+          <div style={{ color: '#60a5fa' }}><User size={70} /></div>
           <div style={{
             position: 'absolute',
             left: 0,
@@ -1696,17 +1702,15 @@ const DashboardLayout = ({
     if (tabId === 'secret-codes') {
       return (
         <div style={{ position: 'relative', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ position: 'absolute', fontSize: '70px', animation: 'lockLockFade 1s forwards' }}>🔒</div>
-          <div style={{ position: 'absolute', fontSize: '70px', animation: 'lockOpenFade 1s forwards, lockPop 1s forwards' }}>🔓</div>
+          <div style={{ position: 'absolute', color: '#ef4444', animation: 'lockLockFade 1s forwards' }}><Lock size={70} /></div>
+          <div style={{ position: 'absolute', color: '#10b981', animation: 'lockOpenFade 1s forwards, lockPop 1s forwards' }}><Unlock size={70} /></div>
           <div style={{
             position: 'absolute',
             left: '12px',
             top: '40px',
-            fontSize: '34px',
+            color: '#fbbf24',
             animation: 'keyTurn 1s forwards'
-          }}>
-            🔑
-          </div>
+          }}><Key size={34} /></div>
         </div>
       );
     }
@@ -1714,9 +1718,9 @@ const DashboardLayout = ({
     if (tabId === 'school-users' || tabId === 'pending-parents' || tabId === 'pre-students' || tabId === 'school-admins') {
       return (
         <div style={{ position: 'relative', width: '130px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-          <div style={{ fontSize: '54px', animation: 'pulseConnect 1.2s infinite' }}>👨‍👩‍👧</div>
-          <div style={{ fontSize: '26px', color: '#a855f7', animation: 'pulseConnect 1.2s infinite', animationDelay: '0.3s' }}>⚡</div>
-          <div style={{ fontSize: '54px', animation: 'pulseConnect 1.2s infinite', animationDelay: '0.6s' }}>🏫</div>
+          <div style={{ color: '#a855f7', animation: 'pulseConnect 1.2s infinite' }}><Users size={54} /></div>
+          <div style={{ fontSize: '26px', color: '#eab308', animation: 'pulseConnect 1.2s infinite', animationDelay: '0.3s' }}>⚡</div>
+          <div style={{ color: '#60a5fa', animation: 'pulseConnect 1.2s infinite', animationDelay: '0.6s' }}><School size={54} /></div>
         </div>
       );
     }
@@ -1724,8 +1728,8 @@ const DashboardLayout = ({
     if (tabId === 'class-requests') {
       return (
         <div style={{ position: 'relative', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'mailFly 1s forwards' }}>
-          <div style={{ position: 'absolute', fontSize: '70px', animation: 'envelopeCloseFade 1s forwards' }}>✉️</div>
-          <div style={{ position: 'absolute', fontSize: '70px', animation: 'envelopeOpenFade 1s forwards' }}>📩</div>
+          <div style={{ position: 'absolute', color: '#a855f7', animation: 'envelopeCloseFade 1s forwards' }}><Mail size={70} /></div>
+          <div style={{ position: 'absolute', color: '#60a5fa', animation: 'envelopeOpenFade 1s forwards' }}><MailOpen size={70} /></div>
         </div>
       );
     }
@@ -1733,14 +1737,14 @@ const DashboardLayout = ({
     if (tabId === 'drive' || tabId === 'history') {
       return (
         <div style={{ position: 'relative', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontSize: '70px', opacity: 0.85 }}>🗺️</div>
+          <div style={{ color: '#a855f7', opacity: 0.85 }}><Compass size={70} /></div>
           <div style={{
             position: 'absolute',
             top: '15px',
-            fontSize: '48px',
+            color: '#ef4444',
             animation: 'pinDrop 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards'
           }}>
-            📍
+            <MapPin size={48} />
           </div>
           <div style={{
             position: 'absolute',
@@ -2231,6 +2235,14 @@ const DashboardLayout = ({
                 </button>
               </>
             )}
+            <button 
+              onClick={handleLogout}
+              className="p-1.5 hover:bg-red-500/10 text-red-400 hover:text-red-300 rounded-lg transition-all cursor-pointer"
+              title="Logout"
+              style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center' }}
+            >
+              <LogOut size={18} />
+            </button>
             {renderUserAvatar('w-8 h-8', 'w-2.5 h-2.5')}
           </div>
         </header>
@@ -2493,6 +2505,13 @@ const DashboardLayout = ({
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     <Bell size={18} />
+                  </button>
+                  <button 
+                    onClick={handleLogout}
+                    className="p-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 hover:border-red-500/30 rounded-full transition-all cursor-pointer"
+                    title="Logout"
+                  >
+                    <LogOut size={18} />
                   </button>
                   {renderUserAvatar('w-9 h-9', 'w-2.5 h-2.5')}
                 </div>
