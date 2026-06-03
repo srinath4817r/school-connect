@@ -1556,8 +1556,9 @@ const DashboardLayout = ({
   }, [toastMessage]);
 
   useEffect(() => {
+    const isNativeApp = /SchoolConnectApp/i.test(navigator.userAgent);
     const hasDismissed = localStorage.getItem('appDownloadPromptDismissed');
-    if (!hasDismissed) {
+    if (!hasDismissed && !isNativeApp) {
       const timer = setTimeout(() => {
         setShowDownloadPrompt(true);
       }, 5000); // 5s delay on dashboard loading

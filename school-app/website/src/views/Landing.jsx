@@ -15,8 +15,9 @@ const Landing = () => {
   const [showDownloadModal, setShowDownloadModal] = useState(false);
 
   useEffect(() => {
+    const isNativeApp = /SchoolConnectApp/i.test(navigator.userAgent);
     const hasDismissed = localStorage.getItem('appDownloadPromptDismissed');
-    if (!hasDismissed) {
+    if (!hasDismissed && !isNativeApp) {
       const timer = setTimeout(() => {
         setShowDownloadModal(true);
       }, 1500);
