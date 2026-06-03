@@ -401,7 +401,8 @@ const Landing = () => {
             <span className="logo-text" style={{ color: '#0f172a', fontWeight: '800', fontSize: '20px', letterSpacing: '-0.5px' }}>School Connect</span>
           </div>
           
-          <div className="nav-buttons desktop-only">
+          <div className="nav-buttons desktop-only" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <Link to="/download" className="btn btn-secondary" style={{ borderRadius: '20px', padding: '8px 20px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>📲 Download App</Link>
             <Link to="/login" className="btn btn-secondary" style={{ borderRadius: '20px', padding: '8px 20px' }}>Login</Link>
             <button onClick={() => setShowContactModal(true)} className="btn btn-primary" style={{ borderRadius: '20px', padding: '8px 20px' }}>Register School</button>
           </div>
@@ -416,7 +417,14 @@ const Landing = () => {
 
         {/* Mobile Navigation Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="mobile-nav-menu">
+          <div className="mobile-nav-menu" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <Link 
+              to="/download" 
+              className="btn btn-secondary mobile-menu-btn"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              📲 Download App
+            </Link>
             <Link 
               to="/login" 
               className="btn btn-secondary mobile-menu-btn"
@@ -443,8 +451,9 @@ const Landing = () => {
             <p className="hero-tagline">
               The premium, secure communication hub connecting administrators, principal, teachers, parents, and drivers in real time.
             </p>
-            <div className="hero-buttons">
+            <div className="hero-buttons" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <Link to="/login" className="btn btn-primary hero-btn" style={{ borderRadius: '20px', padding: '12px 28px' }}>Login to Portal</Link>
+              <Link to="/download" className="btn btn-secondary hero-btn" style={{ borderRadius: '20px', padding: '12px 28px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>📲 Download App</Link>
               <button onClick={() => setShowContactModal(true)} className="btn btn-secondary hero-btn" style={{ borderRadius: '20px', padding: '12px 28px' }}>Register School</button>
             </div>
           </div>

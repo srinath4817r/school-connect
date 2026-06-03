@@ -25,6 +25,8 @@ const markRoutes = require('./routes/marks');
 const feeRoutes = require('./routes/fees');
 const timetableRoutes = require('./routes/timetable');
 const notificationRoutes = require('./routes/notifications');
+const scheduleRoutes = require('./routes/schedules');
+const calendarRoutes = require('./routes/calendar');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/schools', schoolRoutes);
@@ -35,6 +37,8 @@ app.use('/api/marks', markRoutes);
 app.use('/api/fees', feeRoutes);
 app.use('/api/timetable', timetableRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/schedules', scheduleRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 // Basic Test Route
 app.get('/api/health', (req, res) => {

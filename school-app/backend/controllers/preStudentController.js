@@ -1,6 +1,7 @@
 const PreRegisteredStudent = require('../models/PreRegisteredStudent');
 const School = require('../models/School');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const pdfParse = require('pdf-parse');
 
 // @route   GET /api/admin/pre-students
@@ -72,6 +73,35 @@ exports.batchUpsertPreStudents = async (req, res) => {
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
       results.push(updatedStudent);
+    }
+
+    if (results.length > 0) {
+      try {
+        const studentNames = results.map(s => s.name).join(', ');
+        const message = results.length === 1 
+          ? `New student "${results[0].name}" has been pre-registered for Class ${results[0].className} ${results[0].section}.`
+          : `${results.length} new students (${studentNames}) have been pre-registered for your school.`;
+
+        // Create notification for school admin
+        await Notification.create({
+          school: targetSchoolId,
+          sender: req.user._id,
+          recipientRole: 'school_admin',
+          type: 'general',
+          message
+        });
+
+        // Create notification for principal
+        await Notification.create({
+          school: targetSchoolId,
+          sender: req.user._id,
+          recipientRole: 'principal',
+          type: 'general',
+          message
+        });
+      } catch (notificationError) {
+        console.error('Failed to create pre-student notifications:', notificationError);
+      }
     }
 
     res.status(200).json({

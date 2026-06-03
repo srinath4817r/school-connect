@@ -18,7 +18,7 @@ const NotificationSchema = new mongoose.Schema({
   },
   recipientRole: {
     type: String,
-    enum: ['all', 'teacher', 'parent', 'driver', 'staff'],
+    enum: ['all', 'teacher', 'parent', 'driver', 'staff', 'school_admin', 'principal'],
     required: false
   },
   type: {

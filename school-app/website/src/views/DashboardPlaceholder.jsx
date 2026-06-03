@@ -1538,6 +1538,9 @@ const DashboardLayout = ({
       const tr = e.target.closest('.dashboard-table tr');
       if (!tr) return;
       
+      // Skip empty placeholder rows containing colspan/colSpan
+      if (tr.querySelector('td[colspan]') || tr.querySelector('td[colSpan]')) return;
+      
       // Only run in mobile viewport width
       if (window.innerWidth > 768) return;
 
@@ -2240,7 +2243,7 @@ const DashboardLayout = ({
       `}</style>
 
       {/* DASHBOARD CONTENT WRAPPER */}
-      <div className={`dashboard-content-wrapper ${splashDone ? 'dashboard-content-active' : ''} flex-1 flex flex-col`}>
+      <div className={`dashboard-content-wrapper ${splashDone ? 'dashboard-content-active' : ''} flex-1 flex flex-col min-h-0`}>
         {/* MOBILE NAVBAR */}
         <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#141425]/90 backdrop-blur-md border-b border-white/8 sticky top-0 z-40 w-full">
           <div className="flex items-center gap-2">
@@ -2443,7 +2446,7 @@ const DashboardLayout = ({
           )}
         </nav>
 
-        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {/* DESKTOP HEADER WITH DROPDOWN SELECTOR */}
           <header className="hidden lg:flex items-center justify-between px-8 py-4 bg-[#141425]/40 border-b border-white/8 backdrop-blur-md sticky top-0 z-30">
             <div className="flex items-center gap-4">
@@ -2577,7 +2580,7 @@ const DashboardLayout = ({
           </header>
 
           <div 
-            className="flex-1 p-4 lg:p-8 pb-[80px] lg:pb-8 overflow-y-auto w-full max-w-full min-w-0"
+            className="flex-1 p-4 lg:p-8 pb-[80px] lg:pb-8 overflow-y-auto w-full max-w-full min-w-0 min-h-0"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -5030,8 +5033,1349 @@ const ClassRequestsManagement = () => {
 };
 
 // -------------------------------------------------------------
-// SUPER ADMIN DASHBOARD
+// SHARED SCHEDULES MANAGEMENT MODULE (Admin & Principal)
 // -------------------------------------------------------------
+export const AdminSchedulesModule = ({ user }) => {
+  const [teachers, setTeachers] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState('');
+  
+  // Schedule Doc info
+  const [scheduleDocId, setScheduleDocId] = useState('');
+  const [scheduleData, setScheduleData] = useState({
+    monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: []
+  });
+  const [validFrom, setValidFrom] = useState('');
+  const [validTo, setValidTo] = useState('');
+  const [isPermanent, setIsPermanent] = useState(false);
+
+  // Editor states
+  const [selectedDay, setSelectedDay] = useState('monday');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // New period form states
+  const [periodNum, setPeriodNum] = useState('');
+  const [subjectName, setSubjectName] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedSection, setSelectedSection] = useState('');
+  const [roomNumber, setRoomNumber] = useState('');
+  const [periodDuration, setPeriodDuration] = useState('45');
+
+  const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+  useEffect(() => {
+    fetchMetadata();
+  }, []);
+
+  useEffect(() => {
+    if (selectedTeacherId) {
+      fetchTeacherSchedule(selectedTeacherId);
+    } else {
+      resetScheduleState();
+    }
+  }, [selectedTeacherId]);
+
+  const fetchMetadata = async () => {
+    try {
+      const [teachersRes, classesRes] = await Promise.all([
+        axios.get(`${API_URL}/schools/my-teachers`),
+        axios.get(`${API_URL}/schools/my-classes`)
+      ]);
+      if (teachersRes.data.status === 'success') {
+        setTeachers(teachersRes.data.teachers || []);
+      }
+      if (classesRes.data.status === 'success') {
+        setClasses(classesRes.data.classes || []);
+      }
+    } catch (err) {
+      console.error('Failed to load metadata', err);
+      setError('Failed to fetch school details (classes/teachers).');
+    }
+  };
+
+  const fetchTeacherSchedule = async (teacherId) => {
+    try {
+      setLoading(true);
+      setError('');
+      const res = await axios.get(`${API_URL}/schedules/teacher/${teacherId}`);
+      if (res.data.status === 'success' && res.data.schedule) {
+        const doc = res.data.schedule;
+        setScheduleDocId(doc._id);
+        setValidFrom(doc.validFrom ? new Date(doc.validFrom).toISOString().split('T')[0] : '');
+        setValidTo(doc.validTo ? new Date(doc.validTo).toISOString().split('T')[0] : '');
+        setIsPermanent(!!doc.isPermanent);
+        setScheduleData({
+          monday: doc.schedule?.monday || [],
+          tuesday: doc.schedule?.tuesday || [],
+          wednesday: doc.schedule?.wednesday || [],
+          thursday: doc.schedule?.thursday || [],
+          friday: doc.schedule?.friday || [],
+          saturday: doc.schedule?.saturday || [],
+          sunday: doc.schedule?.sunday || []
+        });
+      } else {
+        resetScheduleState(false); // don't clear selected teacher
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load schedule for selected teacher.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetScheduleState = (clearTeacher = true) => {
+    if (clearTeacher) setSelectedTeacherId('');
+    setScheduleDocId('');
+    setValidFrom('');
+    setValidTo('');
+    setIsPermanent(false);
+    setScheduleData({
+      monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: []
+    });
+    setError('');
+    setSuccess('');
+  };
+
+  const handleAddPeriod = (e) => {
+    e.preventDefault();
+    if (!periodNum || !subjectName || !selectedClass || !selectedSection || !periodDuration) {
+      setError('Please fill in all period details (Period, Subject, Class, Section, Duration).');
+      return;
+    }
+
+    const pNum = parseInt(periodNum, 10);
+    const dur = parseInt(periodDuration, 10);
+
+    // Check if period already exists for this day
+    const dayPeriods = scheduleData[selectedDay] || [];
+    if (dayPeriods.some(p => p.periodNumber === pNum)) {
+      setError(`Period ${pNum} is already assigned on ${selectedDay.toUpperCase()}`);
+      return;
+    }
+
+    const newPeriod = {
+      periodNumber: pNum,
+      subject: subjectName.trim(),
+      class: selectedClass,
+      section: selectedSection,
+      room: roomNumber.trim() || undefined,
+      duration: dur
+    };
+
+    setScheduleData(prev => ({
+      ...prev,
+      [selectedDay]: [...(prev[selectedDay] || []), newPeriod].sort((a, b) => a.periodNumber - b.periodNumber)
+    }));
+
+    // Reset inputs
+    setPeriodNum('');
+    setSubjectName('');
+    setRoomNumber('');
+    setError('');
+  };
+
+  const handleDeletePeriod = (day, index) => {
+    setScheduleData(prev => ({
+      ...prev,
+      [day]: prev[day].filter((_, idx) => idx !== index)
+    }));
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!selectedTeacherId) {
+      setError('Please select a teacher.');
+      return;
+    }
+
+    if (!isPermanent && (!validFrom || !validTo)) {
+      setError('Please specify validity dates or check "Permanent Schedule".');
+      return;
+    }
+
+    // Verify schedule is not completely empty
+    const totalPeriods = Object.values(scheduleData).reduce((acc, curr) => acc + curr.length, 0);
+    if (totalPeriods === 0) {
+      setError('Please configure at least one period before saving.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+
+      const payload = {
+        teacherId: selectedTeacherId,
+        validFrom: isPermanent ? undefined : validFrom,
+        validTo: isPermanent ? undefined : validTo,
+        isPermanent,
+        schedule: scheduleData
+      };
+
+      let res;
+      if (scheduleDocId) {
+        res = await axios.put(`${API_URL}/schedules/${scheduleDocId}`, payload);
+      } else {
+        res = await axios.post(`${API_URL}/schedules`, payload);
+      }
+
+      if (res.data.status === 'success') {
+        setSuccess('Schedule saved successfully and teacher notified! 📅');
+        if (res.data.schedule) {
+          setScheduleDocId(res.data.schedule._id);
+        }
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save schedule.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="vertical-stack">
+      {error && <div className="error-banner">{error}</div>}
+      {success && <div className="success-banner">{success}</div>}
+
+      <div className="responsive-grid-2-1">
+        {/* Left Column: Form & Day editor */}
+        <div className="glass-card" style={{ padding: '24px' }}>
+          <h3 className="dashboard-form-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+            <span>📅</span> Schedule Grid Editor
+          </h3>
+
+          {!selectedTeacherId ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+              Select a teacher from the dropdown panel on the right to start editing their schedule.
+            </div>
+          ) : (
+            <div>
+              {/* Day selection tabs */}
+              <div style={{
+                display: 'flex',
+                gap: '6px',
+                borderBottom: '1px solid var(--border)',
+                paddingBottom: '10px',
+                marginBottom: '20px',
+                overflowX: 'auto'
+              }}>
+                {daysOfWeek.map(day => (
+                  <button
+                    key={day}
+                    onClick={() => setSelectedDay(day)}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      background: selectedDay === day ? 'linear-gradient(135deg, #7c3aed, #4f46e5)' : 'rgba(255,255,255,0.03)',
+                      border: '1px solid',
+                      borderColor: selectedDay === day ? '#7c3aed' : 'var(--border)',
+                      color: selectedDay === day ? 'white' : 'var(--text-secondary)',
+                      fontWeight: '600',
+                      textTransform: 'capitalize',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {day.slice(0, 3)}
+                  </button>
+                ))}
+              </div>
+
+              {/* Added Periods List */}
+              <div style={{ marginBottom: '24px' }}>
+                <h4 style={{ color: 'white', fontSize: '14px', marginBottom: '12px', textTransform: 'capitalize' }}>
+                  {selectedDay}'s Periods
+                </h4>
+                
+                {(!scheduleData[selectedDay] || scheduleData[selectedDay].length === 0) ? (
+                  <div style={{
+                    padding: '20px',
+                    textAlign: 'center',
+                    background: 'rgba(255, 255, 255, 0.01)',
+                    border: '1px dashed var(--border)',
+                    borderRadius: '12px',
+                    color: 'var(--text-muted)',
+                    fontSize: '13px'
+                  }}>
+                    No periods configured for {selectedDay} yet. Use the form below to add periods.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {scheduleData[selectedDay].map((p, idx) => (
+                      <div key={idx} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: 'rgba(124, 58, 237, 0.08)',
+                        border: '1px solid rgba(124, 58, 237, 0.2)',
+                        padding: '12px 16px',
+                        borderRadius: '10px',
+                        animation: 'fadeIn 0.2s ease'
+                      }}>
+                        <div>
+                          <strong style={{ color: 'white', fontSize: '14px' }}>
+                            Period {p.periodNumber}: {p.subject}
+                          </strong>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            Class {p.class}-{p.section} {p.room ? `• Room ${p.room}` : ''} • {p.duration} mins
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeletePeriod(selectedDay, idx)}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            borderRadius: '8px',
+                            color: '#f87171',
+                            padding: '6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#ef4444'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                        >
+                          <Trash2 size={14} style={{ color: 'white' }} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add Period Form */}
+              <form onSubmit={handleAddPeriod} style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid var(--border)',
+                borderRadius: '16px',
+                padding: '20px',
+                marginTop: '10px'
+              }}>
+                <h5 style={{ color: 'white', fontSize: '13px', margin: '0 0 16px 0' }}>Add Period to {selectedDay.toUpperCase()}</h5>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px' }}>PERIOD NUMBER</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={periodNum}
+                      onChange={(e) => setPeriodNum(e.target.value)}
+                      className="dashboard-input"
+                      placeholder="e.g. 1"
+                      style={{ width: '100%', padding: '8px 12px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px' }}>SUBJECT NAME</label>
+                    <input
+                      type="text"
+                      value={subjectName}
+                      onChange={(e) => setSubjectName(e.target.value)}
+                      className="dashboard-input"
+                      placeholder="e.g. Mathematics"
+                      style={{ width: '100%', padding: '8px 12px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px' }}>CLASS</label>
+                    <select
+                      value={selectedClass}
+                      onChange={(e) => {
+                        setSelectedClass(e.target.value);
+                        const cls = classes.find(c => c.name === e.target.value);
+                        if (cls && cls.sections && cls.sections.length > 0) {
+                          setSelectedSection(cls.sections[0]);
+                        } else {
+                          setSelectedSection('');
+                        }
+                      }}
+                      className="dashboard-input"
+                      style={{ width: '100%', padding: '8px 12px' }}
+                    >
+                      <option value="">Select Class</option>
+                      {classes.map(c => (
+                        <option key={c._id || c.name} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px' }}>SECTION</label>
+                    <select
+                      value={selectedSection}
+                      onChange={(e) => setSelectedSection(e.target.value)}
+                      className="dashboard-input"
+                      style={{ width: '100%', padding: '8px 12px' }}
+                      disabled={!selectedClass}
+                    >
+                      <option value="">Select Section</option>
+                      {(() => {
+                        const cls = classes.find(c => c.name === selectedClass);
+                        return cls?.sections?.map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        )) || null;
+                      })()}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px' }}>ROOM (OPTIONAL)</label>
+                    <input
+                      type="text"
+                      value={roomNumber}
+                      onChange={(e) => setRoomNumber(e.target.value)}
+                      className="dashboard-input"
+                      placeholder="e.g. 104"
+                      style={{ width: '100%', padding: '8px 12px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px' }}>DURATION (MINUTES)</label>
+                    <input
+                      type="number"
+                      min="5"
+                      max="120"
+                      value={periodDuration}
+                      onChange={(e) => setPeriodDuration(e.target.value)}
+                      className="dashboard-input"
+                      placeholder="45"
+                      style={{ width: '100%', padding: '8px 12px' }}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="dashboard-btn-primary"
+                  style={{ margin: 0, padding: '8px 16px', fontSize: '12px', float: 'right' }}
+                >
+                  ➕ Add Period
+                </button>
+                <div style={{ clear: 'both' }} />
+              </form>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Teacher, Validity, Save */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="glass-card" style={{ padding: '24px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: 'white', marginBottom: '20px' }}>Teacher Assignment</h3>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', marginBottom: '6px' }}>SELECT TEACHER</label>
+              <select
+                value={selectedTeacherId}
+                onChange={(e) => setSelectedTeacherId(e.target.value)}
+                className="dashboard-input"
+                style={{ width: '100%', padding: '10px' }}
+              >
+                <option value="">Choose Teacher...</option>
+                {teachers.map(t => (
+                  <option key={t._id} value={t._id}>{t.fullName}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ padding: '24px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: 'white', marginBottom: '20px' }}>Schedule Validity</h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  id="permanent-schedule"
+                  checked={isPermanent}
+                  onChange={(e) => setIsPermanent(e.target.checked)}
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    accentColor: '#7c3aed',
+                    cursor: 'pointer'
+                  }}
+                />
+                <label htmlFor="permanent-schedule" style={{ color: 'white', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+                  Permanent Schedule
+                </label>
+              </div>
+
+              {!isPermanent && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', animation: 'fadeIn 0.2s ease' }}>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px' }}>VALID FROM</label>
+                    <input
+                      type="date"
+                      value={validFrom}
+                      onChange={(e) => setValidFrom(e.target.value)}
+                      className="dashboard-input"
+                      style={{ width: '100%', padding: '8px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px' }}>VALID TO</label>
+                    <input
+                      type="date"
+                      value={validTo}
+                      onChange={(e) => setValidTo(e.target.value)}
+                      className="dashboard-input"
+                      style={{ width: '100%', padding: '8px' }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+              <button
+                onClick={handleSaveSchedule}
+                disabled={loading || !selectedTeacherId}
+                className="dashboard-btn-primary"
+                style={{ flex: 1, margin: 0, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                {loading ? 'Saving...' : (
+                  <>
+                    <Save size={16} /> Save Schedule & Notify
+                  </>
+                )}
+              </button>
+              
+              <button
+                onClick={() => resetScheduleState(true)}
+                className="btn-incident"
+                style={{ margin: 0, padding: '12px' }}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// -------------------------------------------------------------
+// SHARED SCHOOL CALENDAR MODULE (All Roles)
+// -------------------------------------------------------------
+export const SchoolCalendarModule = ({ user, canEdit }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [calendarEntries, setCalendarEntries] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // Mobile responsiveness
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isWeekStripView, setIsWeekStripView] = useState(false);
+  const [showBottomSheet, setShowBottomSheet] = useState(false);
+
+  // Filter dropdown
+  const [filterType, setFilterType] = useState('all');
+
+  // Add/Edit modal states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [modalEntryId, setModalEntryId] = useState('');
+  const [formDate, setFormDate] = useState('');
+  const [formDayType, setFormDayType] = useState('holiday');
+  const [formTitle, setFormTitle] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  const [formNotifyTarget, setFormNotifyTarget] = useState('everyone');
+  const [formOverridesSunday, setFormOverridesSunday] = useState(false);
+
+  // Swipe gesture support
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+
+  const schoolId = user?.school?._id || user?.school || '';
+
+  const dayTypes = [
+    { value: 'working', label: 'Working Day', color: '#FFFFFF' },
+    { value: 'sunday', label: 'Sunday Holiday', color: '#EF4444' },
+    { value: 'holiday', label: 'Holiday', color: '#EF4444' },
+    { value: 'celebration', label: 'Celebration Day', color: '#F59E0B' },
+    { value: 'exam', label: 'Exam Day', color: '#F97316' },
+    { value: 'half_day', label: 'Half Day', color: '#EAB308' },
+    { value: 'event', label: 'Event Day', color: '#3B82F6' }
+  ];
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    fetchMonthEntries();
+  }, [currentDate, schoolId]);
+
+  const fetchMonthEntries = async () => {
+    if (!schoolId) return;
+    try {
+      setLoading(true);
+      setError('');
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const res = await axios.get(`${API_URL}/calendar/${schoolId}/${year}-${month}`);
+      if (res.data.status === 'success') {
+        setCalendarEntries(res.data.entries || []);
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to fetch calendar entries.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrevMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const handleTouchStart = (e) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStart - touchEnd > 50) {
+      handleNextMonth();
+    }
+    if (touchStart - touchEnd < -50) {
+      handlePrevMonth();
+    }
+  };
+
+  const getEntryForDate = (date) => {
+    return calendarEntries.find(e => {
+      const entryDate = new Date(e.date);
+      return entryDate.getFullYear() === date.getFullYear() &&
+             entryDate.getMonth() === date.getMonth() &&
+             entryDate.getDate() === date.getDate();
+    });
+  };
+
+  const getDayTypeColor = (dayType) => {
+    const found = dayTypes.find(d => d.value === dayType);
+    return found ? found.color : '#FFFFFF';
+  };
+
+  const generateMonthCells = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const prevMonthTotalDays = new Date(year, month, 0).getDate();
+
+    const cells = [];
+
+    // Prev month padding
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      cells.push({
+        date: new Date(year, month - 1, prevMonthTotalDays - i),
+        isCurrentMonth: false
+      });
+    }
+
+    // Current month days
+    for (let i = 1; i <= totalDays; i++) {
+      cells.push({
+        date: new Date(year, month, i),
+        isCurrentMonth: true
+      });
+    }
+
+    // Next month padding to fill multiple of 7
+    const remaining = 42 - cells.length;
+    for (let i = 1; i <= remaining; i++) {
+      cells.push({
+        date: new Date(year, month + 1, i),
+        isCurrentMonth: false
+      });
+    }
+
+    return cells;
+  };
+
+  const generateWeekCells = () => {
+    const startOfWeek = new Date(selectedDate);
+    const day = startOfWeek.getDay();
+    startOfWeek.setDate(startOfWeek.getDate() - day); // go back to Sunday
+
+    const cells = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(d.getDate() + i);
+      cells.push({
+        date: d,
+        isCurrentMonth: d.getMonth() === currentDate.getMonth()
+      });
+    }
+    return cells;
+  };
+
+  const handleCellClick = (cellDate) => {
+    setSelectedDate(cellDate);
+    const entry = getEntryForDate(cellDate);
+    
+    if (isMobile) {
+      setShowBottomSheet(true);
+    } else if (canEdit) {
+      openFormModal(cellDate, entry);
+    } else if (entry) {
+      // Show detail view modal for read-only desktop users
+      openDetailModal(entry);
+    }
+  };
+
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailEntry, setDetailEntry] = useState(null);
+
+  const openDetailModal = (entry) => {
+    setDetailEntry(entry);
+    setShowDetailModal(true);
+  };
+
+  const openFormModal = (date, entry) => {
+    setError('');
+    setSuccess('');
+    setFormDate(date.toISOString().split('T')[0]);
+    if (entry) {
+      setModalEntryId(entry._id);
+      setFormDayType(entry.dayType);
+      setFormTitle(entry.title);
+      setFormDescription(entry.description || '');
+      setFormNotifyTarget(entry.notifyTarget || 'everyone');
+      setFormOverridesSunday(!!entry.overridesSunday);
+    } else {
+      setModalEntryId('');
+      setFormDayType(date.getDay() === 0 ? 'holiday' : 'holiday');
+      setFormTitle(date.getDay() === 0 ? 'Sunday Holiday' : '');
+      setFormDescription('');
+      setFormNotifyTarget(date.getDay() === 0 ? 'none' : 'everyone');
+      setFormOverridesSunday(false);
+    }
+    setShowAddModal(true);
+  };
+
+  const handleSaveEntry = async (e) => {
+    e.preventDefault();
+    if (!formTitle.trim()) {
+      setError('Please provide a title.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+
+      const payload = {
+        date: formDate,
+        dayType: formDayType,
+        title: formTitle.trim(),
+        description: formDescription.trim(),
+        notifyTarget: formNotifyTarget
+      };
+
+      let res;
+      // We always send to POST /api/calendar, which finds and updates/overrides
+      res = await axios.post(`${API_URL}/calendar`, payload);
+
+      if (res.data.status === 'success') {
+        setSuccess('Calendar entry saved successfully!');
+        fetchMonthEntries();
+        setTimeout(() => {
+          setShowAddModal(false);
+          setShowBottomSheet(false);
+        }, 1000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save calendar entry.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteEntry = async (entryId) => {
+    if (!entryId) return;
+    if (!window.confirm('Are you sure you want to delete/revert this entry?')) return;
+    try {
+      setLoading(true);
+      const res = await axios.delete(`${API_URL}/calendar/${entryId}`);
+      if (res.data.status === 'success') {
+        setSuccess(res.data.message || 'Entry deleted.');
+        fetchMonthEntries();
+        setTimeout(() => {
+          setShowAddModal(false);
+          setShowBottomSheet(false);
+        }, 1000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete entry.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cells = isWeekStripView && isMobile ? generateWeekCells() : generateMonthCells();
+  
+  // Format viewed title
+  const monthName = currentDate.toLocaleString('default', { month: 'long' });
+  const yearName = currentDate.getFullYear();
+
+  return (
+    <div className="glass-card" style={{ padding: isMobile ? '16px' : '24px', animation: 'fadeIn 0.3s ease' }}>
+      
+      {/* Calendar Header Controls */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '20px',
+        flexWrap: 'wrap',
+        gap: '15px'
+      }}>
+        <div>
+          <h2 style={{ fontSize: isMobile ? '18px' : '24px', fontWeight: '800', color: 'white', margin: 0 }}>
+            {monthName} {yearName}
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '4px 0 0 0' }}>
+            {isMobile ? 'Tap cell to see details' : 'Click a cell to manage events'}
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Filter dropdown */}
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="dashboard-input"
+            style={{ padding: '8px 12px', fontSize: '13px', width: 'auto', margin: 0 }}
+          >
+            <option value="all">All Days</option>
+            {dayTypes.map(d => (
+              <option key={d.value} value={d.value}>{d.label}</option>
+            ))}
+          </select>
+
+          <button onClick={handlePrevMonth} className="btn-incident" style={{ margin: 0, padding: '8px 12px' }}>◀</button>
+          <button onClick={() => setCurrentDate(new Date())} className="btn-incident" style={{ margin: 0, padding: '8px 12px', color: 'white', fontWeight: 'bold' }}>Today</button>
+          <button onClick={handleNextMonth} className="btn-incident" style={{ margin: 0, padding: '8px 12px' }}>▶</button>
+          
+          {isMobile && (
+            <button
+              onClick={() => setIsWeekStripView(!isWeekStripView)}
+              className="dashboard-btn-primary"
+              style={{ margin: 0, padding: '8px 12px', fontSize: '12px' }}
+            >
+              {isWeekStripView ? 'Month View' : 'Week View'}
+            </button>
+          )}
+
+          {canEdit && !isMobile && (
+            <button
+              onClick={() => openFormModal(new Date(), null)}
+              className="dashboard-btn-primary"
+              style={{ margin: 0, padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Plus size={16} /> Add Entry
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Calendar Grid Container */}
+      <div 
+        onTouchStart={isMobile ? handleTouchStart : undefined}
+        onTouchMove={isMobile ? handleTouchMove : undefined}
+        onTouchEnd={isMobile ? handleTouchEnd : undefined}
+        style={{
+          background: 'rgba(0,0,0,0.15)',
+          border: '1px solid var(--border)',
+          borderRadius: '16px',
+          overflow: 'hidden'
+        }}
+      >
+        {/* Days of Week Header */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          background: 'rgba(255,255,255,0.02)',
+          borderBottom: '1px solid var(--border)',
+          textAlign: 'center',
+          fontWeight: '700',
+          fontSize: '13px',
+          color: 'var(--text-secondary)',
+          padding: '12px 0'
+        }}>
+          <div>Sun</div>
+          <div>Mon</div>
+          <div>Tue</div>
+          <div>Wed</div>
+          <div>Thu</div>
+          <div>Fri</div>
+          <div>Sat</div>
+        </div>
+
+        {/* Cells Grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          gridAutoRows: isMobile ? '60px' : '100px'
+        }}>
+          {cells.map((cell, idx) => {
+            const entry = getEntryForDate(cell.date);
+            const isSunday = cell.date.getDay() === 0;
+            const dayType = entry ? entry.dayType : (isSunday ? 'sunday' : 'working');
+            
+            const cellColor = getDayTypeColor(dayType);
+            const isToday = new Date().toDateString() === cell.date.toDateString();
+            const isSelected = selectedDate.toDateString() === cell.date.toDateString();
+
+            // Handle filter match opacity
+            const isFilteredOut = filterType !== 'all' && dayType !== filterType;
+
+            return (
+              <div
+                key={idx}
+                onClick={() => handleCellClick(cell.date)}
+                style={{
+                  borderRight: (idx + 1) % 7 === 0 ? 'none' : '1px solid var(--border)',
+                  borderBottom: idx >= 35 ? 'none' : '1px solid var(--border)',
+                  padding: isMobile ? '6px' : '10px',
+                  background: isSelected 
+                    ? 'rgba(124, 58, 237, 0.15)' 
+                    : isToday 
+                      ? 'rgba(255,255,255,0.05)' 
+                      : 'transparent',
+                  opacity: isFilteredOut ? 0.25 : 1,
+                  cursor: 'pointer',
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  transition: 'all 0.2s ease',
+                  overflow: 'hidden'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected && !isToday) e.currentTarget.style.background = 'transparent';
+                  if (isToday && !isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                }}
+              >
+                {/* Date Label */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  width: '100%'
+                }}>
+                  <span style={{
+                    fontWeight: isToday || isSelected ? '700' : '500',
+                    color: !cell.isCurrentMonth 
+                      ? 'var(--text-muted)' 
+                      : isSunday 
+                        ? '#ef4444' 
+                        : 'white',
+                    fontSize: isMobile ? '12px' : '14px',
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: isToday ? '#7c3aed' : 'transparent',
+                    color: isToday ? 'white' : undefined
+                  }}>
+                    {cell.date.getDate()}
+                  </span>
+
+                  {/* Day Type Small Indicator */}
+                  {entry && !isMobile && (
+                    <span style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: cellColor
+                    }} />
+                  )}
+                </div>
+
+                {/* Desktop event details summary */}
+                {!isMobile && entry && (
+                  <div style={{
+                    fontSize: '11px',
+                    color: cellColor,
+                    backgroundColor: 'rgba(255,255,255,0.02)',
+                    border: `1px solid ${cellColor}33`,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    fontWeight: '600',
+                    marginTop: '4px'
+                  }}>
+                    {entry.title}
+                  </div>
+                )}
+
+                {/* Mobile color dots */}
+                {isMobile && entry && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '3px',
+                    width: '100%'
+                  }}>
+                    <span style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: cellColor
+                    }} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* MOBILE BOTTOM SHEET FOR EVENT DETAILS */}
+      {isMobile && showBottomSheet && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 1100,
+          animation: 'fadeIn 0.2s ease'
+        }} onClick={() => setShowBottomSheet(false)}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: '#0F0F23',
+              borderTop: '1px solid var(--border)',
+              borderRadius: '24px 24px 0 0',
+              padding: '24px 20px',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              boxShadow: '0 -10px 30px rgba(0,0,0,0.5)',
+              transform: 'translateY(0)',
+              transition: 'transform 0.3s ease-out'
+            }}
+          >
+            {/* Sheet Handle */}
+            <div style={{
+              width: '40px',
+              height: '4px',
+              background: 'var(--border)',
+              borderRadius: '2px',
+              margin: '0 auto 16px auto'
+            }} />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <h3 style={{ color: 'white', fontSize: '18px', fontWeight: 'bold', margin: 0 }}>
+                {selectedDate.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </h3>
+              <button 
+                onClick={() => setShowBottomSheet(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Event Description */}
+            <div style={{ marginTop: '20px' }}>
+              {(() => {
+                const entry = getEntryForDate(selectedDate);
+                const isSunday = selectedDate.getDay() === 0;
+                
+                if (entry) {
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span className={`badge`} style={{
+                          backgroundColor: `${getDayTypeColor(entry.dayType)}15`,
+                          border: `1px solid ${getDayTypeColor(entry.dayType)}44`,
+                          color: getDayTypeColor(entry.dayType),
+                          fontSize: '12px',
+                          padding: '4px 10px',
+                          textTransform: 'capitalize'
+                        }}>
+                          {entry.dayType.replace('_', ' ')}
+                        </span>
+                        {entry.overridesSunday && (
+                          <span className="badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: '11px' }}>
+                            Sunday Override
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <h4 style={{ color: 'white', fontSize: '16px', fontWeight: '700', margin: '0 0 6px 0' }}>
+                          {entry.title}
+                        </h4>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '1.6', margin: 0 }}>
+                          {entry.description || 'No description provided.'}
+                        </p>
+                      </div>
+
+                      {canEdit && (
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '10px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                          <button
+                            onClick={() => openFormModal(selectedDate, entry)}
+                            className="dashboard-btn-primary"
+                            style={{ flex: 1, margin: 0, padding: '10px' }}
+                          >
+                            Edit Entry
+                          </button>
+                          <button
+                            onClick={() => handleDeleteEntry(entry._id)}
+                            style={{
+                              flex: 1,
+                              background: 'rgba(239, 68, 68, 0.1)',
+                              border: '1px solid rgba(239, 68, 68, 0.2)',
+                              borderRadius: '8px',
+                              color: '#f87171',
+                              padding: '10px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                        {isSunday ? 'Sunday Holiday' : 'Normal Working Day.'}
+                      </p>
+                      {canEdit && (
+                        <button
+                          onClick={() => openFormModal(selectedDate, null)}
+                          className="dashboard-btn-primary"
+                          style={{ margin: '16px 0 0 0', width: '100%' }}
+                        >
+                          Add Event / Holiday
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* READ-ONLY DETAIL POPUP MODAL (DESKTOP) */}
+      {!isMobile && showDetailModal && detailEntry && (
+        <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, color: 'white' }}>Calendar Event Details</h3>
+              <button onClick={() => setShowDetailModal(false)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                {new Date(detailEntry.date).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span className="badge" style={{
+                  backgroundColor: `${getDayTypeColor(detailEntry.dayType)}15`,
+                  border: `1px solid ${getDayTypeColor(detailEntry.dayType)}44`,
+                  color: getDayTypeColor(detailEntry.dayType)
+                }}>
+                  {detailEntry.dayType.replace('_', ' ')}
+                </span>
+                {detailEntry.overridesSunday && (
+                  <span className="badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171' }}>
+                    Sunday Override
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <h4 style={{ color: 'white', fontSize: '16px', margin: '0 0 8px 0' }}>{detailEntry.title}</h4>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '1.5', margin: 0 }}>
+                  {detailEntry.description || 'No description provided.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD/EDIT ENTRY MODAL (DESKTOP / POPUP) */}
+      {showAddModal && (
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, color: 'white' }}>
+                {modalEntryId ? 'Edit Calendar Entry' : 'Add Calendar Entry'}
+              </h3>
+              <button 
+                onClick={() => setShowAddModal(false)}
+                style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: '18px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {error && <div className="error-banner" style={{ marginBottom: '16px' }}>{error}</div>}
+            {success && <div className="success-banner" style={{ marginBottom: '16px' }}>{success}</div>}
+
+            <form onSubmit={handleSaveEntry} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginBottom: '4px' }}>DATE</label>
+                <input
+                  type="date"
+                  value={formDate}
+                  onChange={(e) => setFormDate(e.target.value)}
+                  className="dashboard-input"
+                  style={{ width: '100%', padding: '10px' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginBottom: '4px' }}>DAY TYPE</label>
+                  <select
+                    value={formDayType}
+                    onChange={(e) => setFormDayType(e.target.value)}
+                    className="dashboard-input"
+                    style={{ width: '100%', padding: '10px' }}
+                  >
+                    {dayTypes.map(d => (
+                      <option key={d.value} value={d.value}>{d.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginBottom: '4px' }}>WHO TO NOTIFY</label>
+                  <select
+                    value={formNotifyTarget}
+                    onChange={(e) => setFormNotifyTarget(e.target.value)}
+                    className="dashboard-input"
+                    style={{ width: '100%', padding: '10px' }}
+                  >
+                    <option value="none">Nobody</option>
+                    <option value="everyone">Everyone</option>
+                    <option value="staff">Staff Only</option>
+                    <option value="parents">Parents Only</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginBottom: '4px' }}>TITLE</label>
+                <input
+                  type="text"
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  className="dashboard-input"
+                  placeholder="e.g. Annual Sports Day"
+                  style={{ width: '100%', padding: '10px' }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginBottom: '4px' }}>DESCRIPTION</label>
+                <textarea
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  className="dashboard-input"
+                  placeholder="Additional details about the event..."
+                  style={{ width: '100%', padding: '10px', minHeight: '80px', resize: 'vertical' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="dashboard-btn-primary"
+                  style={{ flex: 1, margin: 0, padding: '12px' }}
+                >
+                  {loading ? 'Saving...' : 'Save Entry'}
+                </button>
+                
+                {modalEntryId && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteEntry(modalEntryId)}
+                    className="logout-btn"
+                    style={{ flex: 1, margin: 0, padding: '12px', background: '#ef4444', borderColor: '#ef4444' }}
+                  >
+                    Delete Entry
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="btn-incident"
+                  style={{ margin: 0, padding: '12px' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 export const SuperAdminDashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -5549,6 +6893,7 @@ export const SuperAdminDashboard = () => {
     { id: 'students', label: 'Students Directory', icon: Users },
     { id: 'pre-students', label: 'Pre-Registration Directory', icon: GraduationCap },
     { id: 'attendance', label: 'School Attendance', icon: CheckSquare },
+    { id: 'calendar', label: 'School Calendar', icon: Calendar },
     { id: 'profile', label: 'My Profile', icon: User }
   ];
 
@@ -6728,6 +8073,9 @@ export const SuperAdminDashboard = () => {
         userRole="super_admin" 
         schools={schools} 
       />
+      {activeTab === 'calendar' && (
+        <SchoolCalendarModule user={user} canEdit={true} />
+      )}
       {activeTab === 'profile' && (
         <ProfileSettingsTab />
       )}
@@ -7185,6 +8533,8 @@ export const SchoolAdminDashboard = () => {
     { id: 'attendance', label: 'School Attendance', icon: CheckSquare },
     { id: 'manage-fees', label: 'Manage Fees', icon: DollarSign },
     { id: 'diaries', label: 'Class Diaries', icon: BookOpen },
+    { id: 'schedules', label: 'Schedules', icon: Clock },
+    { id: 'calendar', label: 'School Calendar', icon: Calendar },
     { id: 'pre-students', label: 'Student Directory', icon: GraduationCap },
     { id: 'staff-attendance', label: 'Staff Check-ins & WiFi', icon: CheckSquare },
     { id: 'profile', label: 'My Profile', icon: User }
@@ -7445,7 +8795,7 @@ export const SchoolAdminDashboard = () => {
       {activeTab === 'secret-codes' && (
         <div>
           {/* School specific registration codes */}
-          <div className="responsive-grid-2-1" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+          <div className="responsive-grid-2-1">
             <div>
               <h3 className="dashboard-form-title">Active Registration Codes</h3>
               <p style={{ fontSize: '14px', marginBottom: '16px', color: 'var(--text-secondary)' }}>
@@ -8101,6 +9451,12 @@ export const SchoolAdminDashboard = () => {
         onSubmit={handleBroadcastSubmit} 
         userRole="school_admin" 
       />
+      {activeTab === 'schedules' && (
+        <AdminSchedulesModule user={user} />
+      )}
+      {activeTab === 'calendar' && (
+        <SchoolCalendarModule user={user} canEdit={true} />
+      )}
       {activeTab === 'profile' && (
         <ProfileSettingsTab />
       )}
@@ -8650,6 +10006,8 @@ export const PrincipalDashboard = () => {
     { id: 'attendance', label: 'School Attendance', icon: CheckSquare },
     { id: 'performance', label: 'School Performance', icon: Award },
     { id: 'diaries', label: 'Class Diaries', icon: BookOpen },
+    { id: 'schedules', label: 'Schedules', icon: Clock },
+    { id: 'calendar', label: 'School Calendar', icon: Calendar },
     { id: 'fleet', label: 'School Bus Fleet', icon: Bus },
     { id: 'staff-attendance', label: 'Staff WiFi Attendance', icon: UserCheck },
     { id: 'pre-students', label: 'Student Directory', icon: GraduationCap },
@@ -8925,7 +10283,7 @@ export const PrincipalDashboard = () => {
       {activeTab === 'secret-codes' && (
         <div>
           {/* School specific registration codes */}
-          <div className="responsive-grid-2-1" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+          <div className="responsive-grid-2-1">
             <div>
               <h3 className="dashboard-form-title">Active Registration Codes</h3>
               <p style={{ fontSize: '14px', marginBottom: '16px', color: 'var(--text-secondary)' }}>
@@ -9601,6 +10959,12 @@ export const PrincipalDashboard = () => {
         onSubmit={handleBroadcastSubmit} 
         userRole="principal" 
       />
+      {activeTab === 'schedules' && (
+        <AdminSchedulesModule user={user} />
+      )}
+      {activeTab === 'calendar' && (
+        <SchoolCalendarModule user={user} canEdit={true} />
+      )}
       {activeTab === 'profile' && (
         <ProfileSettingsTab />
       )}
@@ -9629,6 +10993,14 @@ export const TeacherDashboard = () => {
   const [showReadStatus, setShowReadStatus] = useState(false);
   const [readStatusData, setReadStatusData] = useState({ totalCount: 0, readCount: 0, parents: [] });
   const [fetchingReadStatus, setFetchingReadStatus] = useState(false);
+
+  // Schedule States
+  const [todaySchedule, setTodaySchedule] = useState([]);
+  const [fullScheduleDoc, setFullScheduleDoc] = useState(null);
+  const [selectedScheduleDay, setSelectedScheduleDay] = useState(
+    new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+  );
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
 
   const fetchReadStatus = async (diaryId) => {
     const id = diaryId || todayDiary?._id;
@@ -9772,17 +11144,53 @@ export const TeacherDashboard = () => {
     }
   };
 
+  const fetchTodaySchedule = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/schedules/today/${user._id || user.id}`);
+      if (res.data.status === 'success') {
+        setTodaySchedule(res.data.periods || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch today schedule', err);
+    }
+  };
+
+  const fetchFullSchedule = async () => {
+    try {
+      setLoadingSchedule(true);
+      const res = await axios.get(`${API_URL}/schedules/teacher/${user._id || user.id}`);
+      if (res.data.status === 'success') {
+        setFullScheduleDoc(res.data.schedule || null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch full schedule', err);
+    } finally {
+      setLoadingSchedule(false);
+    }
+  };
+
   useEffect(() => {
     document.body.className = 'theme-teacher';
     fetchTodayDiary();
     fetchClassData();
+    fetchTodaySchedule();
 
     const interval = setInterval(() => {
       fetchTodayDiary(true);
       fetchClassData(true);
+      fetchTodaySchedule();
     }, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'my-schedule') {
+      fetchFullSchedule();
+    }
+    if (activeTab === 'attendance') {
+      fetchTodaySchedule();
+    }
+  }, [activeTab]);
 
   // Update attendance list when date or shift changes
   useEffect(() => {
@@ -9950,9 +11358,11 @@ export const TeacherDashboard = () => {
   const teacherTabs = [
     { id: 'diary', label: 'Class Diary', icon: BookOpen },
     { id: 'timetable', label: 'Class Timetable', icon: Calendar },
+    { id: 'my-schedule', label: 'My Schedule', icon: Clock },
     { id: 'attendance', label: 'Class Attendance', icon: CheckSquare },
     { id: 'marks', label: 'Exam Marks', icon: Award },
     { id: 'checkin', label: 'WiFi Attendance', icon: UserCheck },
+    { id: 'calendar', label: 'School Calendar', icon: Calendar },
     { id: 'profile', label: 'My Profile', icon: User }
   ];
 
@@ -10135,64 +11545,99 @@ export const TeacherDashboard = () => {
                       </p>
                     </div>
                     
-                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>PARENT READ STATUS</span>
-                      <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
-                        {readStatusData.readCount} of {readStatusData.totalCount} parent(s) read
-                      </p>
-
-                      {readStatusData.totalCount > 0 && (
-                        <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', marginBottom: '12px', overflow: 'hidden' }}>
-                          <div style={{ 
-                            width: `${(readStatusData.readCount / readStatusData.totalCount) * 100}%`, 
-                            height: '100%', 
-                            background: 'var(--accent)', 
-                            borderRadius: '3px' 
-                          }}></div>
-                        </div>
-                      )}
-
+                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '16px' }}>
+                      <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'white', marginBottom: '12px' }}>Parent Read Status</h4>
+                      
                       <button
                         type="button"
                         onClick={toggleReadStatus}
-                        className="code-action-btn"
-                        style={{ width: '100%', padding: '8px 12px', margin: 0, fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          color: 'white',
+                          fontWeight: '600',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          transition: 'background 0.2s ease, transform 0.1s ease',
+                          marginBottom: '10px'
+                        }}
                       >
-                        {showReadStatus ? 'Hide Parents List' : 'View Parents Who Read Diary'}
+                        {showReadStatus 
+                          ? '👁️ Hide who read diary' 
+                          : `👁️ View who read diary (${readStatusData.readCount}/${readStatusData.totalCount})`
+                        }
                       </button>
 
                       {showReadStatus && (
                         <div style={{ 
-                          marginTop: '12px', 
-                          background: 'rgba(0, 0, 0, 0.2)', 
-                          border: '1px solid var(--border)', 
-                          borderRadius: '6px', 
-                          padding: '10px', 
-                          maxHeight: '200px', 
-                          overflowY: 'auto',
-                          fontSize: '13px'
+                          marginTop: '12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '12px',
+                          animation: 'slideDown 0.3s ease-out forwards',
+                          overflow: 'hidden'
                         }}>
-                          {fetchingReadStatus ? (
-                            <p style={{ color: 'var(--text-muted)', textAlign: 'center', margin: 0 }}>Loading read status...</p>
-                          ) : readStatusData.parents.length === 0 ? (
-                            <p style={{ color: 'var(--text-muted)', textAlign: 'center', margin: 0 }}>No parents assigned to this class yet.</p>
-                          ) : (
-                            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              {readStatusData.parents.map((p) => (
-                                <li key={p.parentId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <span>{p.markedAsRead ? '✅' : '❌'}</span>
-                                    <span style={{ color: p.markedAsRead ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: p.markedAsRead ? '600' : 'normal' }}>
-                                      {p.fullName}
-                                    </span>
-                                  </span>
-                                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                    {p.markedAsRead ? `Read at ${new Date(p.readAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Not read yet'}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
+                          <style>{`
+                            @keyframes slideDown {
+                              from { max-height: 0; opacity: 0; }
+                              to { max-height: 400px; opacity: 1; }
+                            }
+                          `}</style>
+                          
+                          <div>
+                            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: '500' }}>
+                              {readStatusData.readCount} of {readStatusData.totalCount} parents read
+                            </p>
+                            {readStatusData.totalCount > 0 && (
+                              <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ 
+                                  width: `${(readStatusData.readCount / readStatusData.totalCount) * 100}%`, 
+                                  height: '100%', 
+                                  background: '#10B981', 
+                                  borderRadius: '4px',
+                                  transition: 'width 0.5s ease-out'
+                                }}></div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{
+                            maxHeight: '220px', 
+                            overflowY: 'auto',
+                            background: 'rgba(0,0,0,0.15)',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border)',
+                            padding: '12px'
+                          }}>
+                            {fetchingReadStatus ? (
+                              <p style={{ color: 'var(--text-muted)', textAlign: 'center', margin: 0, fontSize: '13px' }}>Loading read status...</p>
+                            ) : readStatusData.parents.length === 0 ? (
+                              <p style={{ color: 'var(--text-muted)', textAlign: 'center', margin: 0, fontSize: '13px' }}>No parents assigned to this class yet.</p>
+                            ) : (
+                              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {readStatusData.parents.map((p) => {
+                                  const timeStr = p.markedAsRead && p.readAt
+                                    ? new Date(p.readAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                    : 'Not read yet';
+                                  return (
+                                    <li key={p.parentId} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: p.markedAsRead ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                                      <span>{p.markedAsRead ? '✅' : '❌'}</span>
+                                      <span style={{ fontWeight: p.markedAsRead ? '600' : 'normal' }}>
+                                        {p.fullName} — {timeStr}
+                                      </span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -10266,130 +11711,212 @@ export const TeacherDashboard = () => {
             </div>
           </div>
 
-          {attendanceSubmitted && (
-            <div style={{
-              background: 'rgba(52, 211, 153, 0.1)',
-              border: '1px solid rgba(52, 211, 153, 0.3)',
-              padding: '14px',
-              borderRadius: '8px',
-              color: '#34d399',
-              fontSize: '14px',
-              fontWeight: '600',
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <CheckSquare size={18} />
-              <span>🔒 Attendance submitted for the {attendanceShift} Shift on {attendanceDate}. It cannot be edited.</span>
-            </div>
-          )}
+          {(() => {
+            const getFullDayPeriods = (periodsList) => {
+              const maxPeriod = periodsList && periodsList.length > 0
+                ? Math.max(6, ...periodsList.map(p => p.periodNumber))
+                : 6;
+              const fullList = [];
+              for (let i = 1; i <= maxPeriod; i++) {
+                const existing = periodsList ? periodsList.find(p => p.periodNumber === i) : null;
+                if (existing) {
+                  fullList.push(existing);
+                } else {
+                  fullList.push({
+                    periodNumber: i,
+                    subject: 'Free Period',
+                    class: '',
+                    section: '',
+                    room: '',
+                    duration: 45
+                  });
+                }
+              }
+              return fullList;
+            };
 
-          <form onSubmit={handleAttendanceSubmit}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-              {!user?.classAssigned || !user?.sectionAssigned ? (
-                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 24px', background: 'rgba(0,0,0,0.1)', borderRadius: '8px' }}>
-                  <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>You are currently not assigned as a class teacher.</p>
-                  <button 
-                    type="button"
-                    onClick={() => setActiveTab('timetable')} 
-                    className="code-action-btn"
-                    style={{ margin: '0 auto', display: 'block' }}
-                  >
-                    Go to Timetable to Request Assignment
+            return attendanceSubmitted ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '500px', margin: '0 auto 20px auto', width: '100%' }}>
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid #10B981',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  color: '#10B981',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  textAlign: 'center'
+                }}>
+                  ✅ Attendance Submitted!
+                </div>
+
+                <div className="glass-card" style={{ padding: '24px', border: '1px solid var(--border)' }}>
+                  <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
+                    <span>📅</span> Your Schedule Today
+                  </h4>
+                  {todaySchedule && todaySchedule.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {getFullDayPeriods(todaySchedule).map((p, idx) => {
+                        const isFree = p.subject.toLowerCase() === 'free period' || p.subject.toLowerCase() === 'free';
+                        return (
+                          <React.Fragment key={idx}>
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              background: isFree ? 'rgba(255, 255, 255, 0.02)' : 'rgba(124, 58, 237, 0.08)',
+                              border: '1px solid var(--border)',
+                              padding: '12px 16px',
+                              borderRadius: '8px'
+                            }}>
+                              <span style={{ fontWeight: '600', color: isFree ? 'var(--text-secondary)' : 'white', fontSize: '14px' }}>
+                                P{p.periodNumber}: {p.subject}
+                              </span>
+                              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                {isFree ? 'Free Period' : `Class ${p.class}${p.section}`}
+                              </span>
+                            </div>
+                            {p.periodNumber === 4 && (
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                padding: '10px',
+                                background: 'rgba(245, 158, 11, 0.1)',
+                                border: '1px dashed rgba(245, 158, 11, 0.3)',
+                                borderRadius: '8px',
+                                color: '#fbbf24',
+                                fontWeight: '600',
+                                margin: '4px 0'
+                              }}>
+                                <span>🍽️</span> Lunch Break
+                              </div>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                      <p style={{ fontWeight: 'bold', fontSize: '15px', color: 'white', marginBottom: '4px' }}>📅 No schedule assigned</p>
+                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Contact your principal</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleAttendanceSubmit}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+                  {!user?.classAssigned || !user?.sectionAssigned ? (
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 24px', background: 'rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+                      <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>You are currently not assigned as a class teacher.</p>
+                      <button 
+                        type="button"
+                        onClick={() => setActiveTab('timetable')} 
+                        className="code-action-btn"
+                        style={{ margin: '0 auto', display: 'block' }}
+                      >
+                        Go to Timetable to Request Assignment
+                      </button>
+                    </div>
+                  ) : attendanceList.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 24px', background: 'rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+                      No parents/students registered to your class.
+                    </div>
+                  ) : (
+                    attendanceList.map((student) => (
+                      <div
+                        key={student.studentId}
+                        className="glass-card"
+                        style={{
+                          padding: '14px 16px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: '15px',
+                          flexWrap: 'wrap',
+                          borderLeft: student.status === 'Present' ? '4px solid #10b981' : student.status === 'Absent' ? '4px solid #ef4444' : '4px solid var(--border)',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        <div style={{ flex: '1 1 200px', minWidth: '0' }}>
+                          <strong style={{ display: 'block', fontSize: '15px', color: 'white', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                            {student.fullName}
+                          </strong>
+                          <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                            {student.email}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          {/* Present Button */}
+                          <button
+                            type="button"
+                            disabled={attendanceSubmitted || loading}
+                            onClick={() => handleAttendanceChange(student.studentId, 'Present')}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 14px',
+                              borderRadius: '20px',
+                              border: '1px solid',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              cursor: attendanceSubmitted ? 'not-allowed' : 'pointer',
+                              transition: 'all 0.2s ease',
+                              background: student.status === 'Present' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                              borderColor: student.status === 'Present' ? '#10b981' : 'rgba(255,255,255,0.08)',
+                              color: student.status === 'Present' ? '#34d399' : 'var(--text-secondary)'
+                            }}
+                          >
+                            <CheckCircle size={14} style={{ opacity: student.status === 'Present' ? 1 : 0.4 }} />
+                            <span>Present</span>
+                          </button>
+
+                          {/* Absent Button */}
+                          <button
+                            type="button"
+                            disabled={attendanceSubmitted || loading}
+                            onClick={() => handleAttendanceChange(student.studentId, 'Absent')}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 14px',
+                              borderRadius: '20px',
+                              border: '1px solid',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              cursor: attendanceSubmitted ? 'not-allowed' : 'pointer',
+                              transition: 'all 0.2s ease',
+                              background: student.status === 'Absent' ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
+                              borderColor: student.status === 'Absent' ? '#ef4444' : 'rgba(255,255,255,0.08)',
+                              color: student.status === 'Absent' ? '#f87171' : 'var(--text-secondary)'
+                            }}
+                          >
+                            <X size={14} style={{ opacity: student.status === 'Absent' ? 1 : 0.4 }} />
+                            <span>Absent</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {attendanceList.length > 0 && !attendanceSubmitted && (
+                  <button type="submit" className="dashboard-btn-primary" disabled={loading} style={{ float: 'right' }}>
+                    {loading ? 'Saving Attendance...' : 'Submit Attendance Log'}
                   </button>
-                </div>
-              ) : attendanceList.length === 0 ? (
-                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 24px', background: 'rgba(0,0,0,0.1)', borderRadius: '8px' }}>
-                  No parents/students registered to your class.
-                </div>
-              ) : (
-                attendanceList.map((student) => (
-                  <div
-                    key={student.studentId}
-                    className="glass-card"
-                    style={{
-                      padding: '14px 16px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: '15px',
-                      flexWrap: 'wrap',
-                      borderLeft: student.status === 'Present' ? '4px solid #10b981' : student.status === 'Absent' ? '4px solid #ef4444' : '4px solid var(--border)',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    <div style={{ flex: '1 1 200px', minWidth: '0' }}>
-                      <strong style={{ display: 'block', fontSize: '15px', color: 'white', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                        {student.fullName}
-                      </strong>
-                      <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                        {student.email}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      {/* Present Button */}
-                      <button
-                        type="button"
-                        disabled={attendanceSubmitted || loading}
-                        onClick={() => handleAttendanceChange(student.studentId, 'Present')}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '6px 14px',
-                          borderRadius: '20px',
-                          border: '1px solid',
-                          fontSize: '13px',
-                          fontWeight: '600',
-                          cursor: attendanceSubmitted ? 'not-allowed' : 'pointer',
-                          transition: 'all 0.2s ease',
-                          background: student.status === 'Present' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-                          borderColor: student.status === 'Present' ? '#10b981' : 'rgba(255,255,255,0.08)',
-                          color: student.status === 'Present' ? '#34d399' : 'var(--text-secondary)'
-                        }}
-                      >
-                        <CheckCircle size={14} style={{ opacity: student.status === 'Present' ? 1 : 0.4 }} />
-                        <span>Present</span>
-                      </button>
-
-                      {/* Absent Button */}
-                      <button
-                        type="button"
-                        disabled={attendanceSubmitted || loading}
-                        onClick={() => handleAttendanceChange(student.studentId, 'Absent')}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '6px 14px',
-                          borderRadius: '20px',
-                          border: '1px solid',
-                          fontSize: '13px',
-                          fontWeight: '600',
-                          cursor: attendanceSubmitted ? 'not-allowed' : 'pointer',
-                          transition: 'all 0.2s ease',
-                          background: student.status === 'Absent' ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
-                          borderColor: student.status === 'Absent' ? '#ef4444' : 'rgba(255,255,255,0.08)',
-                          color: student.status === 'Absent' ? '#f87171' : 'var(--text-secondary)'
-                        }}
-                      >
-                        <X size={14} style={{ opacity: student.status === 'Absent' ? 1 : 0.4 }} />
-                        <span>Absent</span>
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            {attendanceList.length > 0 && !attendanceSubmitted && (
-              <button type="submit" className="dashboard-btn-primary" disabled={loading} style={{ float: 'right' }}>
-                {loading ? 'Saving Attendance...' : 'Submit Attendance Log'}
-              </button>
-            )}
-            <div style={{ clear: 'both' }}></div>
-          </form>
+                )}
+                <div style={{ clear: 'both' }}></div>
+              </form>
+            );
+          })()}
         </div>
       )}
 
@@ -10549,6 +12076,167 @@ export const TeacherDashboard = () => {
 
       {activeTab === 'timetable' && (
         <ClassTimetableModule />
+      )}
+
+      {activeTab === 'my-schedule' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="glass-card" style={{ padding: '24px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: 'white', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>📅</span> My Weekly Schedule
+            </h3>
+            
+            {/* Horizontal Day selection strip */}
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              borderBottom: '1px solid var(--border)',
+              paddingBottom: '12px',
+              marginBottom: '20px',
+              overflowX: 'auto',
+              whiteSpace: 'nowrap'
+            }}>
+              {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => {
+                const isToday = day === new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+                const isSelected = selectedScheduleDay === day;
+                return (
+                  <button
+                    key={day}
+                    onClick={() => setSelectedScheduleDay(day)}
+                    style={{
+                      padding: '10px 18px',
+                      borderRadius: '10px',
+                      background: isSelected 
+                        ? 'linear-gradient(135deg, #7c3aed, #4f46e5)' 
+                        : 'rgba(255,255,255,0.02)',
+                      border: '1px solid',
+                      borderColor: isSelected ? '#7c3aed' : 'var(--border)',
+                      color: isSelected ? 'white' : 'var(--text-secondary)',
+                      fontWeight: '600',
+                      textTransform: 'capitalize',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {day} {isToday && <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 6px', borderRadius: '4px' }}>Today</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {loadingSchedule ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>Loading schedule...</div>
+            ) : !fullScheduleDoc ? (
+              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <p style={{ fontWeight: 'bold', fontSize: '16px', color: 'white', marginBottom: '6px' }}>📅 No schedule assigned</p>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Contact your principal</p>
+              </div>
+            ) : (
+              <div>
+                {/* Validity Indicator */}
+                <div style={{
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '16px',
+                  background: 'rgba(255,255,255,0.02)',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  display: 'inline-block'
+                }}>
+                  {fullScheduleDoc.isPermanent ? 'Permanent Active Schedule' : `Valid from: ${new Date(fullScheduleDoc.validFrom).toLocaleDateString()} to ${new Date(fullScheduleDoc.validTo).toLocaleDateString()}`}
+                </div>
+
+                {/* Periods List */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {(() => {
+                    const dayPeriods = fullScheduleDoc.schedule?.[selectedScheduleDay] || [];
+                    const sortedDayPeriods = [...dayPeriods].sort((a,b) => a.periodNumber - b.periodNumber);
+                    const getFullDayPeriods = (periodsList) => {
+                      const maxPeriod = periodsList && periodsList.length > 0
+                        ? Math.max(6, ...periodsList.map(p => p.periodNumber))
+                        : 6;
+                      const fullList = [];
+                      for (let i = 1; i <= maxPeriod; i++) {
+                        const existing = periodsList ? periodsList.find(p => p.periodNumber === i) : null;
+                        if (existing) {
+                          fullList.push(existing);
+                        } else {
+                          fullList.push({
+                            periodNumber: i,
+                            subject: 'Free Period',
+                            class: '',
+                            section: '',
+                            room: '',
+                            duration: 45
+                          });
+                        }
+                      }
+                      return fullList;
+                    };
+                    
+                    const fullList = getFullDayPeriods(sortedDayPeriods);
+                    
+                    return fullList.map((p, idx) => {
+                      const isFree = p.subject.toLowerCase() === 'free period' || p.subject.toLowerCase() === 'free';
+                      return (
+                        <React.Fragment key={idx}>
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            background: isFree ? 'rgba(255, 255, 255, 0.01)' : 'rgba(124, 58, 237, 0.08)',
+                            border: '1px solid var(--border)',
+                            padding: '14px 18px',
+                            borderRadius: '10px'
+                          }}>
+                            <div>
+                              <span style={{ fontWeight: '600', color: isFree ? 'var(--text-secondary)' : 'white', fontSize: '15px' }}>
+                                Period {p.periodNumber}: {p.subject}
+                              </span>
+                              {!isFree && (
+                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                  Room: {p.room || 'N/A'} • Duration: {p.duration} mins
+                                </div>
+                              )}
+                            </div>
+                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>
+                              {isFree ? 'Free Period' : `Class ${p.class}${p.section}`}
+                            </span>
+                          </div>
+                          {p.periodNumber === 4 && (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px',
+                              padding: '10px',
+                              background: 'rgba(245, 158, 11, 0.1)',
+                              border: '1px dashed rgba(245, 158, 11, 0.3)',
+                              borderRadius: '8px',
+                              color: '#fbbf24',
+                              fontWeight: '600',
+                              margin: '4px 0'
+                            }}>
+                              <span>🍽️</span> Lunch Break
+                            </div>
+                          )}
+                        </React.Fragment>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'calendar' && (
+        <SchoolCalendarModule user={user} canEdit={false} />
       )}
 
       <LogoutConfirmationModal 
@@ -11642,6 +13330,35 @@ export const ParentDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showSuccessTick, setShowSuccessTick] = useState(false);
+  const [isPressingMarkRead, setIsPressingMarkRead] = useState(false);
+
+  // Banner States
+  const [parentCalendarEntries, setParentCalendarEntries] = useState([]);
+  const [fullTimetable, setFullTimetable] = useState([]);
+  const [bannerDismissed, setBannerDismissed] = useState(() => {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const dismissed = localStorage.getItem(`parent_banner_dismissed_${user?.id || user?._id}`);
+      return dismissed === todayStr;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const fetchParentCalendarForBanner = async () => {
+    if (!user?.school) return;
+    try {
+      const today = new Date();
+      const monthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      const res = await axios.get(`${API_URL}/calendar/${user.school}/${monthStr}`);
+      if (res.data.status === 'success') {
+        setParentCalendarEntries(res.data.entries || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // 1. Bus Tracking States
   const [busNumber, setBusNumber] = useState('');
@@ -11707,10 +13424,10 @@ export const ParentDashboard = () => {
       setLoading(true);
       setError('');
       setSuccess('');
-      const res = await axios.post(`${API_URL}/diaries/${diaryId}/read`);
+      const res = await axios.post(`${API_URL}/diaries/${diaryId}/mark-read`);
       if (res.data.status === 'success') {
-        setSuccess('Diary marked as read!');
-        setTimeout(() => setSuccess(''), 3000);
+        setShowSuccessTick(true);
+        setTimeout(() => setShowSuccessTick(false), 2000);
         // Refresh diary data
         fetchDiaryData();
       }
@@ -12121,6 +13838,7 @@ export const ParentDashboard = () => {
         params: { classId: user.classAssigned, section: user.sectionAssigned }
       });
       if (res.data.status === 'success' && res.data.timetable) {
+        setFullTimetable(res.data.timetable);
         const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
         const dayRecord = res.data.timetable.find(t => t.day === todayName);
         if (dayRecord && dayRecord.periods) {
@@ -12163,6 +13881,7 @@ export const ParentDashboard = () => {
       fetchMarks();
       fetchFee();
       fetchTodayTimetable();
+      fetchParentCalendarForBanner();
 
       // Check home location prompt
       const savedHome = localStorage.getItem(`parent_home_location_${user?.id || user?._id}`);
@@ -12181,6 +13900,7 @@ export const ParentDashboard = () => {
         fetchMarks();
         fetchFee();
         fetchTodayTimetable();
+        fetchParentCalendarForBanner();
       }
     }, 10000);
 
@@ -12573,6 +14293,7 @@ export const ParentDashboard = () => {
     { id: 'timetable', label: 'Class Timetable', icon: Calendar },
     { id: 'marks', label: 'Marks Report Card', icon: Award },
     { id: 'fees', label: 'Fee Statements', icon: DollarSign },
+    { id: 'calendar', label: 'School Calendar', icon: Calendar },
     { id: 'profile', label: 'My Profile', icon: User }
   ];
 
@@ -12592,6 +14313,282 @@ export const ParentDashboard = () => {
 
       {error && <div className="error-banner">{error}</div>}
       {success && <div className="success-banner">{success}</div>}
+
+      {/* Smart Dashboard Banner */}
+      {user?.approvalStatus !== 'pending' && !bannerDismissed && (() => {
+        const currentHour = new Date().getHours();
+        let bannerConfig = null;
+        
+        if (currentHour >= 5 && currentHour < 9) {
+          if (busNumber) {
+            bannerConfig = {
+              type: 'morning-bus',
+              emoji: '🚌',
+              title: `School Bus Approaching`,
+              desc: `Bus ${busNumber} is on the way. Tap to track live location.`,
+              actionText: 'Track Now →',
+              tab: 'bus',
+              background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+              borderColor: 'rgba(124, 58, 237, 0.4)',
+              textColor: 'white'
+            };
+          } else {
+            bannerConfig = {
+              type: 'morning-generic',
+              emoji: '🌅',
+              title: `Good Morning!`,
+              desc: `Have a great day ahead. Tap to view today's timetable.`,
+              actionText: 'View Schedule →',
+              tab: 'timetable',
+              background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+              borderColor: 'rgba(255, 255, 255, 0.08)',
+              textColor: '#a78bfa'
+            };
+          }
+        }
+        else if (currentHour >= 9 && currentHour < 12) {
+          const todayDateStr = new Date().toISOString().split('T')[0];
+          const todayRecord = attendanceRecords.find(r => new Date(r.date).toISOString().split('T')[0] === todayDateStr);
+          const isPresent = todayRecord ? (todayRecord.status === 'Present' || todayRecord.status === 'Late') : true;
+          const markedTime = todayRecord?.createdAt 
+            ? new Date(todayRecord.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+            : '8:45 AM';
+          const childName = linkedChild?.name || 'Your child';
+
+          if (isPresent) {
+            bannerConfig = {
+              type: 'midmorning-present',
+              emoji: '✅',
+              title: `${childName} is Present`,
+              desc: `Marked at ${markedTime}`,
+              actionText: 'View Attendance →',
+              tab: 'attendance',
+              background: 'rgba(16, 185, 129, 0.08)',
+              borderColor: 'rgba(16, 185, 129, 0.3)',
+              textColor: '#34d399'
+            };
+          } else {
+            bannerConfig = {
+              type: 'midmorning-absent',
+              emoji: '❌',
+              title: `${childName} is Absent`,
+              desc: `Contact school if wrong.`,
+              actionText: 'View Details →',
+              tab: 'attendance',
+              background: 'rgba(239, 68, 68, 0.08)',
+              borderColor: 'rgba(239, 68, 68, 0.3)',
+              textColor: '#f87171'
+            };
+          }
+        }
+        else if (currentHour >= 12 && currentHour < 17) {
+          const tomorrowStr = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          const tomorrowExam = parentCalendarEntries.find(e => {
+            const entryDateStr = new Date(e.date).toISOString().split('T')[0];
+            return entryDateStr === tomorrowStr && e.dayType === 'exam';
+          });
+
+          const hasFeeDue = feeDetails && feeDetails.pendingAmount > 0;
+          let feeDueDays = -1;
+          if (hasFeeDue && feeDetails.dueDate) {
+            const dueDate = new Date(feeDetails.dueDate);
+            const diffTime = dueDate - Date.now();
+            feeDueDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          }
+          const feeDueSoon = hasFeeDue && feeDueDays >= 0 && feeDueDays <= 3;
+
+          const tomorrowDayName = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long' });
+          const tomorrowRecord = fullTimetable.find(t => t.day === tomorrowDayName);
+          const tomorrowFirst = tomorrowRecord?.periods && tomorrowRecord.periods.length > 0 
+            ? [...tomorrowRecord.periods].sort((a,b) => (a.periodNumber || 1) - (b.periodNumber || 1))[0] 
+            : null;
+
+          if (tomorrowExam) {
+            bannerConfig = {
+              type: 'afternoon-exam',
+              emoji: '📝',
+              title: `Exam Tomorrow!`,
+              desc: `${tomorrowExam.title} - ${tomorrowExam.description || 'All Chapters'}`,
+              actionText: 'View Timetable →',
+              tab: 'timetable',
+              background: 'rgba(249, 115, 22, 0.08)',
+              borderColor: 'rgba(249, 115, 22, 0.3)',
+              textColor: '#fb923c'
+            };
+          } else if (feeDueSoon) {
+            bannerConfig = {
+              type: 'afternoon-fee',
+              emoji: '💰',
+              title: `Fee Due in ${feeDueDays} Days`,
+              desc: `Pending Amount: ₹${feeDetails.pendingAmount.toLocaleString()}`,
+              actionText: 'View Fee Details →',
+              tab: 'fees',
+              background: 'rgba(234, 179, 8, 0.08)',
+              borderColor: 'rgba(234, 179, 8, 0.3)',
+              textColor: '#facc15'
+            };
+          } else {
+            const subject = tomorrowFirst?.subject || 'Mathematics';
+            const startTime = tomorrowFirst?.time?.split('-')[0] || '8:00 AM';
+            bannerConfig = {
+              type: 'afternoon-default',
+              emoji: '📅',
+              title: `Tomorrow's First Period`,
+              desc: `${subject} - ${startTime}`,
+              actionText: 'Full Schedule →',
+              tab: 'timetable',
+              background: 'rgba(124, 58, 237, 0.08)',
+              borderColor: 'rgba(124, 58, 237, 0.2)',
+              textColor: '#a78bfa'
+            };
+          }
+        }
+        else if (currentHour >= 17 && currentHour < 21) {
+          if (todayDiary) {
+            const count = todayDiary.homework?.length || 0;
+            bannerConfig = {
+              type: 'evening-diary-ready',
+              emoji: '📔',
+              title: `Today's Diary is Ready`,
+              desc: `Homework: ${count} subjects assigned.`,
+              actionText: 'View Diary →',
+              tab: 'diary',
+              background: 'rgba(59, 130, 246, 0.08)',
+              borderColor: 'rgba(59, 130, 246, 0.3)',
+              textColor: '#60a5fa'
+            };
+          } else {
+            bannerConfig = {
+              type: 'evening-diary-none',
+              emoji: '📔',
+              title: `No Diary Yet Today`,
+              desc: `Check back later for updates.`,
+              actionText: '',
+              tab: 'diary',
+              background: 'rgba(156, 163, 175, 0.08)',
+              borderColor: 'rgba(156, 163, 175, 0.2)',
+              textColor: '#9ca3af'
+            };
+          }
+        }
+        else {
+          const tomorrowDayName = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long' });
+          const tomorrowRecord = fullTimetable.find(t => t.day === tomorrowDayName);
+          const tomorrowFirst = tomorrowRecord?.periods && tomorrowRecord.periods.length > 0 
+            ? [...tomorrowRecord.periods].sort((a,b) => (a.periodNumber || 1) - (b.periodNumber || 1))[0] 
+            : null;
+          const subject = tomorrowFirst?.subject || 'Mathematics';
+          const startTime = tomorrowFirst?.time?.split('-')[0] || '8:00 AM';
+          
+          bannerConfig = {
+            type: 'night-schedule',
+            emoji: '📅',
+            title: `Tomorrow's Schedule`,
+            desc: `First Period: ${subject} at ${startTime}`,
+            actionText: 'View Full Day →',
+            tab: 'timetable',
+            background: 'rgba(124, 58, 237, 0.15)',
+            borderColor: 'rgba(124, 58, 237, 0.3)',
+            textColor: '#a78bfa'
+          };
+        }
+
+        if (!bannerConfig) return null;
+
+        const handleBannerDismiss = (e) => {
+          e.stopPropagation();
+          const todayDateStr = new Date().toISOString().split('T')[0];
+          try {
+            localStorage.setItem(`parent_banner_dismissed_${user?.id || user?._id}`, todayDateStr);
+            setBannerDismissed(true);
+          } catch (err) {
+            console.error(err);
+          }
+        };
+
+        return (
+          <div 
+            onClick={() => setActiveTab(bannerConfig.tab)}
+            className="smart-banner-slide"
+            style={{
+              background: bannerConfig.background,
+              border: '1px solid',
+              borderColor: bannerConfig.borderColor,
+              borderRadius: '16px',
+              padding: '16px 20px',
+              marginBottom: '20px',
+              cursor: 'pointer',
+              position: 'relative',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+              transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '24px' }}>{bannerConfig.emoji}</span>
+              <div>
+                <h4 style={{ 
+                  color: 'white', 
+                  fontSize: '15px', 
+                  fontWeight: '700', 
+                  margin: '0 0 4px 0' 
+                }}>
+                  {bannerConfig.title}
+                </h4>
+                <p style={{ 
+                  color: 'var(--text-secondary)', 
+                  fontSize: '13px', 
+                  margin: 0,
+                  fontWeight: '500'
+                }}>
+                  {bannerConfig.desc}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              {bannerConfig.actionText && (
+                <span style={{ 
+                  color: bannerConfig.textColor, 
+                  fontSize: '13px', 
+                  fontWeight: '700',
+                  textDecoration: 'underline'
+                }}>
+                  {bannerConfig.actionText}
+                </span>
+              )}
+              
+              <button 
+                onClick={handleBannerDismiss}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '24px',
+                  height: '24px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '11px',
+                  transition: 'background 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Current Period Timetable Banner */}
       {user?.approvalStatus !== 'pending' && (
@@ -13099,7 +15096,38 @@ export const ParentDashboard = () => {
                     )}
 
                     {/* Mark as Read Button */}
-                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '10px' }}>
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '10px', position: 'relative' }}>
+                      <style>{`
+                        @keyframes popSuccess {
+                          0% { transform: scale(0.8); opacity: 0; }
+                          90% { transform: scale(1.05); opacity: 1; }
+                          100% { transform: scale(1); opacity: 1; }
+                        }
+                        @keyframes drawTick {
+                          0% { transform: scale(0.5) rotate(-5deg); opacity: 0; }
+                          70% { transform: scale(1.2) rotate(5deg); }
+                          100% { transform: scale(1) rotate(0deg); opacity: 1; }
+                        }
+                      `}</style>
+                      {showSuccessTick && (
+                        <div style={{
+                          position: 'absolute',
+                          top: 0, left: 0, right: 0, bottom: 0,
+                          background: 'rgba(16, 185, 129, 0.95)',
+                          borderRadius: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          animation: 'popSuccess 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                          zIndex: 10,
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '18px',
+                          border: '1px solid #10B981'
+                        }}>
+                          <span style={{ fontSize: '24px', marginRight: '8px', animation: 'drawTick 0.5s ease-out forwards' }}>✅</span> Success!
+                        </div>
+                      )}
                       {(() => {
                         const viewEntry = todayDiary.parentViews?.find(v => 
                           (v.parentId?._id || v.parentId || '').toString() === (user.id || user._id || '').toString()
@@ -13110,34 +15138,52 @@ export const ParentDashboard = () => {
                         return hasMarkedRead ? (
                           <div style={{ 
                             background: 'rgba(16, 185, 129, 0.1)', 
-                            border: '1px solid rgba(16, 185, 129, 0.3)', 
-                            padding: '14px', 
-                            borderRadius: '8px', 
-                            color: '#34d399', 
+                            border: '1px solid #10B981', 
+                            padding: '16px', 
+                            borderRadius: '12px', 
+                            color: '#10B981', 
                             textAlign: 'center', 
                             fontWeight: '600',
-                            fontSize: '14px' 
+                            fontSize: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            width: '100%'
                           }}>
-                            ✓ Marked as Read (Read at {new Date(readTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                            ✅ Read at {new Date(readTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>
                         ) : (
                           <button
                             type="button"
+                            onMouseDown={() => setIsPressingMarkRead(true)}
+                            onMouseUp={() => setIsPressingMarkRead(false)}
+                            onMouseLeave={() => setIsPressingMarkRead(false)}
+                            onTouchStart={() => setIsPressingMarkRead(true)}
+                            onTouchEnd={() => setIsPressingMarkRead(false)}
                             onClick={() => handleMarkAsRead(todayDiary._id)}
                             disabled={loading}
-                            className="dashboard-btn-primary"
                             style={{ 
                               width: '100%', 
                               margin: 0, 
-                              padding: '14px', 
-                              fontSize: '15px', 
-                              fontWeight: 'bold',
-                              background: 'var(--accent)', 
-                              borderColor: 'var(--accent)', 
-                              cursor: 'pointer' 
+                              padding: '16px', 
+                              fontSize: '16px', 
+                              fontWeight: '600',
+                              background: 'linear-gradient(135deg, #7C3AED 0%, #9333EA 100%)', 
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px',
+                              transform: isPressingMarkRead ? 'scale(0.96)' : 'scale(1)',
+                              transition: 'transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.15s ease',
+                              boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)'
                             }}
                           >
-                            {loading ? 'Marking...' : 'Mark as Read'}
+                            Mark as Read ✅
                           </button>
                         );
                       })()}
@@ -14168,6 +16214,9 @@ export const ParentDashboard = () => {
             </div>
           </div>
         </div>
+      )}
+      {activeTab === 'calendar' && (
+        <SchoolCalendarModule user={user} canEdit={false} />
       )}
       {activeTab === 'profile' && (
         <ProfileSettingsTab />

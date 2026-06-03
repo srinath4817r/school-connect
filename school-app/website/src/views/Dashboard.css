@@ -608,14 +608,22 @@
   }
   
   .dashboard-table td {
-    display: none !important; /* Collapsed by default */
-    padding: 8px 0 !important;
+    display: flex !important; /* Always flex so height transitions work */
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    padding: 0 !important;
+    max-height: 0 !important;
+    opacity: 0 !important;
+    overflow: hidden !important;
     border: none !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
     font-size: 13px !important;
     text-align: left !important;
     color: var(--text-secondary) !important;
     width: 100% !important;
+    transition: max-height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
+                opacity 0.3s ease,
+                padding 0.4s ease,
+                margin 0.4s ease !important;
   }
 
   .dashboard-table tr:hover td {
@@ -625,6 +633,9 @@
   /* Primary Info is always visible and stands out */
   .dashboard-table td:nth-child(1) {
     display: block !important;
+    max-height: none !important;
+    opacity: 1 !important;
+    overflow: visible !important;
     font-size: 16px !important;
     font-weight: 700 !important;
     color: white !important;
@@ -637,6 +648,9 @@
   /* Secondary key status is also visible on row 1 right next to title */
   .dashboard-table td:nth-child(2) {
     display: inline-block !important;
+    max-height: none !important;
+    opacity: 1 !important;
+    overflow: visible !important;
     width: auto !important;
     border-bottom: none !important;
     padding-top: 0 !important;
@@ -649,6 +663,26 @@
     display: flex !important;
     align-items: center !important;
     flex-wrap: wrap !important;
+    opacity: 1 !important;
+    max-height: 120px !important; /* Safe budget height for row expansion cells */
+    padding: 8px 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+  }
+
+  /* Keep first and second cell specific style adjustments when expanded */
+  .dashboard-table tr.row-expanded td:nth-child(1) {
+    display: block !important;
+    max-height: none !important;
+    border-bottom: none !important;
+    padding-top: 0 !important;
+    padding-bottom: 4px !important;
+  }
+  .dashboard-table tr.row-expanded td:nth-child(2) {
+    display: inline-block !important;
+    max-height: none !important;
+    border-bottom: none !important;
+    padding-top: 0 !important;
+    padding-bottom: 8px !important;
   }
 
   /* Insert labels using injected data-label attribute for details section */
@@ -662,6 +696,34 @@
     letter-spacing: 0.05em !important;
     display: inline-block !important;
     min-width: 100px !important;
+  }
+
+  /* Disable expansion details and pointer cursor for empty/placeholder rows containing a single td spanning columns */
+  .dashboard-table tr:has(td[colspan]),
+  .dashboard-table tr:has(td[colSpan]) {
+    cursor: default !important;
+    min-height: auto !important;
+    padding: 16px !important;
+  }
+  
+  .dashboard-table tr:has(td[colspan])::after,
+  .dashboard-table tr:has(td[colSpan])::after {
+    display: none !important;
+  }
+  
+  .dashboard-table tr:has(td[colspan]) td,
+  .dashboard-table tr:has(td[colSpan]) td {
+    display: block !important;
+    max-height: none !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+    text-align: center !important;
+    max-width: 100% !important;
+    font-size: 14px !important;
+    font-weight: normal !important;
+    color: var(--text-muted) !important;
+    padding: 0 !important;
+    border: none !important;
   }
 }
 
@@ -1164,6 +1226,37 @@
     opacity: 0;
   }
 }
+
+/* Smooth global transitions for interactive elements */
+button, 
+a, 
+input, 
+select, 
+textarea {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+/* Micro-press click feedback for buttons, links and nav tabs */
+button:active, 
+.dashboard-table tr:active {
+  transform: scale(0.96) !important;
+}
+
+@keyframes slideInFromTop {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.smart-banner-slide {
+  animation: slideInFromTop 0.4s ease-out forwards;
+}
+
 
 
 

@@ -5,6 +5,7 @@ const TempInviteCode = require('../models/TempInviteCode');
 const Class = require('../models/Class');
 const PreRegisteredStudent = require('../models/PreRegisteredStudent');
 const { uploadToCloudinary, deleteFromCloudinary, cloudinary } = require('../utils/cloudinary');
+const calendarController = require('./calendarController');
 
 // 1. Get Secret Codes
 // Super Admin gets all codes; School Admin gets Principal, Teacher, Parent codes.
@@ -125,6 +126,7 @@ exports.registerSchoolAdmin = async (req, res) => {
           phone: cleanedPhone
         });
         await school.save();
+        await calendarController.autoGenerateSundaysForSchool(school._id);
         finalSchoolId = school._id;
       }
     } else if (schoolId) {
@@ -205,6 +207,7 @@ exports.createSchool = async (req, res) => {
       phone: cleanedPhone
     });
     await school.save();
+    await calendarController.autoGenerateSundaysForSchool(school._id);
 
     res.status(201).json({ status: 'success', message: 'School created successfully', school });
   } catch (error) {

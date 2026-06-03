@@ -31,6 +31,10 @@ router.get('/class', authorize(['school_admin', 'principal']), diaryController.g
 // @desc    Mark a diary as read
 router.post('/:id/read', authorize('parent'), diaryController.markDiaryAsRead);
 
+// @route   POST /api/diaries/:id/mark-read
+// @desc    Mark a diary as read (explicit)
+router.post('/:id/mark-read', authorize('parent'), diaryController.markDiaryAsRead);
+
 // @route   GET /api/diaries/:id/read-status
 // @desc    Get parents read status list
 router.get('/:id/read-status', authorize(['teacher', 'school_admin', 'principal']), diaryController.getDiaryReadStatus);

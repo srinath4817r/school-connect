@@ -10,6 +10,7 @@ import Login from './views/Login';
 import Register from './views/Register';
 import ForgotPassword from './views/ForgotPassword';
 import ResetPassword from './views/ResetPassword';
+import DownloadPage from './views/DownloadPage';
 
 // Dashboards
 import {
@@ -58,6 +59,7 @@ function App() {
           <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
           <Route path="/reset-password/:token" element={<PublicRoute><ResetPassword /></PublicRoute>} />
+          <Route path="/download" element={<DownloadPage />} />
 
           {/* Protected Dashboard Routes */}
           <Route 

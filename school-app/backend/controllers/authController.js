@@ -9,6 +9,7 @@ const Class = require('../models/Class');
 const TempInviteCode = require('../models/TempInviteCode');
 const PreRegisteredStudent = require('../models/PreRegisteredStudent');
 const { uploadToCloudinary, deleteFromCloudinary, cloudinary } = require('../utils/cloudinary');
+const calendarController = require('./calendarController');
 
 // Helper to generate JWT Token
 const generateToken = (userId, role) => {
@@ -180,6 +181,7 @@ exports.register = async (req, res) => {
             phone: cleanedPhone
           });
           await newSchool.save();
+          await calendarController.autoGenerateSundaysForSchool(newSchool._id);
           finalSchoolId = newSchool._id;
         }
       } else if (req.body.schoolId) {
