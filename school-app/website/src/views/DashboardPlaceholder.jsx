@@ -1522,6 +1522,39 @@ const DashboardLayout = ({
   const [transitionTab, setTransitionTab] = useState(null);
   const [showDownloadPrompt, setShowDownloadPrompt] = useState(false);
 
+  const [toastMessage, setToastMessage] = useState(null);
+  const [toastType, setToastType] = useState('info');
+
+  useEffect(() => {
+    const originalAlert = window.alert;
+    window.alert = (msg) => {
+      let type = 'info';
+      const lowercaseMsg = String(msg).toLowerCase();
+      if (lowercaseMsg.includes('error') || lowercaseMsg.includes('failed') || lowercaseMsg.includes('invalid') || lowercaseMsg.includes('mismatch') || lowercaseMsg.includes('unable') || lowercaseMsg.includes('mismatch')) {
+        type = 'error';
+      } else if (lowercaseMsg.includes('success') || lowercaseMsg.includes('saved') || lowercaseMsg.includes('updated') || lowercaseMsg.includes('created') || lowercaseMsg.includes('verified') || lowercaseMsg.includes('sent') || lowercaseMsg.includes('approved') || lowercaseMsg.includes('accepted')) {
+        type = 'success';
+      } else if (lowercaseMsg.includes('warning') || lowercaseMsg.includes('caution') || lowercaseMsg.includes('attention') || lowercaseMsg.includes('notice') || lowercaseMsg.includes('required')) {
+        type = 'warning';
+      }
+      setToastType(type);
+      setToastMessage(msg);
+    };
+
+    return () => {
+      window.alert = originalAlert;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
   useEffect(() => {
     const hasDismissed = localStorage.getItem('appDownloadPromptDismissed');
     if (!hasDismissed) {
@@ -2018,6 +2051,14 @@ const DashboardLayout = ({
   return (
     <div className="h-screen bg-[#0F0F1A] text-white flex flex-col relative overflow-hidden">
       <style>{`
+        @keyframes slideInFromRight {
+          0% { transform: translateX(120%); opacity: 0; }
+          100% { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes toastProgress {
+          0% { width: 100%; }
+          100% { width: 0%; }
+        }
         @keyframes pulseGlow {
           0%, 100% { box-shadow: 0 0 15px rgba(168, 85, 247, 0.4); }
           50% { box-shadow: 0 0 30px rgba(168, 85, 247, 0.8); }
@@ -2375,19 +2416,33 @@ const DashboardLayout = ({
                   handleTabChange(tab.id, false);
                   setIsMoreOpen(false);
                 }}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all cursor-pointer ${
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all duration-300 cursor-pointer ${
                   isActive 
                     ? 'text-[var(--accent)] scale-105' 
                     : 'text-[#94A3B8] hover:text-white'
                 }`}
               >
-                <div style={{ position: 'relative', display: 'inline-flex' }}>
-                  <Icon size={20} className="mb-1 shrink-0" />
+                <div style={{ 
+                  position: 'relative', 
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '6px 14px',
+                  borderRadius: '16px',
+                  background: isActive ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  marginBottom: '2px'
+                }}>
+                  <Icon size={18} style={{ 
+                    transform: isActive ? 'scale(1.15)' : 'scale(1)',
+                    transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    color: isActive ? '#a855f7' : 'inherit'
+                  }} />
                   {tab.badge && (
                     <span style={{
                       position: 'absolute',
-                      top: '-4px',
-                      right: '-8px',
+                      top: '-2px',
+                      right: '-4px',
                       background: 'var(--danger)',
                       color: 'white',
                       fontSize: '9px',
@@ -2412,19 +2467,33 @@ const DashboardLayout = ({
           {tabs.length > 5 && (
             <button
               onClick={() => setIsMoreOpen(!isMoreOpen)}
-              className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all cursor-pointer ${
+              className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all duration-300 cursor-pointer ${
                 isMoreOpen
                   ? 'text-[var(--accent)] scale-105' 
                   : 'text-[#94A3B8] hover:text-white'
               }`}
             >
-              <div style={{ position: 'relative', display: 'inline-flex' }}>
-                <MoreHorizontal size={20} className="mb-1 shrink-0" />
+              <div style={{ 
+                position: 'relative', 
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px 14px',
+                borderRadius: '16px',
+                background: isMoreOpen ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
+                transition: 'all 0.3s ease',
+                marginBottom: '2px'
+              }}>
+                <MoreHorizontal size={18} style={{
+                  transform: isMoreOpen ? 'scale(1.15)' : 'scale(1)',
+                  transition: 'transform 0.3s ease',
+                  color: isMoreOpen ? '#a855f7' : 'inherit'
+                }} />
                 {hiddenMobileTabs.some(t => t.badge) && (
                   <span style={{
                     position: 'absolute',
-                    top: '-4px',
-                    right: '-8px',
+                    top: '-2px',
+                    right: '-4px',
                     background: 'var(--danger)',
                     color: 'white',
                     fontSize: '9px',
@@ -2480,61 +2549,148 @@ const DashboardLayout = ({
             </div>
 
             {/* Active Tab Dropdown in Desktop Header */}
-            <div className="relative">
-              <button 
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-2.5 px-5 py-2.5 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-full text-white text-sm font-semibold transition-all cursor-pointer shadow-lg"
-              >
-                {ActiveTabIcon && <ActiveTabIcon size={16} className="text-[var(--accent)] shrink-0" />}
-                <span>{activeTabLabel}</span>
-                <span className={`text-[10px] text-white/60 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} style={{ display: 'inline-block' }}>
-                  ▼
-                </span>
-              </button>
-
-              {isDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
-                  <div 
-                    className="absolute left-1/2 -translate-x-1/2 mt-2 w-[220px] bg-[#141425]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] z-50 py-1 overflow-hidden"
-                    style={{ top: '100%' }}
+            {/* Desktop Horizontal Navigation Tab Bar */}
+            <div className="desktop-tab-bar" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', margin: '0 20px', flex: 1, maxWidth: 'calc(100% - 400px)' }}>
+              {displayDesktopTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabChange(tab.id, false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 16px',
+                      borderRadius: '20px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      border: isActive ? '1px solid rgba(168, 85, 247, 0.4)' : '1px solid rgba(255, 255, 255, 0.05)',
+                      background: isActive ? 'linear-gradient(135deg, #7c3aed, #4f46e5)' : 'rgba(255,255,255,0.02)',
+                      color: isActive ? 'white' : '#94A3B8',
+                      boxShadow: isActive ? '0 4px 15px rgba(124, 58, 237, 0.3)' : 'none',
+                      transition: 'all 0.2s ease',
+                      outline: 'none'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.color = 'white';
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.color = '#94A3B8';
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+                      }
+                    }}
                   >
-                    {tabs.map((tab) => {
-                      const Icon = tab.icon;
-                      const isActive = activeTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          onClick={() => {
-                            handleTabChange(tab.id, false);
-                            setIsDropdownOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-left text-xs font-semibold transition-all cursor-pointer border-l-2 ${
-                            isActive 
-                              ? 'bg-purple-500/10 text-white border-purple-500' 
-                              : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.02] border-transparent'
-                          }`}
-                        >
-                          <Icon size={14} className="shrink-0" />
-                          <span style={{ flex: 1 }}>{tab.label}</span>
-                          {tab.badge && (
-                            <span style={{
-                              background: 'var(--danger)',
-                              color: 'white',
-                              fontSize: '9px',
-                              fontWeight: 'bold',
-                              borderRadius: '10px',
-                              padding: '2px 6px',
-                              lineHeight: 1
-                            }}>
-                              {tab.badge}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
+                    <Icon size={14} style={{ color: isActive ? 'white' : '#a855f7' }} />
+                    <span>{tab.label}</span>
+                    {tab.badge && (
+                      <span style={{
+                        background: 'var(--danger)',
+                        color: 'white',
+                        fontSize: '9px',
+                        fontWeight: 'bold',
+                        borderRadius: '10px',
+                        padding: '1px 5px',
+                        lineHeight: 1
+                      }}>
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              
+              {/* More Desktop Options Dropdown */}
+              {hiddenDesktopTabs.length > 0 && (
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsDesktopMoreOpen(!isDesktopMoreOpen)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      borderRadius: '20px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      border: isCurrentTabHidden ? '1px solid rgba(168, 85, 247, 0.4)' : '1px solid rgba(255, 255, 255, 0.05)',
+                      background: isCurrentTabHidden ? 'linear-gradient(135deg, #7c3aed, #4f46e5)' : 'rgba(255,255,255,0.02)',
+                      color: isCurrentTabHidden ? 'white' : '#94A3B8',
+                      boxShadow: isCurrentTabHidden ? '0 4px 15px rgba(124, 58, 237, 0.3)' : 'none',
+                      transition: 'all 0.2s ease',
+                      outline: 'none'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isCurrentTabHidden) {
+                        e.currentTarget.style.color = 'white';
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isCurrentTabHidden) {
+                        e.currentTarget.style.color = '#94A3B8';
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                      }
+                    }}
+                  >
+                    <span>More</span>
+                    <span style={{ fontSize: '9px', transform: isDesktopMoreOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+                  </button>
+                  
+                  {isDesktopMoreOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsDesktopMoreOpen(false)} />
+                      <div 
+                        className="absolute right-0 mt-2 w-[200px] bg-[#141425]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-50 py-1 overflow-hidden"
+                        style={{ top: '100%' }}
+                      >
+                        {hiddenDesktopTabs.map((tab) => {
+                          const Icon = tab.icon;
+                          const isActive = activeTab === tab.id;
+                          return (
+                            <button
+                              key={tab.id}
+                              onClick={() => {
+                                handleTabChange(tab.id, false);
+                                setIsDesktopMoreOpen(false);
+                              }}
+                              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-xs font-semibold transition-all cursor-pointer border-l-2 ${
+                                isActive 
+                                  ? 'bg-purple-500/10 text-white border-purple-500' 
+                                  : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.02] border-transparent'
+                              }`}
+                            >
+                              <Icon size={12} style={{ color: '#a855f7' }} />
+                              <span style={{ flex: 1 }}>{tab.label}</span>
+                              {tab.badge && (
+                                <span style={{
+                                  background: 'var(--danger)',
+                                  color: 'white',
+                                  fontSize: '9px',
+                                  fontWeight: 'bold',
+                                  borderRadius: '10px',
+                                  padding: '1px 5px',
+                                  lineHeight: 1
+                                }}>
+                                  {tab.badge}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
 
@@ -2942,6 +3098,92 @@ const DashboardLayout = ({
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 99999,
+          background: 'rgba(20, 20, 37, 0.95)',
+          backdropFilter: 'blur(16px)',
+          border: toastType === 'error' ? '1px solid rgba(239, 68, 68, 0.3)' :
+                  toastType === 'success' ? '1px solid rgba(16, 185, 129, 0.3)' :
+                  toastType === 'warning' ? '1px solid rgba(245, 158, 11, 0.3)' :
+                  '1px solid rgba(168, 85, 247, 0.3)',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+          padding: '16px 20px',
+          borderRadius: '16px',
+          display: 'flex',
+          gap: '12px',
+          alignItems: 'flex-start',
+          maxWidth: '380px',
+          width: 'calc(100vw - 40px)',
+          animation: 'slideInFromRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        }}>
+          <div style={{
+            fontSize: '20px',
+            lineHeight: '1',
+            marginTop: '2px'
+          }}>
+            {toastType === 'error' ? '❌' :
+             toastType === 'success' ? '✅' :
+             toastType === 'warning' ? '⚠️' :
+             'ℹ️'}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h4 style={{
+              margin: '0 0 4px 0',
+              fontSize: '14px',
+              fontWeight: '700',
+              color: 'white',
+              textTransform: 'capitalize',
+              fontFamily: 'system-ui'
+            }}>
+              {toastType}
+            </h4>
+            <p style={{
+              margin: 0,
+              fontSize: '12px',
+              color: '#94A3B8',
+              lineHeight: '1.5',
+              whiteSpace: 'pre-line',
+              wordBreak: 'break-word',
+              fontFamily: 'system-ui'
+            }}>
+              {toastMessage}
+            </p>
+          </div>
+          <button 
+            onClick={() => setToastMessage(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'rgba(255,255,255,0.4)',
+              cursor: 'pointer',
+              padding: '2px',
+              fontSize: '18px',
+              lineHeight: '1',
+              transition: 'color 0.2s',
+              outline: 'none'
+            }}
+          >
+            &times;
+          </button>
+          
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            height: '3px',
+            background: toastType === 'error' ? '#ef4444' :
+                        toastType === 'success' ? '#10b981' :
+                        toastType === 'warning' ? '#f59e0b' :
+                        '#a855f7',
+            borderRadius: '0 0 0 16px',
+            animation: 'toastProgress 5s linear forwards'
+          }} />
         </div>
       )}
     </div>
@@ -3679,6 +3921,7 @@ const StudentDirectoryModule = ({ defaultSchoolId = null }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedStudentId, setExpandedStudentId] = useState(null);
   const [manualForm, setManualForm] = useState({
     name: '',
     admissionNumber: '',
@@ -4097,7 +4340,15 @@ const StudentDirectoryModule = ({ defaultSchoolId = null }) => {
                 </thead>
                 <tbody>
                   {filteredStudents.map((stud) => (
-                    <tr key={stud._id}>
+                    <tr 
+                      key={stud._id}
+                      className={expandedStudentId === stud._id ? 'row-expanded' : ''}
+                      onClick={() => {
+                        if (window.innerWidth <= 768) {
+                          setExpandedStudentId(expandedStudentId === stud._id ? null : stud._id);
+                        }
+                      }}
+                    >
                       <td style={{ fontWeight: '500' }}>{stud.name}</td>
                       <td>{stud.admissionNumber}</td>
                       <td>{stud.className}</td>
@@ -4115,7 +4366,10 @@ const StudentDirectoryModule = ({ defaultSchoolId = null }) => {
                       <td style={{ textAlign: 'center' }}>
                         <button
                           type="button"
-                          onClick={() => handleDelete(stud._id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(stud._id);
+                          }}
                           style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '6px' }}
                           title="Delete Student"
                         >
