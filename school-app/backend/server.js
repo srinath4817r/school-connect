@@ -104,7 +104,7 @@ const startServer = async () => {
       console.log('No schools found in database. Initializing default school and classes...');
       const defaultSchool = new School({
         name: 'Greenwood High School',
-        address: '123 School Lane, Bangalore',
+        address: '123 School Lane, Hyderabad',
         phone: '9876543210',
         isActive: true
       });

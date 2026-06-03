@@ -12781,8 +12781,8 @@ export const DriverDashboard = () => {
         },
         (err) => {
           alert("Error: Location access is required. Fallback to standard mock location.");
-          const defaultLoc = { lat: 12.9716, lng: 77.5946 }; // Default Bangalore
-          setStartLocation("12.9716, 77.5946");
+          const defaultLoc = { lat: 17.3850, lng: 78.4867 }; // Default Hyderabad
+          setStartLocation("17.3850, 78.4867");
           setCurrentLocation(defaultLoc);
           setTravelPath([defaultLoc]);
 
@@ -13985,8 +13985,8 @@ export const ParentDashboard = () => {
             }
           }
           
-          // If no history exists, use a default placeholder centered around parentLocation or Bangalore
-          const defaultLoc = parentLocation || { lat: 12.9716, lng: 77.5946 };
+          // If no history exists, use a default placeholder centered around parentLocation or Hyderabad
+          const defaultLoc = parentLocation || { lat: 17.3850, lng: 78.4867 };
           setTripData(prev => {
             if (prev && prev.isPlaceholder && prev.currentCoords?.lat === defaultLoc.lat && prev.currentCoords?.lng === defaultLoc.lng) {
               return prev;

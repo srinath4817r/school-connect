@@ -400,38 +400,7 @@ const Landing = () => {
             </div>
             <span className="logo-text" style={{ color: '#0f172a', fontWeight: '800', fontSize: '20px', letterSpacing: '-0.5px' }}>School Connect</span>
           </div>
-          
-          <div className="nav-buttons desktop-only" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <Link to="/login" className="btn btn-secondary" style={{ borderRadius: '20px', padding: '8px 20px' }}>Login</Link>
-            <button onClick={() => setShowContactModal(true)} className="btn btn-primary" style={{ borderRadius: '20px', padding: '8px 20px' }}>Register School</button>
-          </div>
-
-          <button 
-            className="mobile-nav-toggle"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
         </header>
-
-        {/* Mobile Navigation Dropdown Menu */}
-        {mobileMenuOpen && (
-          <div className="mobile-nav-menu" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <Link 
-              to="/login" 
-              className="btn btn-secondary mobile-menu-btn"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Login
-            </Link>
-            <button 
-              onClick={() => { setShowContactModal(true); setMobileMenuOpen(false); }} 
-              className="btn btn-primary mobile-menu-btn"
-            >
-              Register School
-            </button>
-          </div>
-        )}
 
         {/* Hero Section */}
         <section className="hero-section">
@@ -655,7 +624,7 @@ const Landing = () => {
               <ul className="footer-links">
                 <li>📞 Phone: <a href="tel:9346022857" style={{ color: 'inherit', textDecoration: 'none' }}>+91 93460 22857</a></li>
                 <li>📧 Email: <a href="mailto:thinkerslab001@gmail.com" style={{ color: 'inherit', textDecoration: 'none' }}>thinkerslab001@gmail.com</a></li>
-                <li>🏢 Head Office: Bangalore, India</li>
+                <li>🏢 Head Office: Hyderabad, India</li>
               </ul>
             </div>
           </div>
@@ -699,7 +668,7 @@ const Landing = () => {
                   <span className="contact-icon">🏢</span>
                   <div>
                     <h4>Head Office</h4>
-                    <p className="contact-detail">Bangalore, Karnataka, India</p>
+                    <p className="contact-detail">Hyderabad, Telangana, India</p>
                   </div>
                 </div>
               </div>

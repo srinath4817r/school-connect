@@ -59,7 +59,7 @@ const clearAndResetDatabase = async () => {
     console.log('Seeding default school and classes...');
     const defaultSchool = new School({
       name: 'Greenwood High School',
-      address: '123 School Lane, Bangalore',
+      address: '123 School Lane, Hyderabad',
       phone: '9876543210',
       isActive: true
     });
