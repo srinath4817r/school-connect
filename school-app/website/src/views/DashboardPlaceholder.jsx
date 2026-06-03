@@ -2059,6 +2059,11 @@ const DashboardLayout = ({
           0% { width: 100%; }
           100% { width: 0%; }
         }
+        @media (max-width: 1024px) {
+          .dashboard-scroll-container {
+            padding-bottom: 110px !important;
+          }
+        }
         @keyframes pulseGlow {
           0%, 100% { box-shadow: 0 0 15px rgba(168, 85, 247, 0.4); }
           50% { box-shadow: 0 0 30px rgba(168, 85, 247, 0.8); }
@@ -2736,7 +2741,7 @@ const DashboardLayout = ({
           </header>
 
           <div 
-            className="flex-1 p-4 lg:p-8 pb-[80px] lg:pb-8 overflow-y-auto w-full max-w-full min-w-0 min-h-0"
+            className="flex-1 p-4 lg:p-8 pb-[80px] lg:pb-8 overflow-y-auto w-full max-w-full min-w-0 min-h-0 dashboard-scroll-container"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
