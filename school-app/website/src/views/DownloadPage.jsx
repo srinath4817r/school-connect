@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowDown, Check, Settings, ShieldAlert, Smartphone, ArrowRight, Home, Monitor, QrCode } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ArrowDown, Check, Settings, ShieldAlert, Smartphone, ArrowRight, Home, Monitor, QrCode, School, X } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 const DownloadPage = () => {
   const [deviceType, setDeviceType] = useState('desktop'); // 'desktop', 'android', 'ios'
+  const [showContactModal, setShowContactModal] = useState(false);
+  const navigate = useNavigate();
+
+  const isNativeApp = /SchoolConnectApp/i.test(navigator.userAgent);
+
+  useEffect(() => {
+    if (isNativeApp) {
+      navigate('/login', { replace: true });
+    }
+  }, [isNativeApp, navigate]);
 
   useEffect(() => {
     const ua = navigator.userAgent;
@@ -26,6 +36,33 @@ const DownloadPage = () => {
       setDeviceType('desktop');
     }
   }, []);
+
+  if (isNativeApp) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#0A0A1B',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          borderRadius: '50%',
+          border: '3px solid rgba(124, 58, 237, 0.1)',
+          borderTopColor: '#7c3aed',
+          animation: 'spin 1s linear infinite'
+        }} />
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -56,37 +93,6 @@ const DownloadPage = () => {
         zIndex: 0,
         pointerEvents: 'none'
       }} />
-
-      {/* Home link */}
-      <Link to="/" style={{
-        position: 'absolute',
-        top: '30px',
-        left: '30px',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '8px',
-        color: '#a78bfa',
-        textDecoration: 'none',
-        fontSize: '14px',
-        fontWeight: '600',
-        padding: '8px 18px',
-        background: 'rgba(255, 255, 255, 0.03)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: '30px',
-        zIndex: 10,
-        transition: 'all 0.3s ease'
-      }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(124, 58, 237, 0.15)';
-          e.currentTarget.style.borderColor = 'rgba(124, 58, 237, 0.3)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-        }}
-      >
-        <Home size={16} /> Home
-      </Link>
 
       <div className="glass-card" style={{
         width: '100%',
@@ -127,6 +133,7 @@ const DownloadPage = () => {
         }}>
           School Connect
         </h1>
+        
         <p style={{
           fontSize: '13px',
           color: '#a78bfa',
@@ -140,6 +147,63 @@ const DownloadPage = () => {
           Version 1.0.1
         </p>
 
+        {/* Portal Entry Actions */}
+        <div style={{
+          display: 'flex',
+          gap: '12px',
+          justifyContent: 'center',
+          flexWrap: 'wrap',
+          marginBottom: '32px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          paddingBottom: '24px'
+        }}>
+          <Link to="/login" style={{
+            textDecoration: 'none',
+            background: 'linear-gradient(135deg, #7c3aed, #3b82f6)',
+            color: 'white',
+            borderRadius: '24px',
+            padding: '12px 28px',
+            fontWeight: '700',
+            fontSize: '14px',
+            boxShadow: '0 4px 15px rgba(124, 58, 237, 0.3)',
+            transition: 'all 0.2s ease',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            🔑 Login to Portal
+          </Link>
+          
+          <button onClick={() => setShowContactModal(true)} style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '24px',
+            padding: '12px 28px',
+            fontWeight: '600',
+            fontSize: '14px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            🏫 Register School
+          </button>
+        </div>
+
         {/* DEVICE DETECTION HEADER STATUS */}
         <div style={{
           display: 'flex',
@@ -147,12 +211,12 @@ const DownloadPage = () => {
           justifyContent: 'center',
           gap: '8px',
           fontSize: '13px',
-          color: 'var(--text-secondary)',
+          color: '#a0aec0',
           background: 'rgba(255, 255, 255, 0.02)',
           padding: '10px',
           borderRadius: '12px',
           marginBottom: '24px',
-          border: '1px solid var(--border)'
+          border: '1px solid rgba(255, 255, 255, 0.05)'
         }}>
           {deviceType === 'desktop' && (
             <>
@@ -208,7 +272,7 @@ const DownloadPage = () => {
                 ⬇️ Install APK Directly
               </span>
               <span style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>
-                schoolconnect.apk • File Size: ~45MB
+                schoolconnect.apk • File Size: ~96MB
               </span>
             </a>
           </div>
@@ -226,7 +290,7 @@ const DownloadPage = () => {
               <h4 style={{ color: '#fb923c', margin: '0 0 8px 0', fontSize: '15px', fontWeight: '700' }}>
                 ⚠️ iOS Compatibility
               </h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.5', margin: 0 }}>
+              <p style={{ color: '#a0aec0', fontSize: '13px', lineHeight: '1.5', margin: 0 }}>
                 The mobile package is currently packaged for Android devices (.APK). The Apple iOS version is currently in development. You can still download the APK to your PC or check back later!
               </p>
             </div>
@@ -241,7 +305,7 @@ const DownloadPage = () => {
                 gap: '8px',
                 textDecoration: 'none',
                 background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid var(--border)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
                 color: 'white',
                 borderRadius: '12px',
                 padding: '14px',
@@ -252,7 +316,7 @@ const DownloadPage = () => {
               onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'}
             >
-              <span>Download APK anyway (45MB)</span>
+              <span>Download APK anyway (96MB)</span>
             </a>
           </div>
         )}
@@ -272,7 +336,7 @@ const DownloadPage = () => {
               justifyContent: 'center'
             }}>
               <h4 style={{ color: 'white', fontSize: '15px', fontWeight: '700', margin: '0 0 8px 0' }}>Download to PC</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: '1.5', marginBottom: '16px' }}>
+              <p style={{ color: '#a0aec0', fontSize: '12px', lineHeight: '1.5', marginBottom: '16px' }}>
                 Download the installer package directly to your computer to run in an Android Emulator or transfer manually.
               </p>
               
@@ -308,7 +372,7 @@ const DownloadPage = () => {
               flexDirection: 'column',
               alignItems: 'center',
               background: 'rgba(255,255,255,0.02)',
-              border: '1px solid var(--border)',
+              border: '1px solid rgba(255,255,255,0.05)',
               padding: '20px',
               borderRadius: '16px',
               textAlign: 'center'
@@ -325,7 +389,7 @@ const DownloadPage = () => {
                   <path d="M0 0h7v7H0zm2 2v3h3V2zm0 6h1v1H2zm6-8h1v1H8zm1 1v1h1V1zm-1 2h2v1H8zm1 1v1h1V4zm-1 2h1v1H8zm3-6h7v7h-7zm2 2v3h3V2zm-2 6h2v1h-2zm3 0v1h1V8zm2 0h2v1h-2zm-3 1v1h1V9zm2 0h1v1h-1zm2 0v1h1V9zm-5 1h2v1h-2zm3 0h1v1h-1zm1 1v1h1v-1zm1-1h1v1h-1zm1 1v1h1v-1zm1-1h1v1h-1zm1 1v1h1v-1zm1-1h1v1h-1zm1 1v1h1v-1zm-6 2h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm-6 1h2v1h-2zm3 0h1v1h-1zm2 0h1v1h-1zm1 0h2v1h-2zm-9 2h7v7H0zm2 2v3h3V2zm0 6v1h1v-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm4-6h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm-5 1h1v1h-1zm2 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm-6 2h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm2 0h2v1h-2zm1 0h1v1h-1zm-6 1h1v1h-1zm2 0h2v1h-2zm2 0h1v1h-1zm2 0h1v1h-1zm-7 2h2v1h-2zm3 0h1v1h-1zm1 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-9 1h1v1H0zm2 0h1v1H2zm1 0h2v1H3zm2 0h1v1H5zm1 0h1v1H6zm1 0h1v1H7zm1 0h1v1H8zm1 0h2v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm-8 1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm2 0h2v1h-2zm1 0h1v1h-1zm-6 1h2v1h-2zm3 0h1v1h-1zm2 0h1v1h-1zm1 0h2v1h-2zm1 0h1v1h-1z" fill="#0A0A1B"/>
                 </svg>
               </div>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+              <span style={{ fontSize: '11px', color: '#a0aec0', fontWeight: '600' }}>
                 Scan to Install on Mobile
               </span>
             </div>
@@ -409,6 +473,184 @@ const DownloadPage = () => {
           })}
         </div>
       </div>
+
+      {/* School Onboarding Modal */}
+      {showContactModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(3, 3, 10, 0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+        }} onClick={() => setShowContactModal(false)}>
+          <div style={{
+            background: 'rgba(15, 15, 35, 0.95)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '24px',
+            width: '100%',
+            maxWidth: '540px',
+            padding: '32px',
+            position: 'relative',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
+            color: '#E0E0E6',
+            textAlign: 'left'
+          }} onClick={(e) => e.stopPropagation()}>
+            
+            {/* Close Button */}
+            <button onClick={() => setShowContactModal(false)} style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              background: 'none',
+              border: 'none',
+              color: '#a0aec0',
+              fontSize: '24px',
+              cursor: 'pointer',
+              transition: 'color 0.2s ease'
+            }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'white'}
+              onMouseLeave={(e) => e.currentTarget.style.color = '#a0aec0'}
+            >
+              &times;
+            </button>
+
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: 'rgba(124, 58, 237, 0.15)',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <School size={24} style={{ color: '#a78bfa' }} />
+              </div>
+              <h3 style={{ fontSize: '22px', fontWeight: '800', margin: 0, color: 'white' }}>
+                School Onboarding
+              </h3>
+            </div>
+
+            {/* Modal Body */}
+            <p style={{ fontSize: '14px', color: '#a0aec0', lineHeight: '1.6', marginBottom: '24px' }}>
+              To register and set up your school profile on the <strong>School Connect</strong> platform, please contact our onboarding team to obtain your unique <strong>School Registration Secret Code</strong>.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+              <a href="tel:9346022857" style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '16px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                borderRadius: '14px',
+                textDecoration: 'none',
+                color: 'inherit',
+                transition: 'background 0.2s ease'
+              }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)'}
+              >
+                <span style={{ fontSize: '20px' }}>📞</span>
+                <div>
+                  <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#718096', margin: '0 0 2px 0', letterSpacing: '0.05em' }}>Call Support</h4>
+                  <p style={{ fontSize: '15px', fontWeight: '700', color: 'white', margin: 0 }}>+91 93460 22857</p>
+                </div>
+              </a>
+
+              <a href="mailto:thinkerslab001@gmail.com?subject=School%20Connect%20Registration%20Request" style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '16px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                borderRadius: '14px',
+                textDecoration: 'none',
+                color: 'inherit',
+                transition: 'background 0.2s ease'
+              }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)'}
+              >
+                <span style={{ fontSize: '20px' }}>📧</span>
+                <div>
+                  <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#718096', margin: '0 0 2px 0', letterSpacing: '0.05em' }}>Email Onboarding</h4>
+                  <p style={{ fontSize: '15px', fontWeight: '700', color: 'white', margin: 0 }}>thinkerslab001@gmail.com</p>
+                </div>
+              </a>
+
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '16px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                borderRadius: '14px',
+              }}>
+                <span style={{ fontSize: '20px' }}>🏢</span>
+                <div>
+                  <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#718096', margin: '0 0 2px 0', letterSpacing: '0.05em' }}>Head Office</h4>
+                  <p style={{ fontSize: '15px', fontWeight: '700', color: 'white', margin: 0 }}>Hyderabad, Telangana, India</p>
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '12px', color: '#718096', textAlign: 'center', margin: '0 0 24px 0' }}>
+              Our onboarding team is available Monday to Friday from 9:00 AM to 6:00 PM IST.
+            </p>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <a href="mailto:thinkerslab001@gmail.com?subject=School%20Connect%20Registration%20Request" style={{
+                flex: 1,
+                textDecoration: 'none',
+                background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                color: 'white',
+                borderRadius: '12px',
+                padding: '12px 20px',
+                fontSize: '14px',
+                fontWeight: '700',
+                textAlign: 'center',
+                boxShadow: '0 4px 15px rgba(124, 58, 237, 0.2)',
+                transition: 'transform 0.2s ease'
+              }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                Request Code
+              </a>
+              <button onClick={() => setShowContactModal(false)} style={{
+                flex: 1,
+                background: 'rgba(255, 255, 255, 0.05)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px',
+                padding: '12px 20px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background 0.2s ease'
+              }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+              >
+                Cancel
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -59,7 +59,7 @@ function App() {
           <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
           <Route path="/reset-password/:token" element={<PublicRoute><ResetPassword /></PublicRoute>} />
-          <Route path="/download" element={<DownloadPage />} />
+          <Route path="/download" element={<Navigate to="/" replace />} />
 
           {/* Protected Dashboard Routes */}
           <Route 
@@ -112,7 +112,7 @@ function App() {
           />
 
           {/* Redirects */}
-          <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
+          <Route path="/" element={<PublicRoute><DownloadPage /></PublicRoute>} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
