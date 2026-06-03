@@ -137,7 +137,7 @@ const DownloadPage = () => {
           borderRadius: '20px',
           display: 'inline-block'
         }}>
-          Version 1.0.0
+          Version 1.0.1
         </p>
 
         {/* DEVICE DETECTION HEADER STATUS */}
