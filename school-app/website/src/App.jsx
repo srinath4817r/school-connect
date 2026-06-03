@@ -45,6 +45,11 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
+const RootRoute = () => {
+  const isNativeApp = /SchoolConnectApp/i.test(navigator.userAgent);
+  return isNativeApp ? <DownloadPage /> : <Landing />;
+};
+
 function App() {
   useEffect(() => {
     document.title = 'School Connect';
@@ -59,7 +64,7 @@ function App() {
           <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
           <Route path="/reset-password/:token" element={<PublicRoute><ResetPassword /></PublicRoute>} />
-          <Route path="/download" element={<Navigate to="/" replace />} />
+          <Route path="/download" element={<PublicRoute><DownloadPage /></PublicRoute>} />
 
           {/* Protected Dashboard Routes */}
           <Route 
@@ -112,7 +117,7 @@ function App() {
           />
 
           {/* Redirects */}
-          <Route path="/" element={<PublicRoute><DownloadPage /></PublicRoute>} />
+          <Route path="/" element={<PublicRoute><RootRoute /></PublicRoute>} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
