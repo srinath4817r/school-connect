@@ -402,7 +402,6 @@ const Landing = () => {
           </div>
           
           <div className="nav-buttons desktop-only" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <Link to="/download" className="btn btn-secondary" style={{ borderRadius: '20px', padding: '8px 20px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>📲 Download App</Link>
             <Link to="/login" className="btn btn-secondary" style={{ borderRadius: '20px', padding: '8px 20px' }}>Login</Link>
             <button onClick={() => setShowContactModal(true)} className="btn btn-primary" style={{ borderRadius: '20px', padding: '8px 20px' }}>Register School</button>
           </div>
@@ -418,13 +417,6 @@ const Landing = () => {
         {/* Mobile Navigation Dropdown Menu */}
         {mobileMenuOpen && (
           <div className="mobile-nav-menu" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <Link 
-              to="/download" 
-              className="btn btn-secondary mobile-menu-btn"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              📲 Download App
-            </Link>
             <Link 
               to="/login" 
               className="btn btn-secondary mobile-menu-btn"
