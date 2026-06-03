@@ -5,7 +5,17 @@ import { AuthContext } from '../context/AuthContext';
 import { GraduationCap, School, CheckCircle, Search, UserCheck } from 'lucide-react';
 import './Auth.css';
 
-const API_URL = import.meta.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const getApiUrl = () => {
+  if (import.meta.env.REACT_APP_API_URL) {
+    return import.meta.env.REACT_APP_API_URL;
+  }
+  const hostname = window.location.hostname;
+  if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    return `http://${hostname}:5000/api`;
+  }
+  return 'http://localhost:5000/api';
+};
+const API_URL = getApiUrl();
 
 const Register = () => {
   const { register } = useContext(AuthContext);

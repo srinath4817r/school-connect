@@ -15,7 +15,17 @@ export const saveUserToLocalStorage = (user) => {
   }
 };
 
-const API_URL = import.meta.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const getApiUrl = () => {
+  if (import.meta.env.REACT_APP_API_URL) {
+    return import.meta.env.REACT_APP_API_URL;
+  }
+  const hostname = window.location.hostname;
+  if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    return `http://${hostname}:5000/api`;
+  }
+  return 'http://localhost:5000/api';
+};
+const API_URL = getApiUrl();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
