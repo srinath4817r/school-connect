@@ -144,7 +144,7 @@ const DownloadPage = () => {
           borderRadius: '20px',
           display: 'inline-block'
         }}>
-          Version 1.0.1
+          Version 1.0.2
         </p>
 
         {/* Portal Entry Actions */}
