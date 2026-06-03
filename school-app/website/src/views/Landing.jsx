@@ -13,9 +13,9 @@ const Landing = () => {
   const [activePortalTab, setActivePortalTab] = useState('parent');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const isNativeApp = /SchoolConnectApp/i.test(navigator.userAgent);
 
   useEffect(() => {
-    const isNativeApp = /SchoolConnectApp/i.test(navigator.userAgent);
     const hasDismissed = localStorage.getItem('appDownloadPromptDismissed');
     if (!hasDismissed && !isNativeApp) {
       const timer = setTimeout(() => {
@@ -23,7 +23,7 @@ const Landing = () => {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [isNativeApp]);
 
   const handleDownloadApp = () => {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -415,7 +415,9 @@ const Landing = () => {
             </p>
             <div className="hero-buttons" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <Link to="/login" className="btn btn-primary hero-btn" style={{ borderRadius: '20px', padding: '12px 28px' }}>Login to Portal</Link>
-              <Link to="/download" className="btn btn-secondary hero-btn" style={{ borderRadius: '20px', padding: '12px 28px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>📲 Download App</Link>
+              {!isNativeApp && (
+                <Link to="/download" className="btn btn-secondary hero-btn" style={{ borderRadius: '20px', padding: '12px 28px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>📲 Download App</Link>
+              )}
               <button onClick={() => setShowContactModal(true)} className="btn btn-secondary hero-btn" style={{ borderRadius: '20px', padding: '12px 28px' }}>Register School</button>
             </div>
           </div>
