@@ -1146,20 +1146,40 @@ const ProfileSettingsTab = () => {
               style={{ display: 'none' }} 
             />
           </div>
-          <label 
-            htmlFor="profile-photo-settings-upload" 
-            className="code-action-btn"
-            style={{
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              margin: 0,
-              padding: '8px 16px'
-            }}
-          >
-            <Upload size={14} /> Change Photo
-          </label>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <label 
+              htmlFor="profile-photo-settings-upload" 
+              className="code-action-btn"
+              style={{
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                margin: 0,
+                padding: '8px 16px'
+              }}
+            >
+              <Upload size={14} /> Change Photo
+            </label>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('openAppIconSelectionModal'))}
+              className="code-action-btn"
+              style={{
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                margin: 0,
+                padding: '8px 16px',
+                background: 'rgba(168, 85, 247, 0.1)',
+                borderColor: 'rgba(168, 85, 247, 0.3)',
+                color: '#a855f7'
+              }}
+            >
+              📱 Change App Icon Theme
+            </button>
+          </div>
         </div>
 
         {/* Basic Fields */}
@@ -2130,6 +2150,24 @@ const DashboardLayout = ({
       setShowAppIconModal(true);
     }
   }, [user]);
+
+  // Persist active tab to sessionStorage to handle refreshes gracefully
+  useEffect(() => {
+    if (user && user.role && activeTab) {
+      if (user.role === 'driver') {
+        sessionStorage.setItem('activeSubTab_driver', activeTab);
+      } else {
+        sessionStorage.setItem(`activeTab_${user.role}`, activeTab);
+      }
+    }
+  }, [activeTab, user]);
+
+  // Listen to external request to open selection modal
+  useEffect(() => {
+    const handleOpenIconModal = () => setShowAppIconModal(true);
+    window.addEventListener('openAppIconSelectionModal', handleOpenIconModal);
+    return () => window.removeEventListener('openAppIconSelectionModal', handleOpenIconModal);
+  }, []);
 
   // Pull to Refresh Handlers
   const handleTouchStart = (e) => {
@@ -6874,7 +6912,7 @@ export const SchoolCalendarModule = ({ user, canEdit }) => {
 export const SuperAdminDashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('activeTab_super_admin') || 'overview');
 
   // Data states
   const [secretCodes, setSecretCodes] = useState([]);
@@ -8584,7 +8622,7 @@ export const SuperAdminDashboard = () => {
 export const SchoolAdminDashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('activeTab_admin') || 'overview');
 
   // Data states
   const [secretCodes, setSecretCodes] = useState([]);
@@ -9965,7 +10003,7 @@ export const SchoolAdminDashboard = () => {
 export const PrincipalDashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('activeTab_principal') || 'overview');
 
   // Data states
   const [schoolCodes, setSchoolCodes] = useState([]);
@@ -11476,7 +11514,7 @@ export const TeacherDashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('diary'); // 'diary', 'attendance', 'marks'
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('activeTab_teacher') || 'diary'); // 'diary', 'attendance', 'marks'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -13014,7 +13052,7 @@ export const DriverDashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [activeSubTab, setActiveSubTab] = useState('drive'); // 'drive' or 'history'
+  const [activeSubTab, setActiveSubTab] = useState(() => sessionStorage.getItem('activeSubTab_driver') || 'drive'); // 'drive' or 'history'
   const [busNumber, setBusNumber] = useState(localStorage.getItem(`driver_bus_num_${user?.id}`) || '');
   const [inputBusNum, setInputBusNum] = useState('');
   
@@ -13830,7 +13868,7 @@ export const ParentDashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('diary'); // 'diary', 'bus', 'attendance', 'timetable', 'marks', 'fees'
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('activeTab_parent') || 'diary'); // 'diary', 'bus', 'attendance', 'timetable', 'marks', 'fees'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -13907,6 +13945,36 @@ export const ParentDashboard = () => {
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptError, setPromptError] = useState('');
   const [promptSuccess, setPromptSuccess] = useState('');
+
+  const [isSelectingOnMap, setIsSelectingOnMap] = useState(false);
+
+  const handleSelectOnMapClick = () => {
+    if (activeTab !== 'bus') {
+      setActiveTab('bus');
+    }
+    setShowHomePromptModal(false);
+    setIsSelectingOnMap(true);
+  };
+
+  const handleCancelSelect = () => {
+    try {
+      const stored = localStorage.getItem(`parent_home_location_${user?.id || user?._id}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setHomeLat(parsed.lat.toString());
+        setHomeLng(parsed.lng.toString());
+        setParentLocation(parsed);
+      } else {
+        setHomeLat('');
+        setHomeLng('');
+        setParentLocation(null);
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+    setIsSelectingOnMap(false);
+    setShowHomePromptModal(true);
+  };
 
   // Geofencing and watchlist states
   const [trackedBuses, setTrackedBuses] = useState(() => {
@@ -14029,6 +14097,28 @@ export const ParentDashboard = () => {
       setPromptLoading(false);
     }
   };
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const handleMapClick = (e) => {
+      if (isSelectingOnMap) {
+        const { lat, lng } = e.latlng;
+        setHomeLat(lat.toFixed(6));
+        setHomeLng(lng.toFixed(6));
+        setParentLocation({ lat, lng });
+        setIsSelectingOnMap(false);
+        setShowHomePromptModal(true);
+      }
+    };
+
+    map.on('click', handleMapClick);
+
+    return () => {
+      map.off('click', handleMapClick);
+    };
+  }, [isSelectingOnMap]);
 
   const useSavedHomeLocation = () => {
     const storedHome = localStorage.getItem(`parent_home_location_${user?.id || user?._id}`);
@@ -15479,9 +15569,27 @@ export const ParentDashboard = () => {
                   <span style={{ color: 'var(--text-muted)' }}>Phone Number:</span>
                   <span>{user.fatherPhone || user.motherPhone || 'Not Entered'}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Address:</span>
-                  <span style={{ textAlign: 'right', maxWidth: '60%', wordBreak: 'break-all' }}>{user.homeAddress || 'Not Entered'}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Address/Home Location:</span>
+                    <button 
+                      type="button"
+                      onClick={() => setShowHomePromptModal(true)} 
+                      style={{ 
+                        background: 'rgba(168, 85, 247, 0.1)', 
+                        border: '1.5px solid rgba(168, 85, 247, 0.4)', 
+                        color: 'var(--accent)', 
+                        padding: '4px 10px', 
+                        borderRadius: '6px', 
+                        fontSize: '11px', 
+                        fontWeight: '600', 
+                        cursor: 'pointer' 
+                      }}
+                    >
+                      ✏️ Edit Location
+                    </button>
+                  </div>
+                  <span style={{ textAlign: 'right', fontSize: '13px', wordBreak: 'break-all', color: 'white' }}>{user.homeAddress || 'Not Entered'}</span>
                 </div>
               </div>
 
@@ -16120,6 +16228,36 @@ export const ParentDashboard = () => {
                       {/* Real Leaflet Map */}
                       <div style={{ position: 'relative', width: '100%', flex: 1, minHeight: '350px', background: '#0e0e1b', borderRadius: '8px', border: '1px solid var(--border)', overflow: 'hidden' }}>
                         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                          {isSelectingOnMap && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '20px',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              zIndex: 1000,
+                              background: 'rgba(20, 20, 37, 0.95)',
+                              backdropFilter: 'blur(12px)',
+                              border: '1.5px solid var(--accent)',
+                              borderRadius: '12px',
+                              padding: '12px 20px',
+                              boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '15px'
+                            }}>
+                              <span style={{ fontSize: '13px', color: 'white', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                📍 Click anywhere on the map to set your Home location.
+                              </span>
+                              <button 
+                                type="button"
+                                onClick={handleCancelSelect}
+                                className="code-action-btn"
+                                style={{ margin: 0, padding: '6px 12px', fontSize: '12px' }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
                           <div id="parent-map" style={{ width: '100%', height: '100%', minHeight: '350px', zIndex: 1 }}></div>
                           <button
                             type="button"
@@ -16557,6 +16695,8 @@ export const ParentDashboard = () => {
                 onClick={() => {
                   setShowHomePromptModal(false);
                   localStorage.setItem(`parent_home_prompt_shown_${user?.id || user?._id}`, 'true');
+                  handleCancelSelect();
+                  setShowHomePromptModal(false);
                 }} 
                 style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
               >
@@ -16572,51 +16712,85 @@ export const ParentDashboard = () => {
             {promptSuccess && <div className="success-banner" style={{ margin: 0 }}>{promptSuccess}</div>}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <button
-                type="button"
-                onClick={fetchCurrentLocationForPrompt}
-                disabled={promptLoading}
-                className="dashboard-btn-primary"
-                style={{ 
-                  margin: 0, 
-                  padding: '12px', 
-                  background: 'rgba(168, 85, 247, 0.15)', 
-                  borderColor: 'var(--accent)', 
-                  color: 'white', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  gap: '8px',
-                  fontWeight: '600'
-                }}
-              >
-                <MapPin size={16} /> 📍 I'm in Current Location
-              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={fetchCurrentLocationForPrompt}
+                  disabled={promptLoading}
+                  className="dashboard-btn-primary"
+                  style={{ 
+                    flex: 1,
+                    margin: 0, 
+                    padding: '12px 8px', 
+                    background: 'rgba(168, 85, 247, 0.15)', 
+                    borderColor: 'var(--accent)', 
+                    color: 'white', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '6px',
+                    fontSize: '12px',
+                    fontWeight: '600'
+                  }}
+                  title="Detect coordinates using device GPS"
+                >
+                  <MapPin size={14} /> Detect My Location
+                </button>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ fontSize: '11px' }}>Latitude</label>
-                  <input 
-                    type="number" 
-                    step="0.000001"
-                    className="form-input" 
-                    value={homeLat} 
-                    onChange={(e) => setHomeLat(e.target.value)} 
-                    placeholder="12.971598"
-                    required
-                  />
-                </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ fontSize: '11px' }}>Longitude</label>
-                  <input 
-                    type="number" 
-                    step="0.000001"
-                    className="form-input" 
-                    value={homeLng} 
-                    onChange={(e) => setHomeLng(e.target.value)} 
-                    placeholder="77.594562"
-                    required
-                  />
+                <button
+                  type="button"
+                  onClick={handleSelectOnMapClick}
+                  disabled={promptLoading}
+                  className="dashboard-btn-primary"
+                  style={{ 
+                    flex: 1,
+                    margin: 0, 
+                    padding: '12px 8px', 
+                    background: 'rgba(59, 130, 246, 0.15)', 
+                    borderColor: '#3b82f6', 
+                    color: 'white', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '6px',
+                    fontSize: '12px',
+                    fontWeight: '600'
+                  }}
+                  title="Click anywhere on the map to set your home marker"
+                >
+                  📍 Select on Map
+                </button>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '15px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  Or enter coordinates manually:
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px' }}>Latitude</label>
+                    <input 
+                      type="number" 
+                      step="0.000001"
+                      className="form-input" 
+                      value={homeLat} 
+                      onChange={(e) => setHomeLat(e.target.value)} 
+                      placeholder="12.971598"
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px' }}>Longitude</label>
+                    <input 
+                      type="number" 
+                      step="0.000001"
+                      className="form-input" 
+                      value={homeLng} 
+                      onChange={(e) => setHomeLng(e.target.value)} 
+                      placeholder="77.594562"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -16627,6 +16801,8 @@ export const ParentDashboard = () => {
                 onClick={() => {
                   setShowHomePromptModal(false);
                   localStorage.setItem(`parent_home_prompt_shown_${user?.id || user?._id}`, 'true');
+                  handleCancelSelect();
+                  setShowHomePromptModal(false);
                 }} 
                 className="code-action-btn"
                 style={{ margin: 0, padding: '10px 20px' }}
