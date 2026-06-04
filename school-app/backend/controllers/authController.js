@@ -416,7 +416,21 @@ exports.login = async (req, res) => {
         sectionAssigned: user.sectionAssigned,
         approvalStatus: user.approvalStatus,
         profilePhoto: user.profilePhoto,
-        profilePhotoUrl: user.profilePhotoUrl
+        profilePhotoUrl: user.profilePhotoUrl,
+        subjects: user.subjects,
+        primaryClass: user.primaryClass,
+        primarySection: user.primarySection,
+        fatherName: user.fatherName,
+        motherName: user.motherName,
+        fatherPhone: user.fatherPhone,
+        motherPhone: user.motherPhone,
+        relationship: user.relationship,
+        emergencyContact: user.emergencyContact,
+        homeAddress: user.homeAddress,
+        vehicleNumber: user.vehicleNumber,
+        licenseNumber: user.licenseNumber,
+        phone: user.phone,
+        updatedAt: user.updatedAt
       }
     });
 
@@ -830,7 +844,8 @@ exports.updateProfile = async (req, res) => {
         homeAddress: user.homeAddress,
         vehicleNumber: user.vehicleNumber,
         licenseNumber: user.licenseNumber,
-        phone: user.phone
+        phone: user.phone,
+        updatedAt: user.updatedAt
       }
     });
   } catch (error) {

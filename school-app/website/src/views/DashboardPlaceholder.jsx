@@ -1511,6 +1511,11 @@ const ProfileSettingsTab = () => {
         >
           {loading ? 'Saving Changes...' : '💾 Save Profile Settings'}
         </button>
+        {user?.updatedAt && (
+          <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'right', marginTop: '6px' }}>
+            Edited on: {new Date(user.updatedAt).toLocaleString()}
+          </div>
+        )}
       <InteractiveMapSelectorModal 
         isOpen={showSettingsMapSelector}
         onClose={() => setShowSettingsMapSelector(false)}
@@ -9211,6 +9216,11 @@ export const SchoolAdminDashboard = () => {
     }
   };
 
+  const detailsSubmissions = schoolUsers.filter(u => 
+    u.role === 'parent' && 
+    (u.fatherName || u.motherName || u.homeAddress || u.fatherPhone || u.motherPhone || u.emergencyContact)
+  ).sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+
   const schoolAdminTabs = [
     { id: 'overview', label: 'School Info', icon: Building },
     { id: 'secret-codes', label: 'Manage Codes', icon: Milestone },
@@ -9788,6 +9798,98 @@ export const SchoolAdminDashboard = () => {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Details Update Submissions Logs */}
+          <div style={{ marginTop: '40px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h3 className="dashboard-form-title" style={{ margin: 0 }}>📝 Profile Details Update Logs</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Real-time list of parent profile update submissions sorted by latest submission time.
+                </p>
+              </div>
+            </div>
+            
+            <div className="dashboard-table-container">
+              <table className="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Parent Info</th>
+                    <th>Father Details</th>
+                    <th>Mother Details</th>
+                    <th>Emergency Contact</th>
+                    <th>Home Address / Coordinates</th>
+                    <th>Last Updated (Edited At)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detailsSubmissions.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
+                        No details update submissions logged yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    detailsSubmissions.map((parent) => (
+                      <tr key={parent._id}>
+                        <td>
+                          <strong>{parent.fullName}</strong>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{parent.email}</div>
+                        </td>
+                        <td>
+                          {parent.fatherName ? (
+                            <div>
+                              <div>{parent.fatherName}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>📞 {parent.fatherPhone || 'N/A'}</div>
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Not Provided</span>
+                          )}
+                        </td>
+                        <td>
+                          {parent.motherName ? (
+                            <div>
+                              <div>{parent.motherName}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>📞 {parent.motherPhone || 'N/A'}</div>
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Not Provided</span>
+                          )}
+                        </td>
+                        <td>
+                          {parent.emergencyContact ? (
+                            <span style={{ fontWeight: '600', color: 'var(--accent)' }}>
+                              {parent.emergencyContact}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Not Provided</span>
+                          )}
+                        </td>
+                        <td style={{ maxWidth: '200px', wordBreak: 'break-all' }}>
+                          {parent.homeAddress ? (
+                            <div style={{ fontSize: '12px' }}>
+                              {parent.homeAddress}
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Not Provided</span>
+                          )}
+                        </td>
+                        <td style={{ fontSize: '12.5px' }}>
+                          {parent.updatedAt ? (
+                            <span style={{ color: '#34d399', fontWeight: '500' }}>
+                              ⏱️ {new Date(parent.updatedAt).toLocaleString()}
+                            </span>
+                          ) : (
+                            'N/A'
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -10689,6 +10791,11 @@ export const PrincipalDashboard = () => {
   const parentCount = schoolUsers.filter(u => u.role === 'parent').length;
   const driverCount = schoolUsers.filter(u => u.role === 'driver').length;
 
+  const detailsSubmissions = schoolUsers.filter(u => 
+    u.role === 'parent' && 
+    (u.fatherName || u.motherName || u.homeAddress || u.fatherPhone || u.motherPhone || u.emergencyContact)
+  ).sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+
   const principalTabs = [
     { id: 'overview', label: 'Overview & Stats', icon: Building },
     { id: 'secret-codes', label: 'Manage Codes', icon: Milestone },
@@ -11281,6 +11388,98 @@ export const PrincipalDashboard = () => {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Details Update Submissions Logs */}
+          <div style={{ marginTop: '40px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h3 className="dashboard-form-title" style={{ margin: 0 }}>📝 Profile Details Update Logs</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Real-time list of parent profile update submissions sorted by latest submission time.
+                </p>
+              </div>
+            </div>
+            
+            <div className="dashboard-table-container">
+              <table className="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Parent Info</th>
+                    <th>Father Details</th>
+                    <th>Mother Details</th>
+                    <th>Emergency Contact</th>
+                    <th>Home Address / Coordinates</th>
+                    <th>Last Updated (Edited At)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detailsSubmissions.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
+                        No details update submissions logged yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    detailsSubmissions.map((parent) => (
+                      <tr key={parent._id}>
+                        <td>
+                          <strong>{parent.fullName}</strong>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{parent.email}</div>
+                        </td>
+                        <td>
+                          {parent.fatherName ? (
+                            <div>
+                              <div>{parent.fatherName}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>📞 {parent.fatherPhone || 'N/A'}</div>
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Not Provided</span>
+                          )}
+                        </td>
+                        <td>
+                          {parent.motherName ? (
+                            <div>
+                              <div>{parent.motherName}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>📞 {parent.motherPhone || 'N/A'}</div>
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Not Provided</span>
+                          )}
+                        </td>
+                        <td>
+                          {parent.emergencyContact ? (
+                            <span style={{ fontWeight: '600', color: 'var(--accent)' }}>
+                              {parent.emergencyContact}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Not Provided</span>
+                          )}
+                        </td>
+                        <td style={{ maxWidth: '200px', wordBreak: 'break-all' }}>
+                          {parent.homeAddress ? (
+                            <div style={{ fontSize: '12px' }}>
+                              {parent.homeAddress}
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Not Provided</span>
+                          )}
+                        </td>
+                        <td style={{ fontSize: '12.5px' }}>
+                          {parent.updatedAt ? (
+                            <span style={{ color: '#34d399', fontWeight: '500' }}>
+                              ⏱️ {new Date(parent.updatedAt).toLocaleString()}
+                            </span>
+                          ) : (
+                            'N/A'
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -15901,6 +16100,11 @@ export const ParentDashboard = () => {
                 >
                   {profileLoading ? 'Saving...' : '💾 Save Profile Details'}
                 </button>
+                {user?.updatedAt && (
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'right', marginTop: '6px' }}>
+                    Edited on: {new Date(user.updatedAt).toLocaleString()}
+                  </div>
+                )}
               </form>
 
               <div style={{ 
