@@ -144,16 +144,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = (removeAccount = false) => {
+  const logout = async (allDevices = false) => {
+    if (allDevices && token) {
+      try {
+        await axios.post(`${API_URL}/auth/logout-all`);
+      } catch (err) {
+        console.error('Failed to log out of all devices in backend', err);
+      }
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
     delete axios.defaults.headers.common['Authorization'];
-    if (removeAccount) {
+    if (allDevices) {
       localStorage.clear();
       sessionStorage.clear();
-      window.alert('Success: All account details and local cached profiles have been completely removed from this device.');
+      window.alert('Success: Logged out of all devices and local storage has been completely cleared.');
     }
   };
 

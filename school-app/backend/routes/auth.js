@@ -51,5 +51,10 @@ router.get('/my-child', protect, authController.getMyChild);
 // @access  Private
 router.put('/update-profile', protect, authController.updateProfile);
 
+// @route   POST /api/auth/logout-all
+// @desc    Logout from all devices by invalidating all active sessions/tokens
+// @access  Private
+router.post('/logout-all', protect, authController.logoutAll);
+
 module.exports = router;
 

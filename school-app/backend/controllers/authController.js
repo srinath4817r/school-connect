@@ -12,9 +12,9 @@ const { uploadToCloudinary, deleteFromCloudinary, cloudinary } = require('../uti
 const calendarController = require('./calendarController');
 
 // Helper to generate JWT Token
-const generateToken = (userId, role) => {
+const generateToken = (userId, role, tokenVersion = 0) => {
   return jwt.sign(
-    { id: userId, role },
+    { id: userId, role, tokenVersion },
     process.env.JWT_SECRET || 'your_secret_key_here',
     { expiresIn: '7d' }
   );
@@ -400,7 +400,7 @@ exports.login = async (req, res) => {
     }
 
     // Generate token
-    const token = generateToken(user._id, user.role);
+    const token = generateToken(user._id, user.role, user.tokenVersion || 0);
 
     res.status(200).json({
       status: 'success',
@@ -835,6 +835,21 @@ exports.updateProfile = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ status: 'error', message: `Server error during profile update: ${error.message}` });
+  }
+};
+
+// Logout from all devices (invalidates all sessions)
+exports.logoutAll = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+    res.status(200).json({ status: 'success', message: 'Successfully logged out of all devices.' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: `Server error: ${error.message}` });
   }
 };
 

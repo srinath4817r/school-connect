@@ -19,6 +19,13 @@ const protect = async (req, res, next) => {
         return res.status(401).json({ status: 'error', message: 'Not authorized, user not found' });
       }
 
+      // Check token version to support logging out of all devices
+      const tokenVersion = decoded.tokenVersion || 0;
+      const userVersion = req.user.tokenVersion || 0;
+      if (tokenVersion < userVersion) {
+        return res.status(401).json({ status: 'error', message: 'Session expired, please login again.' });
+      }
+
       // Check if user is locked
       if (req.user.isLocked()) {
         return res.status(403).json({ status: 'error', message: 'Account is temporarily locked. Access denied.' });

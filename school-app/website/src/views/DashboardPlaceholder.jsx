@@ -205,7 +205,7 @@ const LogoutConfirmationModal = ({ isOpen, onClose, onConfirm }) => {
         </div>
         <h3 style={{ marginBottom: '10px', fontSize: '20px', fontFamily: 'var(--font-title)' }}>Confirm Logout</h3>
         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
-          Choose how you want to log out from this device:
+          Choose how you want to log out of your session:
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
@@ -229,12 +229,12 @@ const LogoutConfirmationModal = ({ isOpen, onClose, onConfirm }) => {
               borderRadius: '8px'
             }}
           >
-            {seconds > 0 ? `Logout & Keep Details (${seconds}s)` : 'Logout & Keep Details'}
+            {seconds > 0 ? `Logout Current Device (${seconds}s)` : 'Logout Current Device'}
           </button>
           
           <button 
             onClick={() => { 
-              if (window.confirm("WARNING: This will completely erase all credentials, cached profiles, and local storage from this device. Do you want to proceed?")) {
+              if (window.confirm("WARNING: This will completely invalidate your sessions on ALL devices, log you out everywhere, and clear local cache. Do you want to proceed?")) {
                 onConfirm(true); 
                 onClose(); 
               }
@@ -257,7 +257,7 @@ const LogoutConfirmationModal = ({ isOpen, onClose, onConfirm }) => {
               borderRadius: '8px'
             }}
           >
-            {seconds > 0 ? `Remove Account completely (${seconds}s)` : 'Remove Account completely'}
+            {seconds > 0 ? `Logout All Devices (${seconds}s)` : 'Logout All Devices'}
           </button>
         </div>
 
@@ -6850,8 +6850,8 @@ export const SuperAdminDashboard = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = (removeAccount = false) => {
-    logout(removeAccount);
+  const confirmLogout = (allDevices = false) => {
+    logout(allDevices);
     navigate('/login');
   };
 
@@ -8668,8 +8668,8 @@ export const SchoolAdminDashboard = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = (removeAccount = false) => {
-    logout(removeAccount);
+  const confirmLogout = (allDevices = false) => {
+    logout(allDevices);
     navigate('/login');
   };
 
@@ -10136,8 +10136,8 @@ export const PrincipalDashboard = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = (removeAccount = false) => {
-    logout(removeAccount);
+  const confirmLogout = (allDevices = false) => {
+    logout(allDevices);
     navigate('/login');
   };
 
@@ -11380,8 +11380,8 @@ export const TeacherDashboard = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = (removeAccount = false) => {
-    logout(removeAccount);
+  const confirmLogout = (allDevices = false) => {
+    logout(allDevices);
     navigate('/login');
   };
 
@@ -13203,11 +13203,11 @@ export const DriverDashboard = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = (removeAccount = false) => {
+  const confirmLogout = (allDevices = false) => {
     if (isTripActive) {
       handleEndTrip();
     }
-    logout(removeAccount);
+    logout(allDevices);
     navigate('/login');
   };
 
@@ -14000,8 +14000,8 @@ export const ParentDashboard = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = (removeAccount = false) => {
-    logout(removeAccount);
+  const confirmLogout = (allDevices = false) => {
+    logout(allDevices);
     navigate('/login');
   };
 
