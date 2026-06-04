@@ -455,6 +455,7 @@ const BroadcastDetailsModal = ({ isOpen, onClose, onSubmit, userRole, schools = 
       alignItems: 'center',
       justifyContent: 'flex-start',
       overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch',
       padding: '40px 10px',
       zIndex: 9999,
       animation: 'fadeIn 0.2s ease'
@@ -717,6 +718,7 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
       alignItems: 'center',
       justifyContent: 'flex-start',
       overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch',
       padding: '40px 10px',
       zIndex: 10000,
       animation: 'fadeIn 0.2s ease'
@@ -1816,28 +1818,15 @@ const DashboardLayout = ({
     updateTableLabels();
     document.addEventListener('click', handleTableClick);
 
-    // Initial check for modals on mount
-    const hasModal = document.querySelector('.modal-overlay') !== null;
-    if (hasModal) {
-      document.body.style.overflow = 'hidden';
-    }
-
-    // Watch for dynamic page updates and tab switching to re-apply labels & lock body scroll on modal overlays
+    // Watch for dynamic page updates and tab switching to re-apply labels
     const observer = new MutationObserver(() => {
       updateTableLabels();
-      const activeModal = document.querySelector('.modal-overlay') !== null;
-      if (activeModal) {
-        document.body.style.overflow = 'hidden';
-      } else {
-        document.body.style.overflow = 'unset';
-      }
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
       document.removeEventListener('click', handleTableClick);
       observer.disconnect();
-      document.body.style.overflow = 'unset';
     };
   }, []);
 
@@ -16806,6 +16795,7 @@ export const ParentDashboard = () => {
           alignItems: 'center',
           justifyContent: 'flex-start',
           overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           padding: '40px 10px',
           zIndex: 10001,
           animation: 'fadeIn 0.2s ease'
@@ -16971,6 +16961,7 @@ export const ParentDashboard = () => {
           alignItems: 'center',
           justifyContent: 'flex-start',
           overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           padding: '40px 10px',
           zIndex: 10002,
           animation: 'fadeIn 0.2s ease'
