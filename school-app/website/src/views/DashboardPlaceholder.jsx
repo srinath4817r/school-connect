@@ -275,6 +275,149 @@ const LogoutConfirmationModal = ({ isOpen, onClose, onConfirm }) => {
   );
 };
 
+const AppIconSelectionModal = ({ isOpen, onClose, schoolLogo, onSelect }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay" style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(15, 15, 26, 0.85)',
+      backdropFilter: 'blur(8px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 9999,
+      animation: 'fadeIn 0.2s ease'
+    }}>
+      <div className="glass-card" style={{
+        width: '500px',
+        padding: '30px',
+        textAlign: 'center',
+        border: '1px solid var(--border)',
+        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
+        animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+      }}>
+        <h3 style={{ marginBottom: '10px', fontSize: '20px', fontFamily: 'var(--font-title)', color: 'white' }}>Choose App Icon Theme</h3>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
+          Select the brand logo you would like to display as the application icon for this device:
+        </p>
+
+        <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', marginBottom: '24px' }}>
+          {/* Default Logo Option */}
+          <div 
+            onClick={() => { onSelect('default'); onClose(); }}
+            className="logo-selection-card"
+            style={{
+              flex: 1,
+              padding: '20px',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--accent)';
+              e.currentTarget.style.background = 'rgba(168, 85, 247, 0.05)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)';
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <img 
+              src="/default_app_logo.jpg" 
+              alt="Default Logo" 
+              style={{ width: '80px', height: '80px', borderRadius: '12px', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.1)' }}
+            />
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'white' }}>Parent Connect</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Default Brand Logo</span>
+          </div>
+
+          {/* School Logo Option */}
+          {schoolLogo ? (
+            <div 
+              onClick={() => { onSelect('school'); onClose(); }}
+              className="logo-selection-card"
+              style={{
+                flex: 1,
+                padding: '20px',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                background: 'rgba(255, 255, 255, 0.02)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent)';
+                e.currentTarget.style.background = 'rgba(168, 85, 247, 0.05)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <img 
+                src={schoolLogo} 
+                alt="School Logo" 
+                style={{ width: '80px', height: '80px', borderRadius: '12px', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.1)' }}
+              />
+              <span style={{ fontSize: '13px', fontWeight: '600', color: 'white' }}>School Logo</span>
+              <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Custom Campus Theme</span>
+            </div>
+          ) : (
+            <div 
+              style={{
+                flex: 1,
+                padding: '20px',
+                border: '1px solid rgba(255,255,255,0.05)',
+                borderRadius: '12px',
+                background: 'rgba(255, 255, 255, 0.01)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                opacity: 0.5
+              }}
+            >
+              <div style={{ width: '80px', height: '80px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>🏫</div>
+              <span style={{ fontSize: '13px', fontWeight: '600', color: 'white' }}>No School Logo</span>
+              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'center' }}>Upload logo in Settings to activate</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <button 
+            onClick={onClose} 
+            className="code-action-btn"
+            style={{ margin: 0, width: '100%', padding: '12px', borderRadius: '8px' }}
+          >
+            Decide Later
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const BroadcastDetailsModal = ({ isOpen, onClose, onSubmit, userRole, schools = [] }) => {
   const [targetRole, setTargetRole] = useState('parent');
   const [message, setMessage] = useState('Please update your profile details immediately so we have your latest contact and role records.');
@@ -1911,6 +2054,13 @@ const DashboardLayout = ({
     : 'U';
 
   const [schoolData, setSchoolData] = useState(null);
+  const [showAppIconModal, setShowAppIconModal] = useState(false);
+  const [appIconPreference, setAppIconPreference] = useState(() => localStorage.getItem('appIconPreference') || 'default');
+
+  const handleSelectAppIcon = (preference) => {
+    localStorage.setItem('appIconPreference', preference);
+    setAppIconPreference(preference);
+  };
 
   // App Open Animation states
   const isSplashRole = user && ['parent', 'teacher', 'driver'].includes(user.role);
@@ -1958,6 +2108,30 @@ const DashboardLayout = ({
     };
     fetchSchool();
   }, [user]);
+
+  // Request notifications permission, location for drivers, and show icon choice prompt
+  useEffect(() => {
+    // 1. Request Notification Permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(err => console.warn('Notification permission request failed', err));
+    }
+
+    // 2. Request Location Permission for Driver
+    if (user && user.role === 'driver' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        () => {},
+        (err) => console.warn('Initial driver location permission request failed', err.message),
+        { enableHighAccuracy: true }
+      );
+    }
+
+    // 3. Prompt for App Icon branding preference if not yet chosen
+    if (user && user.school && schoolData && !localStorage.getItem('appIconPreference')) {
+      if (schoolData.schoolPhoto || schoolData.logoUrl) {
+        setShowAppIconModal(true);
+      }
+    }
+  }, [user, schoolData]);
 
   // Pull to Refresh Handlers
   const handleTouchStart = (e) => {
@@ -2042,6 +2216,9 @@ const DashboardLayout = ({
   };
 
   const schoolLogo = schoolData?.schoolPhoto;
+  const currentAppIcon = (appIconPreference === 'school' && schoolLogo) 
+    ? schoolLogo 
+    : '/default_app_logo.jpg';
 
   const getMobileLabel = (label) => {
     const l = label.toLowerCase();
@@ -2096,6 +2273,18 @@ const DashboardLayout = ({
   return (
     <div className="h-screen bg-[#0F0F1A] text-white flex flex-col relative overflow-hidden">
       <style>{`
+        /* Custom Leaflet Incident Tooltip */
+        .leaflet-tooltip.custom-incident-tooltip {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+        }
+        .leaflet-tooltip-top.custom-incident-tooltip::before {
+          border-top-color: transparent !important;
+          display: none !important;
+        }
+
         @keyframes slideInFromRight {
           0% { transform: translateX(120%); opacity: 0; }
           100% { transform: translateX(0); opacity: 1; }
@@ -2338,22 +2527,21 @@ const DashboardLayout = ({
         {/* MOBILE NAVBAR */}
         <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#141425]/90 backdrop-blur-md border-b border-white/8 sticky top-0 z-40 w-full">
           <div className="flex items-center gap-2">
-            {schoolLogo ? (
-              <img 
-                src={schoolLogo} 
-                alt="School Logo" 
-                style={{ 
-                  width: '28px', 
-                  height: '28px', 
-                  borderRadius: '50%', 
-                  objectFit: 'cover',
-                  boxShadow: '0 0 8px rgba(168, 85, 247, 0.4)',
-                  border: '1.5px solid var(--accent)'
-                }} 
-              />
-            ) : (
-              <GraduationCap className="text-purple-500 w-6 h-6" />
-            )}
+            <img 
+              onClick={() => setShowAppIconModal(true)}
+              src={currentAppIcon} 
+              alt="App Logo" 
+              title="Click to change app icon theme"
+              style={{ 
+                width: '28px', 
+                height: '28px', 
+                borderRadius: '50%', 
+                objectFit: 'cover',
+                boxShadow: '0 0 8px rgba(168, 85, 247, 0.4)',
+                border: '1.5px solid var(--accent)',
+                cursor: 'pointer'
+              }} 
+            />
             <span className="font-semibold text-sm tracking-tight font-title text-white truncate max-w-[150px]">
               {schoolData?.name || 'School Connect'}
             </span>
@@ -2571,22 +2759,21 @@ const DashboardLayout = ({
             <div className="flex items-center gap-4">
               {/* School Logo & Name */}
               <div className="flex items-center gap-3">
-                {schoolLogo ? (
-                  <img 
-                    src={schoolLogo} 
-                    alt="School Logo" 
-                    style={{ 
-                      width: '36px', 
-                      height: '36px', 
-                      borderRadius: '50%', 
-                      objectFit: 'cover',
-                      boxShadow: '0 0 10px rgba(168, 85, 247, 0.4)',
-                      border: '1.5px solid var(--accent)'
-                    }} 
-                  />
-                ) : (
-                  <GraduationCap className="text-purple-500 w-8 h-8" />
-                )}
+                <img 
+                  onClick={() => setShowAppIconModal(true)}
+                  src={currentAppIcon} 
+                  alt="App Logo" 
+                  title="Click to change app icon theme"
+                  style={{ 
+                    width: '36px', 
+                    height: '36px', 
+                    borderRadius: '50%', 
+                    objectFit: 'cover',
+                    boxShadow: '0 0 10px rgba(168, 85, 247, 0.4)',
+                    border: '1.5px solid var(--accent)',
+                    cursor: 'pointer'
+                  }} 
+                />
                 <div className="flex flex-col">
                   <span className="font-bold text-sm font-title text-white tracking-tight leading-none">
                     {schoolData?.name || 'School Connect'}
@@ -3236,6 +3423,12 @@ const DashboardLayout = ({
           }} />
         </div>
       )}
+      <AppIconSelectionModal 
+        isOpen={showAppIconModal} 
+        onClose={() => setShowAppIconModal(false)} 
+        schoolLogo={schoolLogo} 
+        onSelect={handleSelectAppIcon} 
+      />
     </div>
   );
 };
@@ -10088,13 +10281,18 @@ export const PrincipalDashboard = () => {
               iconAnchor: [14, 14]
             });
 
+            const tooltipContent = `<div style="font-family: system-ui, -apple-system, sans-serif; font-weight: 700; color: white; background: ${alertColor}; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 11px; text-align: center; text-transform: uppercase; white-space: nowrap;">⚠️ Bus ${bus.busNumber} ${alertTitle} Reported<br/><span style="font-weight: 500; font-size: 9px; opacity: 0.9; text-transform: none;">Coords: ${bus.incidentCoords.lat.toFixed(5)}, ${bus.incidentCoords.lng.toFixed(5)}</span></div>`;
+
             if (!principalMarkersRef.current[incidentKey]) {
               principalMarkersRef.current[incidentKey] = L.marker(incidentLatLng, { icon: incidentIcon })
                 .addTo(map)
-                .bindPopup(`<strong>Bus ${bus.busNumber} Incident: ${alertTitle}</strong><br/>Location of incident report`);
+                .bindPopup(`<strong>Bus ${bus.busNumber} Incident: ${alertTitle}</strong><br/>Location of incident report`)
+                .bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'custom-incident-tooltip', offset: [0, -10] });
             } else {
               principalMarkersRef.current[incidentKey].setLatLng(incidentLatLng);
               principalMarkersRef.current[incidentKey].setIcon(incidentIcon);
+              principalMarkersRef.current[incidentKey].setPopupContent(`<strong>Bus ${bus.busNumber} Incident: ${alertTitle}</strong><br/>Location of incident report`);
+              principalMarkersRef.current[incidentKey].setTooltipContent(tooltipContent);
             }
           } else {
             if (principalMarkersRef.current[incidentKey]) {
@@ -12934,15 +13132,19 @@ export const DriverDashboard = () => {
             iconAnchor: [14, 14]
           });
 
+          const tooltipContent = `<div style="font-family: system-ui, -apple-system, sans-serif; font-weight: 700; color: white; background: ${alertColor}; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 11px; text-align: center; text-transform: uppercase; white-space: nowrap;">⚠️ My Incident Reported Here: ${alertTitle}<br/><span style="font-weight: 500; font-size: 9px; opacity: 0.9; text-transform: none;">Coords: ${incidentCoords.lat.toFixed(5)}, ${incidentCoords.lng.toFixed(5)}</span></div>`;
+
           if (!incidentMarkerRef.current) {
             incidentMarkerRef.current = L.marker(incidentLatLng, { icon: incidentIcon })
               .addTo(map)
               .bindPopup(`<strong>Incident Reported Here: ${alertTitle}</strong><br/>Coords: ${incidentCoords.lat.toFixed(5)}, ${incidentCoords.lng.toFixed(5)}`)
+              .bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'custom-incident-tooltip', offset: [0, -10] })
               .openPopup();
           } else {
             incidentMarkerRef.current.setLatLng(incidentLatLng);
             incidentMarkerRef.current.setIcon(incidentIcon);
             incidentMarkerRef.current.setPopupContent(`<strong>Incident Reported Here: ${alertTitle}</strong><br/>Coords: ${incidentCoords.lat.toFixed(5)}, ${incidentCoords.lng.toFixed(5)}`);
+            incidentMarkerRef.current.setTooltipContent(tooltipContent);
           }
         } else {
           if (incidentMarkerRef.current) {
@@ -14447,15 +14649,19 @@ export const ParentDashboard = () => {
             iconAnchor: [14, 14]
           });
 
+          const tooltipContent = `<div style="font-family: system-ui, -apple-system, sans-serif; font-weight: 700; color: white; background: ${alertColor}; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 11px; text-align: center; text-transform: uppercase; white-space: nowrap;">⚠️ Bus ${tripData.busNumber || ''} ${alertTitle} Reported<br/><span style="font-weight: 500; font-size: 9px; opacity: 0.9; text-transform: none;">Coords: ${tripData.incidentCoords.lat.toFixed(5)}, ${tripData.incidentCoords.lng.toFixed(5)}</span></div>`;
+
           if (!incidentMarkerRef.current) {
             incidentMarkerRef.current = L.marker(incidentLatLng, { icon: incidentIcon })
               .addTo(map)
               .bindPopup(`<strong>Driver Alert: ${alertTitle}</strong><br/>Location of incident report`)
+              .bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'custom-incident-tooltip', offset: [0, -10] })
               .openPopup();
           } else {
             incidentMarkerRef.current.setLatLng(incidentLatLng);
             incidentMarkerRef.current.setIcon(incidentIcon);
             incidentMarkerRef.current.setPopupContent(`<strong>Driver Alert: ${alertTitle}</strong><br/>Location of incident report`);
+            incidentMarkerRef.current.setTooltipContent(tooltipContent);
           }
         } else {
           if (incidentMarkerRef.current) {
