@@ -2,7 +2,8 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import { GraduationCap, School, CheckCircle, Search, UserCheck } from 'lucide-react';
+import { GraduationCap, School, CheckCircle, Search, UserCheck, MapPin } from 'lucide-react';
+import InteractiveMapSelectorModal from '../components/InteractiveMapSelectorModal';
 import './Auth.css';
 
 const getApiUrl = () => {
@@ -73,6 +74,28 @@ const Register = () => {
     emergencyContact: '',
     homeAddress: ''
   });
+  const [showRegisterMapSelector, setShowRegisterMapSelector] = useState(false);
+
+  const handleRegisterDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setParentDetails(prev => ({
+          ...prev,
+          homeAddress: `Coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+        }));
+      },
+      (error) => {
+        alert(`Failed to detect location: ${error.message}`);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   const [parentChildOption, setParentChildOption] = useState('option_a'); // 'option_a' or 'option_b'
   const [manualChildDetails, setManualChildDetails] = useState({
     fullName: '',
@@ -1209,12 +1232,54 @@ const Register = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label" htmlFor="homeAddress">Home Address *</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
+                      <label className="form-label" htmlFor="homeAddress" style={{ margin: 0 }}>Home Address *</label>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={handleRegisterDetectLocation}
+                          style={{
+                            background: 'rgba(168, 85, 247, 0.1)',
+                            border: '1.5px solid rgba(168, 85, 247, 0.4)',
+                            color: 'var(--accent)',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <MapPin size={10} /> I'm at Location
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowRegisterMapSelector(true)}
+                          style={{
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1.5px solid rgba(59, 130, 246, 0.4)',
+                            color: '#60a5fa',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <span>📍</span> Select on Map
+                        </button>
+                      </div>
+                    </div>
                     <textarea
                       id="homeAddress"
                       name="homeAddress"
                       className="form-input"
-                      placeholder="Enter home residential address"
+                      placeholder="Enter home residential address (or use I'm at Location / Select on Map)"
                       value={parentDetails.homeAddress}
                       onChange={handleParentFieldChange}
                       required
@@ -1277,6 +1342,18 @@ const Register = () => {
           </div>
         )}
       </div>
+      <InteractiveMapSelectorModal 
+        isOpen={showRegisterMapSelector}
+        onClose={() => setShowRegisterMapSelector(false)}
+        onSelect={(lat, lng) => {
+          setParentDetails(prev => ({
+            ...prev,
+            homeAddress: `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`
+          }));
+        }}
+        initialLat={parentDetails.homeAddress.includes('Coordinates:') ? parentDetails.homeAddress.split('Coordinates:')[1].split(',')[0].trim() : ''}
+        initialLng={parentDetails.homeAddress.includes('Coordinates:') ? parentDetails.homeAddress.split(',')[1].trim() : ''}
+      />
     </div>
   );
 };

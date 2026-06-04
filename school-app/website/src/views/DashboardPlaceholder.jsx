@@ -18,6 +18,7 @@ import {
 import { Line, Bar } from 'react-chartjs-2';
 import './Dashboard.css';
 import SplashScreen from '../components/SplashScreen';
+import InteractiveMapSelectorModal from '../components/InteractiveMapSelectorModal';
 
 ChartJS.register(
   CategoryScale,
@@ -551,11 +552,33 @@ const BroadcastDetailsModal = ({ isOpen, onClose, onSubmit, userRole, schools = 
   );
 };
 
+
 const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
   const { setUser } = useContext(AuthContext);
   const [currentNotification, setCurrentNotification] = useState(null);
   const [profilePhoto, setProfilePhoto] = useState('');
   const [previewPhoto, setPreviewPhoto] = useState('');
+  const [showPopupMapSelector, setShowPopupMapSelector] = useState(false);
+
+  const handlePopupDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setProfileData(prev => ({
+          ...prev,
+          homeAddress: `Coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+        }));
+      },
+      (error) => {
+        alert(`Failed to detect location: ${error.message}`);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
   const [profileData, setProfileData] = useState({
     fatherName: '',
     motherName: '',
@@ -929,10 +952,53 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
                     />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Home Address</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
+                      <label className="form-label" style={{ margin: 0 }}>Home Address</label>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={handlePopupDetectLocation}
+                          style={{
+                            background: 'rgba(168, 85, 247, 0.1)',
+                            border: '1.5px solid rgba(168, 85, 247, 0.4)',
+                            color: 'var(--accent)',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <MapPin size={10} /> I'm at Location
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowPopupMapSelector(true)}
+                          style={{
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1.5px solid rgba(59, 130, 246, 0.4)',
+                            color: '#60a5fa',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <span>📍</span> Select on Map
+                        </button>
+                      </div>
+                    </div>
                     <input 
                       type="text" 
                       className="form-input" 
+                      placeholder="Enter coordinates (e.g. Coordinates: 12.97, 77.59)"
                       value={profileData.homeAddress} 
                       onChange={(e) => setProfileData({ ...profileData, homeAddress: e.target.value })} 
                       required 
@@ -1025,6 +1091,18 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
           </div>
         )}
       </div>
+      <InteractiveMapSelectorModal 
+        isOpen={showPopupMapSelector}
+        onClose={() => setShowPopupMapSelector(false)}
+        onSelect={(lat, lng) => {
+          setProfileData(prev => ({
+            ...prev,
+            homeAddress: `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`
+          }));
+        }}
+        initialLat={profileData.homeAddress.includes('Coordinates:') ? profileData.homeAddress.split('Coordinates:')[1].split(',')[0].trim() : ''}
+        initialLng={profileData.homeAddress.includes('Coordinates:') ? profileData.homeAddress.split(',')[1].trim() : ''}
+      />
     </div>
   );
 };
@@ -1055,6 +1133,24 @@ const ProfileSettingsTab = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showSettingsMapSelector, setShowSettingsMapSelector] = useState(false);
+
+  const handleSettingsDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setHomeAddress(`Coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+      },
+      (error) => {
+        alert(`Failed to detect location: ${error.message}`);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -1291,7 +1387,49 @@ const ProfileSettingsTab = () => {
               />
             </div>
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Home Address</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
+                <label className="form-label" style={{ margin: 0 }}>Home Address</label>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleSettingsDetectLocation}
+                    style={{
+                      background: 'rgba(168, 85, 247, 0.1)',
+                      border: '1.5px solid rgba(168, 85, 247, 0.4)',
+                      color: 'var(--accent)',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <MapPin size={10} /> I'm at Location
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSettingsMapSelector(true)}
+                    style={{
+                      background: 'rgba(59, 130, 246, 0.1)',
+                      border: '1.5px solid rgba(59, 130, 246, 0.4)',
+                      color: '#60a5fa',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <span>📍</span> Select on Map
+                  </button>
+                </div>
+              </div>
               <input 
                 type="text" 
                 className="form-input" 
@@ -1373,6 +1511,15 @@ const ProfileSettingsTab = () => {
         >
           {loading ? 'Saving Changes...' : '💾 Save Profile Settings'}
         </button>
+      <InteractiveMapSelectorModal 
+        isOpen={showSettingsMapSelector}
+        onClose={() => setShowSettingsMapSelector(false)}
+        onSelect={(lat, lng) => {
+          setHomeAddress(`Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        }}
+        initialLat={homeAddress.includes('Coordinates:') ? homeAddress.split('Coordinates:')[1].split(',')[0].trim() : ''}
+        initialLng={homeAddress.includes('Coordinates:') ? homeAddress.split(',')[1].trim() : ''}
+      />
       </form>
     </div>
   );
@@ -13948,6 +14095,8 @@ export const ParentDashboard = () => {
   // Home coordinates prompt states
   const [showHomePromptModal, setShowHomePromptModal] = useState(false);
   const [showTrackLocationChoiceModal, setShowTrackLocationChoiceModal] = useState(false);
+  const [showDashboardMapSelector, setShowDashboardMapSelector] = useState(false);
+  const [showParentEditorMapSelector, setShowParentEditorMapSelector] = useState(false);
   const [homeLat, setHomeLat] = useState('');
   const [homeLng, setHomeLng] = useState('');
   const [promptLoading, setPromptLoading] = useState(false);
@@ -13969,6 +14118,26 @@ export const ParentDashboard = () => {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileSuccess, setProfileSuccess] = useState('');
+
+  const handleDashboardDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setParentProfileForm(prev => ({
+          ...prev,
+          homeAddress: `Coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+        }));
+      },
+      (error) => {
+        alert(`Failed to detect location: ${error.message}`);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   useEffect(() => {
     if (user) {
@@ -14012,11 +14181,8 @@ export const ParentDashboard = () => {
   };
 
   const handleSelectOnMapClick = () => {
-    if (activeTab !== 'bus') {
-      setActiveTab('bus');
-    }
     setShowHomePromptModal(false);
-    setIsSelectingOnMap(true);
+    setShowDashboardMapSelector(true);
   };
 
   const handleCancelSelect = () => {
@@ -15675,29 +15841,53 @@ export const ParentDashboard = () => {
                   />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
                     <label className="form-label" style={{ fontSize: '12px', margin: 0 }}>Home Address</label>
-                    <button 
-                      type="button"
-                      onClick={() => setShowHomePromptModal(true)} 
-                      style={{ 
-                        background: 'rgba(168, 85, 247, 0.1)', 
-                        border: '1.5px solid rgba(168, 85, 247, 0.4)', 
-                        color: 'var(--accent)', 
-                        padding: '4px 10px', 
-                        borderRadius: '6px', 
-                        fontSize: '11px', 
-                        fontWeight: '600', 
-                        cursor: 'pointer' 
-                      }}
-                    >
-                      ✏️ Map Picker
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={handleDashboardDetectLocation}
+                        style={{
+                          background: 'rgba(168, 85, 247, 0.1)',
+                          border: '1.5px solid rgba(168, 85, 247, 0.4)',
+                          color: 'var(--accent)',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <MapPin size={10} /> I'm at Location
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowParentEditorMapSelector(true)}
+                        style={{
+                          background: 'rgba(59, 130, 246, 0.1)',
+                          border: '1.5px solid rgba(59, 130, 246, 0.4)',
+                          color: '#60a5fa',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <span>📍</span> Select on Map
+                      </button>
+                    </div>
                   </div>
                   <input 
                     type="text" 
                     className="form-input" 
-                    style={{ padding: '8px', fontSize: '13px', marginTop: '4px' }}
+                    style={{ padding: '8px', fontSize: '13px' }}
                     value={parentProfileForm.homeAddress} 
                     onChange={(e) => setParentProfileForm({ ...parentProfileForm, homeAddress: e.target.value })} 
                   />
@@ -17035,6 +17225,33 @@ export const ParentDashboard = () => {
       {activeTab === 'profile' && (
         <ProfileSettingsTab />
       )}
+      <InteractiveMapSelectorModal 
+        isOpen={showDashboardMapSelector}
+        onClose={() => {
+          setShowDashboardMapSelector(false);
+          setShowHomePromptModal(true);
+        }}
+        onSelect={(lat, lng) => {
+          setHomeLat(lat.toFixed(6));
+          setHomeLng(lng.toFixed(6));
+          setShowDashboardMapSelector(false);
+          setShowHomePromptModal(true);
+        }}
+        initialLat={homeLat}
+        initialLng={homeLng}
+      />
+      <InteractiveMapSelectorModal 
+        isOpen={showParentEditorMapSelector}
+        onClose={() => setShowParentEditorMapSelector(false)}
+        onSelect={(lat, lng) => {
+          setParentProfileForm(prev => ({
+            ...prev,
+            homeAddress: `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`
+          }));
+        }}
+        initialLat={parentProfileForm.homeAddress.includes('Coordinates:') ? parentProfileForm.homeAddress.split('Coordinates:')[1].split(',')[0].trim() : ''}
+        initialLng={parentProfileForm.homeAddress.includes('Coordinates:') ? parentProfileForm.homeAddress.split(',')[1].trim() : ''}
+      />
     </DashboardLayout>
   );
 };
