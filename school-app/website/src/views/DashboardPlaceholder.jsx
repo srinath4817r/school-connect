@@ -13865,7 +13865,7 @@ export const DriverDashboard = () => {
 // PARENT DASHBOARD (REAL MAPS & GEOLOCATION BROADCASTS)
 // -------------------------------------------------------------
 export const ParentDashboard = () => {
-  const { user, logout } = useContext(AuthContext);
+  const { user, setUser, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('activeTab_parent') || 'diary'); // 'diary', 'bus', 'attendance', 'timetable', 'marks', 'fees'
@@ -13947,6 +13947,61 @@ export const ParentDashboard = () => {
   const [promptSuccess, setPromptSuccess] = useState('');
 
   const [isSelectingOnMap, setIsSelectingOnMap] = useState(false);
+
+  // Parent profile editing states
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [parentProfileForm, setParentProfileForm] = useState({
+    fatherName: user?.fatherName || '',
+    motherName: user?.motherName || '',
+    fatherPhone: user?.fatherPhone || '',
+    motherPhone: user?.motherPhone || '',
+    emergencyContact: user?.emergencyContact || '',
+    homeAddress: user?.homeAddress || ''
+  });
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      setParentProfileForm({
+        fatherName: user.fatherName || '',
+        motherName: user.motherName || '',
+        fatherPhone: user.fatherPhone || '',
+        motherPhone: user.motherPhone || '',
+        emergencyContact: user.emergencyContact || '',
+        homeAddress: user.homeAddress || ''
+      });
+    }
+  }, [user]);
+
+  const handleSaveParentProfile = async (e) => {
+    e.preventDefault();
+    setProfileLoading(true);
+    setProfileError('');
+    setProfileSuccess('');
+    try {
+      const res = await axios.put(`${API_URL}/auth/update-profile`, {
+        fatherName: parentProfileForm.fatherName,
+        motherName: parentProfileForm.motherName,
+        fatherPhone: parentProfileForm.fatherPhone,
+        motherPhone: parentProfileForm.motherPhone,
+        emergencyContact: parentProfileForm.emergencyContact,
+        homeAddress: parentProfileForm.homeAddress
+      });
+      if (res.data.status === 'success') {
+        setUser(res.data.user);
+        saveUserToLocalStorage(res.data.user);
+        setProfileSuccess('Profile details saved successfully! ✅');
+        setIsEditingProfile(false);
+        setTimeout(() => setProfileSuccess(''), 3000);
+      }
+    } catch (err) {
+      setProfileError(err.response?.data?.message || 'Failed to update profile details.');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   const handleSelectOnMapClick = () => {
     if (activeTab !== 'bus') {
@@ -15551,47 +15606,155 @@ export const ParentDashboard = () => {
 
             {/* Right: Parent Profile details summary */}
             <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h3 style={{ margin: 0 }}>My Profile Information</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Registered Email:</span>
-                  <span style={{ fontWeight: 'bold' }}>{user.email}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Father's Name:</span>
-                  <span>{user.fatherName || 'Not Entered'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Mother's Name:</span>
-                  <span>{user.motherName || 'Not Entered'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Phone Number:</span>
-                  <span>{user.fatherPhone || user.motherPhone || 'Not Entered'}</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Address/Home Location:</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0 }}>My Profile Information</h3>
+                {!isEditingProfile && (
+                  <button 
+                    type="button"
+                    onClick={() => setIsEditingProfile(true)}
+                    className="code-action-btn"
+                    style={{ margin: 0, padding: '4px 10px', fontSize: '12px' }}
+                  >
+                    ✏️ Edit Details
+                  </button>
+                )}
+              </div>
+
+              {profileError && <div className="error-banner" style={{ fontSize: '13px', padding: '8px', margin: 0 }}>{profileError}</div>}
+              {profileSuccess && <div className="success-banner" style={{ fontSize: '13px', padding: '8px', margin: 0 }}>{profileSuccess}</div>}
+
+              {isEditingProfile ? (
+                <form onSubmit={handleSaveParentProfile} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Father's Name</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      style={{ padding: '8px', fontSize: '13px' }}
+                      value={parentProfileForm.fatherName} 
+                      onChange={(e) => setParentProfileForm({ ...parentProfileForm, fatherName: e.target.value })} 
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Father's Phone</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      style={{ padding: '8px', fontSize: '13px' }}
+                      value={parentProfileForm.fatherPhone} 
+                      onChange={(e) => setParentProfileForm({ ...parentProfileForm, fatherPhone: e.target.value })} 
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Mother's Name</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      style={{ padding: '8px', fontSize: '13px' }}
+                      value={parentProfileForm.motherName} 
+                      onChange={(e) => setParentProfileForm({ ...parentProfileForm, motherName: e.target.value })} 
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Mother's Phone</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      style={{ padding: '8px', fontSize: '13px' }}
+                      value={parentProfileForm.motherPhone} 
+                      onChange={(e) => setParentProfileForm({ ...parentProfileForm, motherPhone: e.target.value })} 
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Emergency Contact Number</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      style={{ padding: '8px', fontSize: '13px' }}
+                      value={parentProfileForm.emergencyContact} 
+                      onChange={(e) => setParentProfileForm({ ...parentProfileForm, emergencyContact: e.target.value })} 
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Home Address</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      style={{ padding: '8px', fontSize: '13px' }}
+                      value={parentProfileForm.homeAddress} 
+                      onChange={(e) => setParentProfileForm({ ...parentProfileForm, homeAddress: e.target.value })} 
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
                     <button 
-                      type="button"
-                      onClick={() => setShowHomePromptModal(true)} 
-                      style={{ 
-                        background: 'rgba(168, 85, 247, 0.1)', 
-                        border: '1.5px solid rgba(168, 85, 247, 0.4)', 
-                        color: 'var(--accent)', 
-                        padding: '4px 10px', 
-                        borderRadius: '6px', 
-                        fontSize: '11px', 
-                        fontWeight: '600', 
-                        cursor: 'pointer' 
-                      }}
+                      type="submit" 
+                      disabled={profileLoading}
+                      className="dashboard-btn-primary"
+                      style={{ flex: 1, margin: 0, padding: '10px', fontSize: '13px' }}
                     >
-                      ✏️ Edit Location
+                      {profileLoading ? 'Saving...' : '💾 Save Details'}
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setIsEditingProfile(false)}
+                      className="code-action-btn"
+                      style={{ flex: 1, margin: 0, padding: '10px', fontSize: '13px', background: 'transparent' }}
+                    >
+                      Cancel
                     </button>
                   </div>
-                  <span style={{ textAlign: 'right', fontSize: '13px', wordBreak: 'break-all', color: 'white' }}>{user.homeAddress || 'Not Entered'}</span>
+                </form>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Registered Email:</span>
+                    <span style={{ fontWeight: 'bold' }}>{user.email}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Father's Name:</span>
+                    <span>{user.fatherName || 'Not Entered'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Father's Phone:</span>
+                    <span>{user.fatherPhone || 'Not Entered'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Mother's Name:</span>
+                    <span>{user.motherName || 'Not Entered'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Mother's Phone:</span>
+                    <span>{user.motherPhone || 'Not Entered'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Emergency Contact:</span>
+                    <span>{user.emergencyContact || 'Not Entered'}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Address/Home Location:</span>
+                      <button 
+                        type="button"
+                        onClick={() => setShowHomePromptModal(true)} 
+                        style={{ 
+                          background: 'rgba(168, 85, 247, 0.1)', 
+                          border: '1.5px solid rgba(168, 85, 247, 0.4)', 
+                          color: 'var(--accent)', 
+                          padding: '4px 10px', 
+                          borderRadius: '6px', 
+                          fontSize: '11px', 
+                          fontWeight: '600', 
+                          cursor: 'pointer' 
+                        }}
+                      >
+                        ✏️ Edit Location
+                      </button>
+                    </div>
+                    <span style={{ textAlign: 'right', fontSize: '13px', wordBreak: 'break-all', color: 'white' }}>{user.homeAddress || 'Not Entered'}</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div style={{ 
                 background: 'rgba(59, 130, 246, 0.05)', 
