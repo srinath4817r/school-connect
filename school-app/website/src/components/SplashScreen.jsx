@@ -4,15 +4,15 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
   const [isFadingOut, setIsFadingOut] = useState(false);
 
   useEffect(() => {
-    // 1.75s: Transition out starts
+    // 0.5s: Transition out starts
     const fadeOutTimer = setTimeout(() => {
       setIsFadingOut(true);
-    }, 1750);
+    }, 500);
 
-    // 1.95s: Animation finishes completely, dashboard should show
+    // 0.7s: Animation finishes completely, dashboard should show
     const completeTimer = setTimeout(() => {
       if (onComplete) onComplete();
-    }, 1950);
+    }, 700);
 
     return () => {
       clearTimeout(fadeOutTimer);
@@ -48,7 +48,7 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
     return '#A855F7';
   };
 
-  const schoolLogoSrc = schoolData?.logoUrl || schoolData?.schoolPhoto;
+  const schoolLogoSrc = schoolData?.logoUrl || schoolData?.schoolPhoto || '/default_app_logo.jpg';
   const userPhotoSrc = user?.profilePhotoUrl || user?.profilePhoto;
 
   const roleColor = getRoleColor(user?.role);

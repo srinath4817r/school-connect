@@ -56,15 +56,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       if (!token) {
-        if (enforceDelay) {
-          const elapsed = Date.now() - startTime;
-          const remaining = Math.max(0, 1000 - elapsed);
-          setTimeout(() => {
-            setLoading(false);
-          }, remaining);
-        } else {
-          setLoading(false);
-        }
+        setLoading(false);
         return;
       }
 
@@ -77,15 +69,7 @@ export const AuthProvider = ({ children }) => {
         console.error('Failed to load user profile on boot', err.message);
         logout();
       } finally {
-        if (enforceDelay) {
-          const elapsed = Date.now() - startTime;
-          const remaining = Math.max(0, 1000 - elapsed);
-          setTimeout(() => {
-            setLoading(false);
-          }, remaining);
-        } else {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 

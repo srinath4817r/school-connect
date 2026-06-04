@@ -2126,12 +2126,10 @@ const DashboardLayout = ({
     }
 
     // 3. Prompt for App Icon branding preference if not yet chosen
-    if (user && user.school && schoolData && !localStorage.getItem('appIconPreference')) {
-      if (schoolData.schoolPhoto || schoolData.logoUrl) {
-        setShowAppIconModal(true);
-      }
+    if (user && !localStorage.getItem('appIconPreference')) {
+      setShowAppIconModal(true);
     }
-  }, [user, schoolData]);
+  }, [user]);
 
   // Pull to Refresh Handlers
   const handleTouchStart = (e) => {
