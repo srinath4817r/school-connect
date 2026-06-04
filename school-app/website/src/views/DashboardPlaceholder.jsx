@@ -451,8 +451,11 @@ const BroadcastDetailsModal = ({ isOpen, onClose, onSubmit, userRole, schools = 
       background: 'rgba(15, 15, 26, 0.85)',
       backdropFilter: 'blur(8px)',
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
+      overflowY: 'auto',
+      padding: '40px 10px',
       zIndex: 9999,
       animation: 'fadeIn 0.2s ease'
     }}>
@@ -461,7 +464,8 @@ const BroadcastDetailsModal = ({ isOpen, onClose, onSubmit, userRole, schools = 
         padding: '30px',
         border: '1px solid var(--border)',
         boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
-        animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+        animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        margin: '0 auto'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-title)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -709,8 +713,11 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
       background: 'rgba(15, 15, 26, 0.9)',
       backdropFilter: 'blur(10px)',
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
+      overflowY: 'auto',
+      padding: '40px 10px',
       zIndex: 10000,
       animation: 'fadeIn 0.2s ease'
     }}>
@@ -721,8 +728,7 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
         border: '1px solid var(--border)',
         boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
         animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        maxHeight: '90vh',
-        overflowY: 'auto'
+        margin: '0 auto'
       }}>
         {currentNotification.type === 'general' ? (
           <div>
@@ -16783,8 +16789,11 @@ export const ParentDashboard = () => {
           background: 'rgba(15, 15, 26, 0.9)',
           backdropFilter: 'blur(10px)',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'flex-start',
+          overflowY: 'auto',
+          padding: '40px 10px',
           zIndex: 10001,
           animation: 'fadeIn 0.2s ease'
         }}>
@@ -16797,7 +16806,8 @@ export const ParentDashboard = () => {
             animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '20px'
+            gap: '20px',
+            margin: '0 auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-title)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -16944,8 +16954,11 @@ export const ParentDashboard = () => {
           background: 'rgba(15, 15, 26, 0.9)',
           backdropFilter: 'blur(10px)',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'flex-start',
+          overflowY: 'auto',
+          padding: '40px 10px',
           zIndex: 10002,
           animation: 'fadeIn 0.2s ease'
         }}>
@@ -16959,7 +16972,8 @@ export const ParentDashboard = () => {
             display: 'flex',
             flexDirection: 'column',
             gap: '20px',
-            textAlign: 'center'
+            textAlign: 'center',
+            margin: '0 auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-title)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
