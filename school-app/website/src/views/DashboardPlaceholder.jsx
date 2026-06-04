@@ -559,6 +559,16 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
   const [profilePhoto, setProfilePhoto] = useState('');
   const [previewPhoto, setPreviewPhoto] = useState('');
   const [showPopupMapSelector, setShowPopupMapSelector] = useState(false);
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState([]);
+  const dismissedIdsRef = useRef([]);
+
+  const handleDismissNotification = (notificationId) => {
+    if (!dismissedIdsRef.current.includes(notificationId)) {
+      dismissedIdsRef.current.push(notificationId);
+      setDismissedNotificationIds([...dismissedIdsRef.current]);
+    }
+    setCurrentNotification(null);
+  };
 
   const handlePopupDetectLocation = () => {
     if (!navigator.geolocation) {
@@ -603,7 +613,10 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
       const res = await axios.get(`${API_URL}/notifications`);
       if (res.data.status === 'success') {
         const active = res.data.notifications || [];
-        const found = active.find(n => n.type === 'retake_attendance' || n.type === 'update_details' || n.type === 'general');
+        const found = active.find(n => 
+          (n.type === 'retake_attendance' || n.type === 'update_details' || n.type === 'general') &&
+          !dismissedIdsRef.current.includes(n._id)
+        );
         if (found) {
           setCurrentNotification(found);
           setProfilePhoto(user.profilePhoto || '');
@@ -714,10 +727,12 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
         setUser(res.data.user);
         saveUserToLocalStorage(res.data.user);
         await markAsRead();
+        if (currentNotification) {
+          handleDismissNotification(currentNotification._id);
+        }
         setSuccess('Profile updated successfully!');
         setTimeout(() => {
           setSuccess('');
-          setCurrentNotification(null);
         }, 1500);
       }
     } catch (err) {
@@ -758,7 +773,11 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
       }}>
         <button 
           type="button"
-          onClick={() => setCurrentNotification(null)}
+          onClick={() => {
+            if (currentNotification) {
+              handleDismissNotification(currentNotification._id);
+            }
+          }}
           style={{
             position: 'absolute',
             top: '16px',
