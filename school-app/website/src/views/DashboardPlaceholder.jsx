@@ -465,7 +465,7 @@ const BroadcastDetailsModal = ({ isOpen, onClose, onSubmit, userRole, schools = 
         border: '1px solid var(--border)',
         boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
         animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        margin: '0 auto'
+        margin: '0 auto 40px auto'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-title)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -728,7 +728,7 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
         border: '1px solid var(--border)',
         boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
         animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        margin: '0 auto'
+        margin: '0 auto 40px auto'
       }}>
         {currentNotification.type === 'general' ? (
           <div>
@@ -1816,15 +1816,28 @@ const DashboardLayout = ({
     updateTableLabels();
     document.addEventListener('click', handleTableClick);
 
-    // Watch for dynamic page updates and tab switching to re-apply labels
+    // Initial check for modals on mount
+    const hasModal = document.querySelector('.modal-overlay') !== null;
+    if (hasModal) {
+      document.body.style.overflow = 'hidden';
+    }
+
+    // Watch for dynamic page updates and tab switching to re-apply labels & lock body scroll on modal overlays
     const observer = new MutationObserver(() => {
       updateTableLabels();
+      const activeModal = document.querySelector('.modal-overlay') !== null;
+      if (activeModal) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = 'unset';
+      }
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
       document.removeEventListener('click', handleTableClick);
       observer.disconnect();
+      document.body.style.overflow = 'unset';
     };
   }, []);
 
@@ -16807,7 +16820,7 @@ export const ParentDashboard = () => {
             display: 'flex',
             flexDirection: 'column',
             gap: '20px',
-            margin: '0 auto'
+            margin: '0 auto 40px auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-title)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -16973,7 +16986,7 @@ export const ParentDashboard = () => {
             flexDirection: 'column',
             gap: '20px',
             textAlign: 'center',
-            margin: '0 auto'
+            margin: '0 auto 40px auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-title)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
