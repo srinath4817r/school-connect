@@ -183,7 +183,7 @@ const LogoutConfirmationModal = ({ isOpen, onClose, onConfirm }) => {
       animation: 'fadeIn 0.2s ease'
     }}>
       <div className="glass-card" style={{
-        width: '400px',
+        width: '450px',
         padding: '30px',
         textAlign: 'center',
         border: '1px solid var(--border)',
@@ -205,35 +205,69 @@ const LogoutConfirmationModal = ({ isOpen, onClose, onConfirm }) => {
         </div>
         <h3 style={{ marginBottom: '10px', fontSize: '20px', fontFamily: 'var(--font-title)' }}>Confirm Logout</h3>
         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
-          Are you sure you want to log out of your School Connect session?
+          Choose how you want to log out from this device:
         </p>
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
           <button 
-            onClick={onClose} 
-            className="code-action-btn"
-            style={{ margin: 0, flex: 1, padding: '12px' }}
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={onConfirm} 
+            onClick={() => { onConfirm(false); onClose(); }} 
             disabled={seconds > 0}
             className="logout-btn"
             style={{ 
               margin: 0, 
-              flex: 1, 
+              padding: '12px',
+              opacity: seconds > 0 ? 0.5 : 1,
+              cursor: seconds > 0 ? 'not-allowed' : 'pointer',
+              background: seconds > 0 ? '#4b5563' : 'var(--accent)',
+              borderColor: seconds > 0 ? '#4b5563' : 'var(--accent)',
+              color: '#fff',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              borderRadius: '8px'
+            }}
+          >
+            {seconds > 0 ? `Logout & Keep Details (${seconds}s)` : 'Logout & Keep Details'}
+          </button>
+          
+          <button 
+            onClick={() => { 
+              if (window.confirm("WARNING: This will completely erase all credentials, cached profiles, and local storage from this device. Do you want to proceed?")) {
+                onConfirm(true); 
+                onClose(); 
+              }
+            }} 
+            disabled={seconds > 0}
+            className="logout-btn"
+            style={{ 
+              margin: 0, 
               padding: '12px',
               opacity: seconds > 0 ? 0.5 : 1,
               cursor: seconds > 0 ? 'not-allowed' : 'pointer',
               background: seconds > 0 ? '#4b5563' : '#ef4444',
               borderColor: seconds > 0 ? '#4b5563' : '#ef4444',
+              color: '#fff',
+              fontWeight: '600',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '6px'
+              gap: '6px',
+              borderRadius: '8px'
             }}
           >
-            {seconds > 0 ? `Yes (${seconds}s)` : 'Yes, Logout'}
+            {seconds > 0 ? `Remove Account completely (${seconds}s)` : 'Remove Account completely'}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <button 
+            onClick={onClose} 
+            className="code-action-btn"
+            style={{ margin: 0, width: '100%', padding: '12px', borderRadius: '8px' }}
+          >
+            Cancel
           </button>
         </div>
       </div>
@@ -6816,8 +6850,8 @@ export const SuperAdminDashboard = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = () => {
-    logout();
+  const confirmLogout = (removeAccount = false) => {
+    logout(removeAccount);
     navigate('/login');
   };
 
@@ -8634,8 +8668,8 @@ export const SchoolAdminDashboard = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = () => {
-    logout();
+  const confirmLogout = (removeAccount = false) => {
+    logout(removeAccount);
     navigate('/login');
   };
 
@@ -10102,8 +10136,8 @@ export const PrincipalDashboard = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = () => {
-    logout();
+  const confirmLogout = (removeAccount = false) => {
+    logout(removeAccount);
     navigate('/login');
   };
 
@@ -11346,8 +11380,8 @@ export const TeacherDashboard = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = () => {
-    logout();
+  const confirmLogout = (removeAccount = false) => {
+    logout(removeAccount);
     navigate('/login');
   };
 
@@ -13169,11 +13203,11 @@ export const DriverDashboard = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = () => {
+  const confirmLogout = (removeAccount = false) => {
     if (isTripActive) {
       handleEndTrip();
     }
-    logout();
+    logout(removeAccount);
     navigate('/login');
   };
 
@@ -13966,8 +14000,8 @@ export const ParentDashboard = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = () => {
-    logout();
+  const confirmLogout = (removeAccount = false) => {
+    logout(removeAccount);
     navigate('/login');
   };
 

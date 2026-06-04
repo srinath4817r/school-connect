@@ -144,12 +144,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = (removeAccount = false) => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
     delete axios.defaults.headers.common['Authorization'];
+    if (removeAccount) {
+      localStorage.clear();
+      sessionStorage.clear();
+      window.alert('Success: All account details and local cached profiles have been completely removed from this device.');
+    }
   };
 
   return (
