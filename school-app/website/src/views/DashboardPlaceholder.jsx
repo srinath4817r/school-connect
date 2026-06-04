@@ -1127,9 +1127,22 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
                 type="submit" 
                 disabled={loading}
                 className="dashboard-btn-primary"
-                style={{ margin: 0, width: '100%', padding: '12px' }}
+                style={{ 
+                  margin: '16px 0 0 0', 
+                  width: '100%', 
+                  padding: '14px', 
+                  background: 'var(--accent)', 
+                  borderColor: 'var(--accent)', 
+                  fontWeight: 'bold', 
+                  fontSize: '15px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 20px rgba(168, 85, 247, 0.4)'
+                }}
               >
-                {loading ? 'Saving Details...' : 'Save & Update Profile'}
+                {loading ? 'Submitting Details...' : '📤 Submit Updated Details'}
               </button>
             </form>
           </div>
@@ -16140,9 +16153,22 @@ export const ParentDashboard = () => {
                   type="submit" 
                   disabled={profileLoading}
                   className="dashboard-btn-primary"
-                  style={{ margin: '12px 0 0 0', padding: '12px', fontSize: '14px', fontWeight: 'bold', width: '100%' }}
+                  style={{ 
+                    margin: '16px 0 0 0', 
+                    padding: '14px', 
+                    fontSize: '15px', 
+                    fontWeight: 'bold', 
+                    width: '100%',
+                    background: 'var(--accent)',
+                    borderColor: 'var(--accent)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 20px rgba(168, 85, 247, 0.4)'
+                  }}
                 >
-                  {profileLoading ? 'Saving...' : '💾 Save Profile Details'}
+                  {profileLoading ? 'Submitting...' : '📤 Submit Profile Details'}
                 </button>
                 {user?.updatedAt && (
                   <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'right', marginTop: '6px' }}>
