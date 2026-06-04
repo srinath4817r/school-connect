@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
       if (!token) {
         if (enforceDelay) {
           const elapsed = Date.now() - startTime;
-          const remaining = Math.max(0, 2000 - elapsed);
+          const remaining = Math.max(0, 1000 - elapsed);
           setTimeout(() => {
             setLoading(false);
           }, remaining);
@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }) => {
       } finally {
         if (enforceDelay) {
           const elapsed = Date.now() - startTime;
-          const remaining = Math.max(0, 2000 - elapsed);
+          const remaining = Math.max(0, 1000 - elapsed);
           setTimeout(() => {
             setLoading(false);
           }, remaining);

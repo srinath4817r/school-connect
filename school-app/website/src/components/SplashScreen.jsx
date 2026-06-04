@@ -4,15 +4,15 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
   const [isFadingOut, setIsFadingOut] = useState(false);
 
   useEffect(() => {
-    // 3.5s: Transition out starts
+    // 1.75s: Transition out starts
     const fadeOutTimer = setTimeout(() => {
       setIsFadingOut(true);
-    }, 3500);
+    }, 1750);
 
-    // 3.9s: Animation finishes completely, dashboard should show
+    // 1.95s: Animation finishes completely, dashboard should show
     const completeTimer = setTimeout(() => {
       if (onComplete) onComplete();
-    }, 3900);
+    }, 1950);
 
     return () => {
       clearTimeout(fadeOutTimer);
@@ -96,9 +96,9 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
           left: 20px;
           width: calc(100vw - 40px);
 
-          /* Move to center animation: starts at 1.1s, duration 0.7s */
-          animation: slideToCenter 0.7s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-          animation-delay: 1.1s;
+          /* Move to center animation: starts at 0.55s, duration 0.35s */
+          animation: slideToCenter 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+          animation-delay: 0.55s;
         }
 
         @keyframes slideToCenter {
@@ -130,9 +130,9 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
           /* Spring bounce enter */
           opacity: 0;
           transform: scale(0.5);
-          animation: springEnter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
-                     pulseScale 0.3s ease-in-out forwards;
-          animation-delay: 0s, 1.8s;
+          animation: springEnter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+                     pulseScale 0.15s ease-in-out forwards;
+          animation-delay: 0s, 0.9s;
         }
 
         .school-logo-img {
@@ -170,9 +170,9 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
           /* Spring bounce enter: delay 0.2s */
           opacity: 0;
           transform: scale(0.5);
-          animation: springEnter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
-                     pulseScale 0.3s ease-in-out forwards;
-          animation-delay: 0.2s, 1.8s;
+          animation: springEnter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+                     pulseScale 0.15s ease-in-out forwards;
+          animation-delay: 0.1s, 0.9s;
         }
 
         .user-photo-img {
@@ -237,11 +237,11 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
           background-origin: border-box;
           background-clip: content-box, border-box;
           
-          /* Line draw scaling animation: delay 0.5s, duration 0.8s */
+          /* Line draw scaling animation: delay 0.25s, duration 0.4s */
           transform: scaleX(0);
           transform-origin: left;
-          animation: drawLine 0.8s ease forwards;
-          animation-delay: 0.5s;
+          animation: drawLine 0.4s ease forwards;
+          animation-delay: 0.25s;
         }
 
         @keyframes drawLine {
@@ -261,16 +261,16 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
         }
         
         .data-packet:nth-of-type(1) {
-          animation-delay: 0.6s;
+          animation-delay: 0.3s;
         }
         .data-packet:nth-of-type(2) {
-          animation-delay: 1.0s;
+          animation-delay: 0.5s;
         }
         .data-packet:nth-of-type(3) {
-          animation-delay: 1.4s;
+          animation-delay: 0.7s;
         }
         .data-packet:nth-of-type(4) {
-          animation-delay: 1.8s;
+          animation-delay: 0.9s;
         }
 
         @keyframes flowData {
@@ -307,8 +307,8 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
           pointer-events: none;
           
           /* Appear and run animation */
-          animation: runAcross 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-          animation-delay: 0.9s;
+          animation: runAcross 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+          animation-delay: 0.45s;
         }
 
         .student-emoji {
@@ -370,10 +370,10 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
           justify-content: center;
           z-index: 15;
           
-          /* Pop-in animation: delay 0.9s, duration 0.4s */
+          /* Pop-in animation: delay 0.45s, duration 0.2s */
           transform: scale(0);
-          animation: popIcon 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-          animation-delay: 0.9s;
+          animation: popIcon 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+          animation-delay: 0.45s;
         }
 
         .custom-link-anim-wrapper {
@@ -395,15 +395,15 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
         /* Slide left capsule from top-left */
         .link-path-left {
           transform-origin: 12px 12px;
-          animation: snapLeft 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-          animation-delay: 0.9s;
+          animation: snapLeft 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+          animation-delay: 0.45s;
         }
 
         /* Slide right capsule from bottom-right */
         .link-path-right {
           transform-origin: 12px 12px;
-          animation: snapRight 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-          animation-delay: 0.9s;
+          animation: snapRight 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+          animation-delay: 0.45s;
         }
 
         @keyframes snapLeft {
@@ -448,8 +448,8 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
           box-shadow: 0 0 12px 6px #ffffff, 0 0 20px 10px #a855f7, 0 0 30px 15px #ec4899;
           opacity: 0;
           transform: scale(0);
-          animation: sparkleTrigger 0.5s ease-out forwards;
-          animation-delay: 1.7s;
+          animation: sparkleTrigger 0.25s ease-out forwards;
+          animation-delay: 0.85s;
           pointer-events: none;
           z-index: 20;
         }
@@ -478,8 +478,8 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
           border-radius: 50%;
           opacity: 0;
           transform: scale(0.5);
-          animation: ringTrigger 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
-          animation-delay: 1.7s;
+          animation: ringTrigger 0.4s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+          animation-delay: 0.85s;
           pointer-events: none;
           z-index: 19;
         }
@@ -526,11 +526,11 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
           text-align: center;
           box-sizing: border-box;
 
-          /* Fade up from below: delay 2.0s, duration 0.5s */
+          /* Fade up from below: delay 1.0s, duration 0.25s */
           opacity: 0;
-          transform: translateY(20px);
-          animation: fadeUp 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-          animation-delay: 2.0s;
+          transform: translateY(10px);
+          animation: fadeUp 0.25s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+          animation-delay: 1.0s;
         }
 
         @keyframes fadeUp {
@@ -572,9 +572,9 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
           background: linear-gradient(90deg, #a855f7 0%, #ec4899 100%);
           border-radius: 9999px;
           
-          /* Animate progress: delay 2.3s, duration 1.5s */
-          animation: fillProgress 1.5s linear forwards;
-          animation-delay: 2.3s;
+          /* Animate progress: delay 1.15s, duration 0.75s */
+          animation: fillProgress 0.75s linear forwards;
+          animation-delay: 1.15s;
         }
 
         @keyframes fillProgress {
