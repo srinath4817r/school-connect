@@ -753,8 +753,33 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
         border: '1px solid var(--border)',
         boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
         animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        margin: '0 auto 40px auto'
+        margin: '0 auto 40px auto',
+        position: 'relative'
       }}>
+        <button 
+          type="button"
+          onClick={() => setCurrentNotification(null)}
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '4px',
+            borderRadius: '50%',
+            transition: 'background-color 0.2s',
+            zIndex: 10
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+        >
+          <X size={18} />
+        </button>
         {currentNotification.type === 'general' ? (
           <div>
             <div style={{
