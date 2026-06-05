@@ -50,7 +50,7 @@ exports.updateStudentFee = async (req, res) => {
     try {
       const cleanDueDate = new Date(dueDate).toLocaleDateString();
       const pendingAmount = Number(totalAmount) - Number(paidAmount);
-      const message = `💳 Fee Details Updated: Your fee details have been updated. Total: ₹${totalAmount}, Paid: ₹${paidAmount}, Pending: ₹${pendingAmount}, Due Date: ${cleanDueDate}.`;
+      const message = `Fee Details Updated: Your fee details have been updated. Total: ₹${totalAmount}, Paid: ₹${paidAmount}, Pending: ₹${pendingAmount}, Due Date: ${cleanDueDate}.`;
 
       const newNotification = new Notification({
         school: req.user.school,

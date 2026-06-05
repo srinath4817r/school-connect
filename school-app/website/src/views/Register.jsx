@@ -1271,7 +1271,7 @@ const Register = () => {
                             gap: '4px'
                           }}
                         >
-                          <span>📍</span> Select on Map
+                          <MapPin size={11} /> Select on Map
                         </button>
                       </div>
                     </div>

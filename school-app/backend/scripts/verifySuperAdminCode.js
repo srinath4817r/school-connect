@@ -23,11 +23,11 @@ const verifyCode = async () => {
 
     // Test new code comparison
     const isNewCodeMatch = await record.compareCode('SUPERMANFORSCHOOL@48');
-    console.log(`Testing new code "SUPERMANFORSCHOOL@48": ${isNewCodeMatch ? '✅ MATCHES (SUCCESS)' : '❌ DOES NOT MATCH (FAILED)'}`);
+    console.log(`Testing new code "SUPERMANFORSCHOOL@48": ${isNewCodeMatch ? 'SUCCESS MATCHES (SUCCESS)' : 'FAILED DOES NOT MATCH (FAILED)'}`);
 
     // Test old code comparison
     const isOldCodeMatch = await record.compareCode('SUPER@ADMIN#2024');
-    console.log(`Testing old code "SUPER@ADMIN#2024": ${isOldCodeMatch ? '✅ MATCHES (FAILED)' : '❌ DOES NOT MATCH (SUCCESS)'}`);
+    console.log(`Testing old code "SUPER@ADMIN#2024": ${isOldCodeMatch ? 'FAILED MATCHES (FAILED)' : 'SUCCESS DOES NOT MATCH (SUCCESS)'}`);
     console.log('==========================================\n');
 
     process.exit(0);

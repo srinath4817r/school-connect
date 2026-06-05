@@ -89,8 +89,8 @@ exports.submitAttendance = async (req, res) => {
         const studentName = parent ? parent.fullName : 'Your child';
         const cleanShift = shift.charAt(0).toUpperCase() + shift.slice(1);
         const message = status === 'Present' || status === 'Late'
-          ? `✅ Attendance Update: ${studentName} was marked PRESENT (Status: ${status}) for the ${cleanShift} shift today.`
-          : `❌ Attendance Update: ${studentName} was marked ABSENT for the ${cleanShift} shift today.`;
+          ? `Attendance Update: ${studentName} was marked PRESENT (Status: ${status}) for the ${cleanShift} shift today.`
+          : `Attendance Update: ${studentName} was marked ABSENT for the ${cleanShift} shift today.`;
 
         const newNotification = new Notification({
           school: req.user.school,

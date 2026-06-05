@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext, saveUserToLocalStorage } from '../context/AuthContext';
-import { Menu, MoreHorizontal, Users, UserCheck, ShieldAlert, Building, Phone, MapPin, GraduationCap, Bus, Play, Square, Compass, RefreshCw, Milestone, Navigation, BookOpen, Image, Calendar, Award, DollarSign, CheckSquare, Trash2, Camera, Clock, LogOut, AlertTriangle, CheckCircle, RefreshCcw, Edit2, X, Save, Plus, School, Upload, Bell, Wifi, User, Lock, Unlock, Key, Mail, MailOpen } from 'lucide-react';
+import { Menu, MoreHorizontal, Users, UserCheck, ShieldAlert, Building, Phone, MapPin, GraduationCap, Bus, Play, Square, Compass, RefreshCw, Milestone, Navigation, BookOpen, Image, Calendar, Award, DollarSign, CheckSquare, Trash2, Camera, Clock, LogOut, AlertTriangle, CheckCircle, RefreshCcw, Edit2, Edit3, FileEdit, Search, X, Save, Plus, School, Upload, Bell, Wifi, User, Lock, Unlock, Key, Mail, MailOpen, Eye, Monitor, Download } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -398,7 +398,7 @@ const AppIconSelectionModal = ({ isOpen, onClose, schoolLogo, onSelect }) => {
                 opacity: 0.5
               }}
             >
-              <div style={{ width: '80px', height: '80px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>🏫</div>
+              <div style={{ width: '80px', height: '80px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}><School size={32} /></div>
               <span style={{ fontSize: '13px', fontWeight: '600', color: 'white' }}>No School Logo</span>
               <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'center' }}>Upload logo in Settings to activate</span>
             </div>
@@ -471,7 +471,8 @@ const BroadcastDetailsModal = ({ isOpen, onClose, onSubmit, userRole, schools = 
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-title)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>📢</span> Broadcast Details Request
+            <Bell size={18} />
+            <span>Broadcast Details Request</span>
           </h3>
           <button 
             onClick={onClose} 
@@ -493,10 +494,10 @@ const BroadcastDetailsModal = ({ isOpen, onClose, onSubmit, userRole, schools = 
               onChange={(e) => setTargetRole(e.target.value)}
               required
             >
-              <option value="parent">👨‍👩‍👧 Parents</option>
-              <option value="teacher">👩‍🏫 Teachers</option>
-              <option value="driver">🚌 Drivers</option>
-              <option value="staff">💼 Other Staff</option>
+              <option value="parent">Parents</option>
+              <option value="teacher">Teachers</option>
+              <option value="driver">Drivers</option>
+              <option value="staff">Other Staff</option>
             </select>
           </div>
 
@@ -553,19 +554,397 @@ const BroadcastDetailsModal = ({ isOpen, onClose, onSubmit, userRole, schools = 
 };
 
 
+const ParentDetailsModal = ({ isOpen, onClose, parent, onApprove, onReject, userRole }) => {
+  const [showInlineReject, setShowInlineReject] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+
+  const coords = useMemo(() => {
+    if (!parent || !parent.homeAddress) return null;
+    let addressStr = parent.homeAddress;
+    let coordPart = null;
+    if (addressStr.includes('Coordinates:')) {
+      coordPart = addressStr.split('Coordinates:')[1];
+    } else {
+      coordPart = addressStr;
+    }
+    if (coordPart) {
+      try {
+        const parts = coordPart.split(',');
+        if (parts.length >= 2) {
+          const lat = parseFloat(parts[0].trim());
+          const lng = parseFloat(parts[1].trim());
+          if (!isNaN(lat) && !isNaN(lng)) {
+            return { lat, lng };
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return null;
+  }, [parent]);
+
+  useEffect(() => {
+    if (!isOpen || !coords) return;
+    const L = window.L;
+    if (!L) return;
+
+    const timer = setTimeout(() => {
+      try {
+        if (!mapContainerRef.current) return;
+        const map = L.map(mapContainerRef.current, { zoomControl: false }).setView([coords.lat, coords.lng], 15);
+        mapRef.current = map;
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        L.marker([coords.lat, coords.lng]).addTo(map);
+      } catch (err) {
+        console.error('Failed to init preview map', err);
+      }
+    }, 200);
+
+    return () => {
+      clearTimeout(timer);
+      if (mapRef.current) {
+        mapRef.current.off();
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [isOpen, coords]);
+
+  if (!isOpen || !parent) return null;
+
+  const student = parent.student;
+
+  const handleApprove = () => {
+    onApprove(parent._id);
+    onClose();
+  };
+
+  const handleRejectSubmit = (e) => {
+    e.preventDefault();
+    if (!rejectReason.trim()) return;
+    onReject(parent, rejectReason);
+    onClose();
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'P';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      backdropFilter: 'blur(4px)',
+      padding: '20px'
+    }}>
+      <div style={{
+        backgroundColor: '#12122A',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '16px',
+        width: '100%',
+        maxWidth: '600px',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)'
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px 24px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
+        }}>
+          <h3 style={{ margin: 0, color: 'white', fontSize: '18px', fontWeight: '600' }}>Registration Request Details</h3>
+          <button onClick={onClose} style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            padding: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Modal Content */}
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* SECTION 1: PROFILE PHOTO */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            {parent.profilePhotoUrl || parent.profilePhoto ? (
+              <img
+                src={parent.profilePhotoUrl || parent.profilePhoto}
+                alt={parent.fullName}
+                style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)' }}
+              />
+            ) : (
+              <div style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                border: '2px solid #7c3aed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#a78bfa',
+                fontSize: '24px',
+                fontWeight: '700'
+              }}>
+                {getInitials(parent.fullName)}
+              </div>
+            )}
+            <h4 style={{ margin: '8px 0 2px 0', color: 'white', fontSize: '18px', fontWeight: '600' }}>{parent.fullName}</h4>
+            <span style={{
+              fontSize: '11px',
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              backgroundColor: userRole === 'principal' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+              color: userRole === 'principal' ? '#34d399' : '#60a5fa',
+              fontWeight: '600'
+            }}>
+              {userRole === 'principal' ? 'Requested via Principal Portal' : 'Requested via School Admin Portal'}
+            </span>
+          </div>
+
+          {/* SECTION 2: PARENT INFO */}
+          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '16px' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: '600', color: '#a78bfa' }}>Parent Information</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+              <div><strong>Email Address:</strong> <span style={{ color: 'white' }}>{parent.email}</span></div>
+              <div><strong>Phone Number:</strong> <span style={{ color: 'white' }}>{parent.phone || 'N/A'}</span></div>
+              <div><strong>Relationship to child:</strong> <span style={{ color: 'white' }}>{parent.relationship || 'N/A'}</span></div>
+            </div>
+          </div>
+
+          {/* SECTION 3: FAMILY DETAILS */}
+          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '16px' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: '600', color: '#a78bfa' }}>Family Details</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+              <div><strong>Father's Name:</strong> <span style={{ color: 'white' }}>{parent.fatherName || 'N/A'}</span></div>
+              <div><strong>Father's Phone:</strong> <span style={{ color: 'white' }}>{parent.fatherPhone || 'N/A'}</span></div>
+              <div><strong>Mother's Name:</strong> <span style={{ color: 'white' }}>{parent.motherName || 'N/A'}</span></div>
+              <div><strong>Mother's Phone:</strong> <span style={{ color: 'white' }}>{parent.motherPhone || 'N/A'}</span></div>
+              <div style={{ gridColumn: 'span 2' }}><strong>Emergency Contact:</strong> <span style={{ color: 'white' }}>{parent.emergencyContact || 'N/A'}</span></div>
+            </div>
+          </div>
+
+          {/* SECTION 4: HOME ADDRESS */}
+          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '16px' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: '600', color: '#a78bfa' }}>Home Address</h4>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+              <strong>Address:</strong> <span style={{ color: 'white' }}>{parent.homeAddress || 'N/A'}</span>
+            </div>
+            {coords && (
+              <div style={{ marginTop: '8px' }}>
+                <div ref={mapContainerRef} style={{ width: '100%', height: '150px', borderRadius: '8px', marginBottom: '8px', zIndex: 1 }} />
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  <strong>Coordinates:</strong> {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* SECTION 5: CHILD DETAILS */}
+          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '16px' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: '600', color: '#a78bfa' }}>Child Information</h4>
+            {student ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                <div><strong>Child Name:</strong> <span style={{ color: 'white' }}>{student.name}</span></div>
+                <div><strong>Class & Section:</strong> <span style={{ color: 'white' }}>{student.className} {student.section}</span></div>
+                <div><strong>Roll Number:</strong> <span style={{ color: 'white' }}>{student.rollNumber || 'N/A'}</span></div>
+                <div><strong>Date of Birth:</strong> <span style={{ color: 'white' }}>{student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString() : 'N/A'}</span></div>
+              </div>
+            ) : (
+              <div style={{ color: '#ef4444', fontSize: '13px' }}>No student linked.</div>
+            )}
+          </div>
+
+          {/* SECTION 6: SUBMISSION INFO */}
+          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '16px', marginBottom: '8px' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: '600', color: '#a78bfa' }}>Submission Details</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+              <div><strong>Submitted on:</strong> <span style={{ color: 'white' }}>{new Date(parent.createdAt).toLocaleString()}</span></div>
+              <div>
+                <strong>Status:</strong>{' '}
+                <span style={{
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  color: '#fbbf24',
+                  fontSize: '11px',
+                  fontWeight: '600'
+                }}>
+                  Pending
+                </span>
+              </div>
+              <div style={{ gridColumn: 'span 2' }}><strong>Request ID:</strong> <span style={{ color: 'white' }}>{parent._id}</span></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Buttons */}
+        <div style={{
+          borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+          padding: '16px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          {!showInlineReject ? (
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={handleApprove}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: '9999px',
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                }}
+              >
+                <CheckCircle size={16} />
+                <span>Approve</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowInlineReject(true)}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid #ef4444',
+                  color: '#ef4444',
+                  borderRadius: '9999px',
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={16} />
+                <span>Reject</span>
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleRejectSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: 'white' }}>Rejection Reason *</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Specify reason for rejecting this request..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                required
+                autoFocus
+                style={{ width: '100%', marginBottom: '4px', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
+              />
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowInlineReject(false)}
+                  className="code-action-btn"
+                  style={{ margin: 0, padding: '8px 16px' }}
+                >
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  className="logout-btn"
+                  style={{ margin: 0, padding: '8px 16px', background: '#ef4444', borderColor: '#ef4444' }}
+                >
+                  Confirm Reject
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
   const { setUser } = useContext(AuthContext);
   const [currentNotification, setCurrentNotification] = useState(null);
   const [profilePhoto, setProfilePhoto] = useState('');
   const [previewPhoto, setPreviewPhoto] = useState('');
   const [showPopupMapSelector, setShowPopupMapSelector] = useState(false);
-  const [dismissedNotificationIds, setDismissedNotificationIds] = useState([]);
-  const dismissedIdsRef = useRef([]);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState(() => {
+    try {
+      if (!user) return [];
+      const key = `dismissed_notifications_${user.id || user._id}`;
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  // Sync dismissed notifications from localStorage whenever user changes
+  useEffect(() => {
+    if (user) {
+      try {
+        const key = `dismissed_notifications_${user.id || user._id}`;
+        const stored = localStorage.getItem(key);
+        setDismissedNotificationIds(stored ? JSON.parse(stored) : []);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+  }, [user]);
 
   const handleDismissNotification = (notificationId) => {
-    if (!dismissedIdsRef.current.includes(notificationId)) {
-      dismissedIdsRef.current.push(notificationId);
-      setDismissedNotificationIds([...dismissedIdsRef.current]);
+    if (!user) {
+      setCurrentNotification(null);
+      return;
+    }
+    try {
+      const key = `dismissed_notifications_${user.id || user._id}`;
+      const stored = localStorage.getItem(key);
+      const currentList = stored ? JSON.parse(stored) : [];
+      if (!currentList.includes(notificationId)) {
+        const updated = [...currentList, notificationId];
+        localStorage.setItem(key, JSON.stringify(updated));
+        setDismissedNotificationIds(updated);
+      }
+    } catch (e) {
+      console.warn(e);
     }
     setCurrentNotification(null);
   };
@@ -589,6 +968,23 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
+
+  const isProfileComplete = (u) => {
+    if (!u) return true;
+    if (u.role === 'parent') {
+      const hasFather = !!(u.fatherName?.trim() && u.fatherPhone?.trim());
+      const hasMother = !!(u.motherName?.trim() && u.motherPhone?.trim());
+      return !!((hasFather || hasMother) && u.emergencyContact?.trim() && u.homeAddress?.trim());
+    }
+    if (u.role === 'driver') {
+      return !!(u.vehicleNumber && u.licenseNumber && (u.phone || u.phoneNumber));
+    }
+    if (u.role === 'teacher') {
+      return !!(u.fullName && u.primaryClass && u.primarySection);
+    }
+    return true;
+  };
+
   const [profileData, setProfileData] = useState({
     fatherName: '',
     motherName: '',
@@ -613,10 +1009,27 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
       const res = await axios.get(`${API_URL}/notifications`);
       if (res.data.status === 'success') {
         const active = res.data.notifications || [];
-        const found = active.find(n => 
-          (n.type === 'retake_attendance' || n.type === 'update_details' || n.type === 'general') &&
-          !dismissedIdsRef.current.includes(n._id)
-        );
+        const detailsComplete = isProfileComplete(user);
+        
+        // Read directly from localStorage to prevent stale checks
+        let currentDismissed = [];
+        try {
+          const key = `dismissed_notifications_${user.id || user._id}`;
+          const stored = localStorage.getItem(key);
+          currentDismissed = stored ? JSON.parse(stored) : [];
+        } catch (e) {
+          console.warn(e);
+        }
+
+        const found = active.find(n => {
+          if (n.type === 'update_details' && detailsComplete) {
+            axios.post(`${API_URL}/notifications/mark-read/${n._id}`).catch(err => {});
+            return false;
+          }
+          return (n.type === 'retake_attendance' || n.type === 'update_details' || n.type === 'general') &&
+            !currentDismissed.includes(n._id);
+        });
+
         if (found) {
           setCurrentNotification(found);
           setProfilePhoto(user.profilePhoto || '');
@@ -706,12 +1119,44 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
         payload.profilePhoto = profilePhoto;
       }
       if (user.role === 'parent') {
-        payload.fatherName = profileData.fatherName;
-        payload.motherName = profileData.motherName;
-        payload.fatherPhone = profileData.fatherPhone;
-        payload.motherPhone = profileData.motherPhone;
-        payload.emergencyContact = profileData.emergencyContact;
-        payload.homeAddress = profileData.homeAddress;
+        const fatherNameVal = profileData.fatherName?.trim() || '';
+        const fatherPhoneVal = profileData.fatherPhone?.trim() || '';
+        const motherNameVal = profileData.motherName?.trim() || '';
+        const motherPhoneVal = profileData.motherPhone?.trim() || '';
+        const emergencyContactVal = profileData.emergencyContact?.trim() || '';
+        const homeAddressVal = profileData.homeAddress?.trim() || '';
+
+        const hasFather = !!(fatherNameVal && fatherPhoneVal);
+        const hasMother = !!(motherNameVal && motherPhoneVal);
+
+        if (!hasFather && !hasMother) {
+          throw new Error("Please fill in either Father's details (Name & Phone) or Mother's details (Name & Phone).");
+        }
+        if (fatherNameVal && !fatherPhoneVal) {
+          throw new Error("Please fill in Father's Phone Number.");
+        }
+        if (!fatherNameVal && fatherPhoneVal) {
+          throw new Error("Please fill in Father's Name.");
+        }
+        if (motherNameVal && !motherPhoneVal) {
+          throw new Error("Please fill in Mother's Phone Number.");
+        }
+        if (!motherNameVal && motherPhoneVal) {
+          throw new Error("Please fill in Mother's Name.");
+        }
+        if (!emergencyContactVal) {
+          throw new Error("Please fill in the Emergency Contact.");
+        }
+        if (!homeAddressVal) {
+          throw new Error("Please fill in the Home Address / Pickup Point.");
+        }
+
+        payload.fatherName = fatherNameVal;
+        payload.motherName = motherNameVal;
+        payload.fatherPhone = fatherPhoneVal;
+        payload.motherPhone = motherPhoneVal;
+        payload.emergencyContact = emergencyContactVal;
+        payload.homeAddress = homeAddressVal;
       } else if (user.role === 'driver') {
         payload.vehicleNumber = profileData.vehicleNumber;
         payload.licenseNumber = profileData.licenseNumber;
@@ -736,7 +1181,7 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
         }, 1500);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update profile details.');
+      setError(err.response?.data?.message || err.message || 'Failed to update profile details.');
     } finally {
       setLoading(false);
     }
@@ -751,15 +1196,11 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
       bottom: 0,
       background: 'rgba(15, 15, 26, 0.9)',
       backdropFilter: 'blur(10px)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'flex-start',
       overflowY: 'auto',
       WebkitOverflowScrolling: 'touch',
-      padding: '40px 10px',
       zIndex: 10000,
-      animation: 'fadeIn 0.2s ease'
+      animation: 'fadeIn 0.2s ease',
+      padding: '20px 10px'
     }}>
       <div className="glass-card" style={{
         width: '90%',
@@ -768,37 +1209,71 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
         border: '1px solid var(--border)',
         boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
         animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        margin: '0 auto 40px auto',
+        margin: '40px auto',
         position: 'relative'
       }}>
-        <button 
-          type="button"
-          onClick={() => {
-            if (currentNotification) {
-              handleDismissNotification(currentNotification._id);
-            }
-          }}
-          style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '4px',
-            borderRadius: '50%',
-            transition: 'background-color 0.2s',
-            zIndex: 10
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-        >
-          <X size={18} />
-        </button>
+        <div style={{
+          position: 'absolute',
+          top: '16px',
+          right: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          zIndex: 10
+        }}>
+          {currentNotification && currentNotification.type === 'update_details' && (
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '11px',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              userSelect: 'none'
+            }}>
+              <input 
+                type="checkbox" 
+                checked={dontShowAgain}
+                onChange={(e) => setDontShowAgain(e.target.checked)}
+                style={{
+                  accentColor: 'var(--accent)',
+                  cursor: 'pointer',
+                  width: '12px',
+                  height: '12px'
+                }}
+              />
+              <span>Don't show again</span>
+            </label>
+          )}
+          <button 
+            type="button"
+            onClick={() => {
+              if (currentNotification) {
+                if (dontShowAgain || currentNotification.type !== 'update_details') {
+                  handleDismissNotification(currentNotification._id);
+                } else {
+                  setCurrentNotification(null);
+                }
+              }
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '4px',
+              borderRadius: '50%',
+              transition: 'background-color 0.2s',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <X size={18} />
+          </button>
+        </div>
         {currentNotification.type === 'general' ? (
           <div>
             <div style={{
@@ -867,283 +1342,231 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
             <button 
               onClick={handleRetakeRedirect} 
               className="dashboard-btn-primary"
-              style={{ margin: 0, width: '100%', padding: '12px' }}
+              style={{ margin: 0, width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
             >
-              🔄 Go and Retake Attendance
+              <RefreshCw size={14} />
+              <span>Go and Retake Attendance</span>
             </button>
           </div>
         ) : (
           <div>
             <div style={{
-              width: '60px',
-              height: '60px',
+              width: '50px',
+              height: '50px',
               borderRadius: '50%',
               background: 'rgba(59, 130, 246, 0.1)',
               color: '#3b82f6',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 20px auto'
+              margin: '0 auto 12px auto'
             }}>
-              <ShieldAlert size={30} />
+              <ShieldAlert size={24} />
             </div>
-            <h3 style={{ marginBottom: '10px', fontSize: '20px', fontFamily: 'var(--font-title)', textAlign: 'center' }}>
-              Profile Details Update Required
+            <h3 style={{ marginBottom: '8px', fontSize: '18px', fontFamily: 'var(--font-title)', textAlign: 'center', color: 'white' }}>
+              Update Profile Details
             </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px', textAlign: 'center' }}>
-              {currentNotification.message || 'Please update your details to keep our system records accurate.'}
+            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px', textAlign: 'center', lineHeight: '1.4' }}>
+              {currentNotification.message || 'Please fill in the required fields below to keep our records up to date.'}
             </p>
 
-            {error && <div className="error-banner" style={{ marginBottom: '16px' }}>{error}</div>}
-            {success && <div className="success-banner" style={{ marginBottom: '16px' }}>{success}</div>}
+            {error && <div className="error-banner" style={{ marginBottom: '12px', padding: '8px', fontSize: '12px' }}>{error}</div>}
+            {success && <div className="success-banner" style={{ marginBottom: '12px', padding: '8px', fontSize: '12px' }}>{success}</div>}
 
-            <form onSubmit={handleProfileUpdate} className="dashboard-form" style={{ background: 'transparent', border: 'none', padding: 0 }}>
-              
-              {/* Profile Photo Uploader */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px', gap: '10px' }}>
-                <div style={{ position: 'relative', width: '80px', height: '80px' }}>
-                  {previewPhoto ? (
-                    <img 
-                      src={previewPhoto} 
-                      alt="Profile Preview" 
-                      style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)' }} 
-                    />
-                  ) : (
-                    <div style={{ 
-                      width: '80px', 
-                      height: '80px', 
-                      borderRadius: '50%', 
-                      background: 'rgba(255, 255, 255, 0.05)', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      border: '1px dashed var(--border)'
-                    }}>
-                      <span style={{ fontSize: '24px' }}>👤</span>
-                    </div>
-                  )}
-                </div>
-                <label style={{
-                  padding: '6px 12px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  color: 'var(--text-primary)',
-                  transition: 'all 0.2s'
-                }}>
-                  📷 Change Profile Picture
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    style={{ display: 'none' }} 
-                    onChange={handleFileChange}
-                  />
-                </label>
-              </div>
-
+            <form onSubmit={handleProfileUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {user.role === 'parent' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Father's Name</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={profileData.fatherName} 
-                      onChange={(e) => setProfileData({ ...profileData, fatherName: e.target.value })} 
-                      required 
-                    />
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Father's Name</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        style={{ padding: '8px', fontSize: '13px' }}
+                        value={profileData.fatherName} 
+                        onChange={(e) => setProfileData({ ...profileData, fatherName: e.target.value })} 
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Mother's Name</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        style={{ padding: '8px', fontSize: '13px' }}
+                        value={profileData.motherName} 
+                        onChange={(e) => setProfileData({ ...profileData, motherName: e.target.value })} 
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Father's Phone</label>
+                      <input 
+                        type="tel" 
+                        className="form-input" 
+                        style={{ padding: '8px', fontSize: '13px' }}
+                        value={profileData.fatherPhone} 
+                        onChange={(e) => setProfileData({ ...profileData, fatherPhone: e.target.value })} 
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Mother's Phone</label>
+                      <input 
+                        type="tel" 
+                        className="form-input" 
+                        style={{ padding: '8px', fontSize: '13px' }}
+                        value={profileData.motherPhone} 
+                        onChange={(e) => setProfileData({ ...profileData, motherPhone: e.target.value })} 
+                      />
+                    </div>
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Mother's Name</label>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Emergency Contact</label>
                     <input 
-                      type="text" 
+                      type="tel" 
                       className="form-input" 
-                      value={profileData.motherName} 
-                      onChange={(e) => setProfileData({ ...profileData, motherName: e.target.value })} 
-                      required 
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Father's Phone Number</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={profileData.fatherPhone} 
-                      onChange={(e) => setProfileData({ ...profileData, fatherPhone: e.target.value })} 
-                      required 
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Mother's Phone Number</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={profileData.motherPhone} 
-                      onChange={(e) => setProfileData({ ...profileData, motherPhone: e.target.value })} 
-                      required 
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Emergency Contact Number</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                      style={{ padding: '8px', fontSize: '13px' }}
                       value={profileData.emergencyContact} 
                       onChange={(e) => setProfileData({ ...profileData, emergencyContact: e.target.value })} 
-                      required 
+                      required
                     />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
-                      <label className="form-label" style={{ margin: 0 }}>Home Address</label>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label className="form-label" style={{ fontSize: '11px', margin: 0 }}>Home Address / Pickup Point</label>
+                      <div style={{ display: 'flex', gap: '6px' }}>
                         <button
                           type="button"
                           onClick={handlePopupDetectLocation}
-                          style={{
-                            background: 'rgba(168, 85, 247, 0.1)',
-                            border: '1.5px solid rgba(168, 85, 247, 0.4)',
-                            color: 'var(--accent)',
-                            padding: '4px 8px',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
+                          style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.3)', color: 'var(--accent)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
                         >
-                          <MapPin size={10} /> I'm at Location
+                          Detect GPS
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowPopupMapSelector(true)}
-                          style={{
-                            background: 'rgba(59, 130, 246, 0.1)',
-                            border: '1.5px solid rgba(59, 130, 246, 0.4)',
-                            color: '#60a5fa',
-                            padding: '4px 8px',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
+                          style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#60a5fa', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
                         >
-                          <span>📍</span> Select on Map
+                          Map
                         </button>
                       </div>
                     </div>
                     <input 
                       type="text" 
                       className="form-input" 
-                      placeholder="Enter coordinates (e.g. Coordinates: 12.97, 77.59)"
+                      style={{ padding: '8px', fontSize: '13px' }}
                       value={profileData.homeAddress} 
                       onChange={(e) => setProfileData({ ...profileData, homeAddress: e.target.value })} 
-                      required 
+                      required
                     />
                   </div>
-                </div>
+                </>
               )}
 
               {user.role === 'driver' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                <>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Vehicle Number</label>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Phone Number</label>
                     <input 
-                      type="text" 
+                      type="tel" 
                       className="form-input" 
-                      value={profileData.vehicleNumber} 
-                      onChange={(e) => setProfileData({ ...profileData, vehicleNumber: e.target.value })} 
-                      required 
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">License Number</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={profileData.licenseNumber} 
-                      onChange={(e) => setProfileData({ ...profileData, licenseNumber: e.target.value })} 
-                      required 
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Phone Number</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
+                      style={{ padding: '8px', fontSize: '13px' }}
                       value={profileData.phone} 
                       onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} 
-                      required 
+                      required
                     />
                   </div>
-                </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Vehicle Number</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      style={{ padding: '8px', fontSize: '13px' }}
+                      value={profileData.vehicleNumber} 
+                      onChange={(e) => setProfileData({ ...profileData, vehicleNumber: e.target.value })} 
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>License Number</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      style={{ padding: '8px', fontSize: '13px' }}
+                      value={profileData.licenseNumber} 
+                      onChange={(e) => setProfileData({ ...profileData, licenseNumber: e.target.value })} 
+                      required
+                    />
+                  </div>
+                </>
               )}
 
               {user.role === 'teacher' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                <>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Full Name</label>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Full Name</label>
                     <input 
                       type="text" 
                       className="form-input" 
+                      style={{ padding: '8px', fontSize: '13px' }}
                       value={profileData.fullName} 
                       onChange={(e) => setProfileData({ ...profileData, fullName: e.target.value })} 
-                      required 
+                      required
                     />
                   </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Primary Class Assigned</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={profileData.primaryClass} 
-                      onChange={(e) => setProfileData({ ...profileData, primaryClass: e.target.value })} 
-                      placeholder="e.g. 5"
-                      required 
-                    />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Assigned Class ID</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        style={{ padding: '8px', fontSize: '13px' }}
+                        value={profileData.primaryClass} 
+                        onChange={(e) => setProfileData({ ...profileData, primaryClass: e.target.value })} 
+                        placeholder="e.g. 660f8d9b..."
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Section</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        style={{ padding: '8px', fontSize: '13px' }}
+                        value={profileData.primarySection} 
+                        onChange={(e) => setProfileData({ ...profileData, primarySection: e.target.value.toUpperCase() })} 
+                        placeholder="e.g. A"
+                        required
+                      />
+                    </div>
                   </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Primary Section Assigned</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={profileData.primarySection} 
-                      onChange={(e) => setProfileData({ ...profileData, primarySection: e.target.value })} 
-                      placeholder="e.g. A"
-                      required 
-                    />
-                  </div>
-                </div>
+                </>
               )}
 
-              <button 
-                type="submit" 
-                disabled={loading}
-                className="dashboard-btn-primary"
-                style={{ 
-                  margin: '16px 0 0 0', 
-                  width: '100%', 
-                  padding: '14px', 
-                  background: 'var(--accent)', 
-                  borderColor: 'var(--accent)', 
-                  fontWeight: 'bold', 
-                  fontSize: '15px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 20px rgba(168, 85, 247, 0.4)'
-                }}
-              >
-                {loading ? 'Submitting Details...' : '📤 Submit Updated Details'}
-              </button>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    if (dontShowAgain) {
+                      handleDismissNotification(currentNotification._id);
+                    } else {
+                      setCurrentNotification(null);
+                    }
+                  }} 
+                  className="code-action-btn"
+                  style={{ flex: 1, margin: 0, padding: '10px' }}
+                >
+                  Skip
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="dashboard-btn-primary"
+                  style={{ flex: 1, margin: 0, padding: '10px', background: 'var(--accent)', borderColor: 'var(--accent)' }}
+                >
+                  {loading ? 'Saving...' : 'Save Details'}
+                </button>
+              </div>
             </form>
           </div>
         )}
@@ -1157,8 +1580,16 @@ const GlobalNotificationPopupManager = ({ user, setActiveTab }) => {
             homeAddress: `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`
           }));
         }}
-        initialLat={profileData.homeAddress.includes('Coordinates:') ? profileData.homeAddress.split('Coordinates:')[1].split(',')[0].trim() : ''}
-        initialLng={profileData.homeAddress.includes('Coordinates:') ? profileData.homeAddress.split(',')[1].trim() : ''}
+        initialLat={(() => {
+          if (!profileData.homeAddress || !profileData.homeAddress.includes('Coordinates:')) return '';
+          const parts = profileData.homeAddress.split('Coordinates:')[1]?.split(',');
+          return parts && parts[0] ? parts[0].trim() : '';
+        })()}
+        initialLng={(() => {
+          if (!profileData.homeAddress || !profileData.homeAddress.includes('Coordinates:')) return '';
+          const parts = profileData.homeAddress.split('Coordinates:')[1]?.split(',');
+          return parts && parts[1] ? parts[1].trim() : '';
+        })()}
       />
     </div>
   );
@@ -1237,12 +1668,44 @@ const ProfileSettingsTab = () => {
       }
       
       if (user.role === 'parent') {
-        payload.fatherName = fatherName;
-        payload.motherName = motherName;
-        payload.fatherPhone = fatherPhone;
-        payload.motherPhone = motherPhone;
-        payload.emergencyContact = emergencyContact;
-        payload.homeAddress = homeAddress;
+        const fatherNameVal = fatherName?.trim() || '';
+        const fatherPhoneVal = fatherPhone?.trim() || '';
+        const motherNameVal = motherName?.trim() || '';
+        const motherPhoneVal = motherPhone?.trim() || '';
+        const emergencyContactVal = emergencyContact?.trim() || '';
+        const homeAddressVal = homeAddress?.trim() || '';
+
+        const hasFather = !!(fatherNameVal && fatherPhoneVal);
+        const hasMother = !!(motherNameVal && motherPhoneVal);
+
+        if (!hasFather && !hasMother) {
+          throw new Error("Please fill in either Father's details (Name & Phone) or Mother's details (Name & Phone).");
+        }
+        if (fatherNameVal && !fatherPhoneVal) {
+          throw new Error("Please fill in Father's Phone Number.");
+        }
+        if (!fatherNameVal && fatherPhoneVal) {
+          throw new Error("Please fill in Father's Name.");
+        }
+        if (motherNameVal && !motherPhoneVal) {
+          throw new Error("Please fill in Mother's Phone Number.");
+        }
+        if (!motherNameVal && motherPhoneVal) {
+          throw new Error("Please fill in Mother's Name.");
+        }
+        if (!emergencyContactVal) {
+          throw new Error("Please fill in the Emergency Contact Number.");
+        }
+        if (!homeAddressVal) {
+          throw new Error("Please fill in the Home Address / Pickup Point.");
+        }
+
+        payload.fatherName = fatherNameVal;
+        payload.motherName = motherNameVal;
+        payload.fatherPhone = fatherPhoneVal;
+        payload.motherPhone = motherPhoneVal;
+        payload.emergencyContact = emergencyContactVal;
+        payload.homeAddress = homeAddressVal;
       } else if (user.role === 'driver') {
         payload.vehicleNumber = vehicleNumber;
         payload.licenseNumber = licenseNumber;
@@ -1254,12 +1717,12 @@ const ProfileSettingsTab = () => {
 
       const res = await axios.put(`${API_URL}/auth/update-profile`, payload);
       if (res.data.status === 'success') {
-        setSuccess('Profile photo updated! ✅');
+        setSuccess('Details saved successfully');
         setUser(res.data.user);
         saveUserToLocalStorage(res.data.user);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update profile details.');
+      setError(err.response?.data?.message || err.message || 'Failed to update profile details.');
     } finally {
       setLoading(false);
     }
@@ -1268,7 +1731,8 @@ const ProfileSettingsTab = () => {
   return (
     <div className="glass-card" style={{ padding: '30px', maxWidth: '700px', margin: '0 auto' }}>
       <h3 style={{ marginBottom: '24px', fontFamily: 'var(--font-title)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span>👤</span> My Profile Settings
+        <User size={18} />
+        <span>My Profile Settings</span>
       </h3>
       
       {error && <div className="error-banner" style={{ marginBottom: '16px' }}>{error}</div>}
@@ -1338,7 +1802,8 @@ const ProfileSettingsTab = () => {
                 color: '#a855f7'
               }}
             >
-              📱 Change App Icon Theme
+              <Milestone size={14} />
+              <span>Change App Icon Theme</span>
             </button>
           </div>
         </div>
@@ -1483,7 +1948,7 @@ const ProfileSettingsTab = () => {
                       gap: '4px'
                     }}
                   >
-                    <span>📍</span> Select on Map
+                    Select on Map
                   </button>
                 </div>
               </div>
@@ -1564,9 +2029,10 @@ const ProfileSettingsTab = () => {
           type="submit" 
           disabled={loading}
           className="dashboard-btn-primary"
-          style={{ margin: 0, width: '100%', padding: '12px', fontWeight: '600' }}
+          style={{ margin: 0, width: '100%', padding: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
         >
-          {loading ? 'Saving Changes...' : '💾 Save Profile Settings'}
+          <Save size={14} />
+          <span>{loading ? 'Saving Changes...' : 'Save Profile Settings'}</span>
         </button>
         {user?.updatedAt && (
           <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'right', marginTop: '6px' }}>
@@ -1605,7 +2071,9 @@ const ProfilePhotoPromptModal = () => {
   const streamRef = useRef(null);
 
   useEffect(() => {
-    if (user && (user.role === 'parent' || user.role === 'teacher') && !user.profilePhoto) {
+    const isApprovedParent = user && user.role === 'parent' && user.approvalStatus === 'approved';
+    const isTeacher = user && user.role === 'teacher';
+    if (user && (isApprovedParent || isTeacher) && !user.profilePhoto) {
       const skipped = sessionStorage.getItem('skipProfilePhotoPrompt');
       if (skipped !== 'true') {
         setIsOpen(true);
@@ -1702,7 +2170,7 @@ const ProfilePhotoPromptModal = () => {
         profilePhotoUrl: profilePhoto
       });
       if (res.data.status === 'success') {
-        setSuccess('Profile photo updated! ✅');
+        setSuccess('Details saved successfully');
         setUser(res.data.user);
         saveUserToLocalStorage(res.data.user);
         setTimeout(() => {
@@ -1833,9 +2301,10 @@ const ProfilePhotoPromptModal = () => {
             <button
               onClick={capturePhoto}
               className="dashboard-btn-primary"
-              style={{ margin: 0, width: '100%', padding: '12px', background: 'var(--accent)' }}
+              style={{ margin: 0, width: '100%', padding: '12px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
             >
-              📸 Capture Image
+              <Camera size={14} />
+              <span>Capture Image</span>
             </button>
           ) : previewPhoto ? (
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -1948,6 +2417,20 @@ const DashboardLayout = ({
 
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState('info');
+
+  const getAppVersionStatus = () => {
+    const ua = navigator.userAgent;
+    const match = ua.match(/SchoolConnectApp\/([0-9.]+)/i);
+    if (match && match[1]) {
+      const currentVer = 1.1;
+      const userVer = parseFloat(match[1]);
+      if (userVer < currentVer) {
+        return { isOutdated: true, userVer: match[1], currentVer: '1.1' };
+      }
+    }
+    return { isOutdated: false };
+  };
+  const appVersionStatus = getAppVersionStatus();
 
   useEffect(() => {
     const originalAlert = window.alert;
@@ -2226,7 +2709,7 @@ const DashboardLayout = ({
       return (
         <div style={{ position: 'relative', width: '130px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
           <div style={{ color: '#a855f7', animation: 'pulseConnect 1.2s infinite' }}><Users size={54} /></div>
-          <div style={{ fontSize: '26px', color: '#eab308', animation: 'pulseConnect 1.2s infinite', animationDelay: '0.3s' }}>⚡</div>
+          <div style={{ color: '#eab308', animation: 'pulseConnect 1.2s infinite', animationDelay: '0.3s' }}><Zap size={28} /></div>
           <div style={{ color: '#60a5fa', animation: 'pulseConnect 1.2s infinite', animationDelay: '0.6s' }}><School size={54} /></div>
         </div>
       );
@@ -3346,12 +3829,12 @@ const DashboardLayout = ({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <span style={{ fontWeight: '700', fontSize: '12px', letterSpacing: '0.02em' }}>
                       {isRefreshing 
-                        ? (syncStage === 0 ? "🔄 Syncing School Data..."
-                          : syncStage === 1 ? "✔ Attendance Updated"
-                          : syncStage === 2 ? "✔ Diary Updated"
-                          : syncStage === 3 ? "✔ Bus Tracking Updated"
-                          : syncStage === 4 ? "✔ Timetable Updated"
-                          : "✅ Sync Complete")
+                        ? (syncStage === 0 ? "Syncing School Data..."
+                          : syncStage === 1 ? "Attendance Updated"
+                          : syncStage === 2 ? "Diary Updated"
+                          : syncStage === 3 ? "Bus Tracking Updated"
+                          : syncStage === 4 ? "Timetable Updated"
+                          : "Sync Complete")
                         : pullOffset > 65 ? "Release to sync school data..." : "Pull down to sync data..."
                       }
                     </span>
@@ -3374,6 +3857,48 @@ const DashboardLayout = ({
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+            {appVersionStatus.isOutdated && (
+              <div className="glass-card animate-pulse" style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 16px',
+                marginBottom: '16px',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                background: 'rgba(239, 68, 68, 0.08)',
+                color: '#f87171',
+                borderRadius: 'var(--radius-md)',
+                gap: '12px',
+                flexWrap: 'wrap'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '250px' }}>
+                  <ShieldAlert size={18} style={{ color: '#f87171', flexShrink: 0 }} />
+                  <span style={{ fontSize: '12.5px', fontWeight: '500', lineHeight: '1.4' }}>
+                    You are using an outdated app version (v{appVersionStatus.userVer}). Please download and install the new version (v{appVersionStatus.currentVer}) containing critical details popup & scroll fixes.
+                  </span>
+                </div>
+                <a 
+                  href="/downloads/schoolconnect.apk"
+                  download="schoolconnect.apk"
+                  className="code-save-btn"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    background: '#ef4444',
+                    textDecoration: 'none',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    margin: 0,
+                    borderRadius: 'var(--radius-sm)'
+                  }}
+                >
+                  <Download size={12} />
+                  <span>Download Update (v{appVersionStatus.currentVer})</span>
+                </a>
               </div>
             )}
             {children}
@@ -3512,9 +4037,11 @@ const DashboardLayout = ({
                 height: '60px', 
                 borderRadius: '50%', 
                 margin: '0 auto 12px auto',
-                fontSize: '28px'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}>
-                📱
+                <Smartphone size={32} />
               </div>
               <h3 style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'var(--font-title)', color: '#fff', margin: 0 }}>
                 Get the School Connect App
@@ -3536,8 +4063,8 @@ const DashboardLayout = ({
                 justifyContent: 'center',
                 gap: '12px'
               }}>
-                <span style={{ fontSize: '24px' }}>
-                  {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? '🤖' : '💻'}
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+                  {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? <Smartphone size={24} /> : <Monitor size={24} />}
                 </span>
                 <div style={{ textAlign: 'left' }}>
                   <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#fff', margin: 0 }}>
@@ -3564,10 +4091,15 @@ const DashboardLayout = ({
                   border: 'none',
                   color: 'white',
                   cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)'
+                  boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
                 }}
               >
-                🚀 Download Native App
+                <Download size={14} />
+                <span>Download Native App</span>
               </button>
               <button 
                 onClick={handleDismissDownload}
@@ -3613,14 +4145,49 @@ const DashboardLayout = ({
           animation: 'slideInFromRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         }}>
           <div style={{
-            fontSize: '20px',
             lineHeight: '1',
-            marginTop: '2px'
+            marginTop: '2px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
           }}>
-            {toastType === 'error' ? '❌' :
-             toastType === 'success' ? '✅' :
-             toastType === 'warning' ? '⚠️' :
-             'ℹ️'}
+            <style>{`
+              @keyframes drawDash {
+                to {
+                  stroke-dashoffset: 0;
+                }
+              }
+              @keyframes scaleIn {
+                0% { transform: scale(0); opacity: 0; }
+                100% { transform: scale(1); opacity: 1; }
+              }
+            `}</style>
+            {toastType === 'success' && (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+                <polyline points="20 6 9 17 4 12" style={{ strokeDasharray: 30, strokeDashoffset: 30, animation: 'drawDash 0.4s ease-out forwards 0.1s' }} />
+              </svg>
+            )}
+            {toastType === 'error' && (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+                <line x1="18" y1="6" x2="6" y2="18" style={{ strokeDasharray: 20, strokeDashoffset: 20, animation: 'drawDash 0.3s ease-out forwards 0.05s' }} />
+                <line x1="6" y1="6" x2="18" y2="18" style={{ strokeDasharray: 20, strokeDashoffset: 20, animation: 'drawDash 0.3s ease-out forwards 0.15s' }} />
+              </svg>
+            )}
+            {toastType === 'warning' && (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" style={{ strokeDasharray: 60, strokeDashoffset: 60, animation: 'drawDash 0.6s ease-out forwards' }} />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            )}
+            {toastType !== 'success' && toastType !== 'error' && toastType !== 'warning' && (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            )}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h4 style={{
@@ -3847,15 +4414,15 @@ const StaffCheckInModule = () => {
     isAllowed = false;
   } else if (isHotspot) {
     connectionStatus = 'hotspot';
-    statusMessage = "⚠️ Mobile hotspot detected! This is a mobile hotspot, not a school WiFi network. Please connect to the school's authorized WiFi to mark attendance.";
+    statusMessage = "Mobile hotspot detected! This is a mobile hotspot, not a school WiFi network. Please connect to the school's authorized WiFi to mark attendance.";
     isAllowed = false;
   } else if (!isMatched) {
     connectionStatus = 'mismatch';
-    statusMessage = `❌ Mismatched network. Please connect to the school's authorized WiFi (${authSSID || 'Greenwood_High_Staff_WiFi'}) to mark attendance.`;
+    statusMessage = `Mismatched network. Please connect to the school's authorized WiFi (${authSSID || 'Greenwood_High_Staff_WiFi'}) to mark attendance.`;
     isAllowed = false;
   } else {
     connectionStatus = 'verified';
-    statusMessage = "✅ Connection verified! You are connected to the school's authorized WiFi network. Ready to mark attendance.";
+    statusMessage = "Connection verified! You are connected to the school's authorized WiFi network. Ready to mark attendance.";
     isAllowed = true;
   }
 
@@ -3992,10 +4559,10 @@ const StaffCheckInModule = () => {
                 }}
               >
                 {!isCustom && wifiSSID && wifiSSID !== authSSID && wifiSSID !== 'Greenwood_High_Staff_WiFi' && wifiSSID !== 'School_Guest_Network' && wifiSSID !== 'LTE_Cellular_Data' && (
-                  <option value={wifiSSID}>📡 [Detected] {wifiSSID}</option>
+                  <option value={wifiSSID}>[Detected] {wifiSSID}</option>
                 )}
                 {!wifiSSID && (
-                  <option value="">📡 Waiting for detection / select WiFi...</option>
+                  <option value="">Waiting for detection / select WiFi...</option>
                 )}
                 {authSSID && (
                   <option value={authSSID}>[Active] {authSSID} (Authorized School WiFi)</option>
@@ -4022,7 +4589,7 @@ const StaffCheckInModule = () => {
           </div>
 
           <button type="submit" className="dashboard-btn-primary" disabled={loading || !isAllowed} style={{ margin: 0, width: '100%' }}>
-            {loading ? 'Verifying connection...' : '⚡ Mark Daily Attendance'}
+            {loading ? 'Verifying connection...' : 'Mark Daily Attendance'}
           </button>
         </form>
       </div>
@@ -5213,7 +5780,7 @@ const ClassTimetableModule = ({ viewOnly = false }) => {
             disabled={requestLoading}
             style={{ margin: 0, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
-            {requestLoading ? 'Submitting Request...' : '⚡ Send Assignment Request'}
+            {requestLoading ? 'Submitting Request...' : 'Send Assignment Request'}
           </button>
         </form>
       </div>
@@ -5973,7 +6540,7 @@ export const AdminSchedulesModule = ({ user }) => {
       }
 
       if (res.data.status === 'success') {
-        setSuccess('Schedule saved successfully and teacher notified! 📅');
+        setSuccess('Schedule saved successfully and teacher notified!');
         if (res.data.schedule) {
           setScheduleDocId(res.data.schedule._id);
         }
@@ -5994,7 +6561,7 @@ export const AdminSchedulesModule = ({ user }) => {
         {/* Left Column: Form & Day editor */}
         <div className="glass-card" style={{ padding: '24px' }}>
           <h3 className="dashboard-form-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
-            <span>📅</span> Schedule Grid Editor
+            <Calendar size={18} /> Schedule Grid Editor
           </h3>
 
           {!selectedTeacherId ? (
@@ -6203,9 +6770,9 @@ export const AdminSchedulesModule = ({ user }) => {
                 <button
                   type="submit"
                   className="dashboard-btn-primary"
-                  style={{ margin: 0, padding: '8px 16px', fontSize: '12px', float: 'right' }}
+                  style={{ margin: 0, padding: '8px 16px', fontSize: '12px', float: 'right', display: 'flex', alignItems: 'center', gap: '4px' }}
                 >
-                  ➕ Add Period
+                  <Plus size={14} /> Add Period
                 </button>
                 <div style={{ clear: 'both' }} />
               </form>
@@ -7255,9 +7822,9 @@ export const SuperAdminDashboard = () => {
   const getGreeting = () => {
     const hrs = new Date().getHours();
     const name = user?.fullName ? user.fullName.split(' ')[0].toUpperCase() : 'ADMIN';
-    if (hrs < 12) return `Good Morning, ${name} 👋`;
-    if (hrs < 18) return `Good Afternoon, ${name} 👋`;
-    return `Good Evening, ${name} 👋`;
+    if (hrs < 12) return `Good Morning, ${name}`;
+    if (hrs < 18) return `Good Afternoon, ${name}`;
+    return `Good Evening, ${name}`;
   };
 
   const getCityState = (address) => {
@@ -8839,7 +9406,7 @@ export const SuperAdminDashboard = () => {
 export const SchoolAdminDashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('activeTab_admin') || 'overview');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('activeTab_school_admin') || sessionStorage.getItem('activeTab_admin') || 'overview');
 
   // Data states
   const [secretCodes, setSecretCodes] = useState([]);
@@ -8851,6 +9418,8 @@ export const SchoolAdminDashboard = () => {
   const [classes, setClasses] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [pendingParents, setPendingParents] = useState([]);
+  const [selectedDetailsParent, setSelectedDetailsParent] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   // UI state
   const [error, setError] = useState('');
@@ -8961,7 +9530,7 @@ export const SchoolAdminDashboard = () => {
           schoolLogo: reader.result
         });
         if (res.data.status === 'success') {
-          setSuccess('School logo updated! ✅');
+          setSuccess('School logo updated!');
           setSchoolDetails(res.data.school);
         }
       } catch (err) {
@@ -9178,6 +9747,26 @@ export const SchoolAdminDashboard = () => {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to approve parent request');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectParentDirect = async (parentObj, reason) => {
+    try {
+      setError('');
+      setSuccess('');
+      setLoading(true);
+      const res = await axios.post(`${API_URL}/admin/parents/${parentObj._id}/reject`, {
+        reason
+      });
+      if (res.data.status === 'success') {
+        setSuccess('Details saved successfully');
+        setTimeout(() => setSuccess(''), 4000);
+        fetchInitialData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to reject parent request');
     } finally {
       setLoading(false);
     }
@@ -9706,81 +10295,174 @@ export const SchoolAdminDashboard = () => {
             Review pending parent registrations, verify child link details, and approve or reject access.
           </p>
 
-          <div className="dashboard-table-container">
-            <table className="dashboard-table">
-              <thead>
-                <tr>
-                  <th>Parent Name</th>
-                  <th>Parent Email</th>
-                  <th>Child Associated</th>
-                  <th>Details</th>
-                  <th>Relationship</th>
-                  <th>Date Submitted</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingParents.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>No pending parent requests found.</td>
-                  </tr>
-                ) : (
-                  pendingParents.map((parent) => {
-                    const student = parent.student;
-                    return (
-                      <tr key={parent._id}>
-                        <td><strong>{parent.fullName}</strong></td>
-                        <td>{parent.email}</td>
-                        <td>
-                          {student ? (
-                            <div>
-                              <strong>{student.name}</strong>
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                Class {student.className} - {student.section} {student.rollNumber ? `| Roll: ${student.rollNumber}` : ''}
-                              </div>
-                            </div>
-                          ) : (
-                            <span style={{ color: 'var(--danger)' }}>No Child Linked</span>
-                          )}
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              alert(`Parent Contact:\nFather: ${parent.fatherName || 'N/A'} (${parent.fatherPhone || 'N/A'})\nMother: ${parent.motherName || 'N/A'} (${parent.motherPhone || 'N/A'})\nEmergency: ${parent.emergencyContact || 'N/A'}\n\nAddress: ${parent.homeAddress || 'N/A'}`);
-                            }}
-                            className="code-action-btn"
-                            style={{ padding: '4px 8px', fontSize: '11px' }}
-                          >
-                            View Full Details
-                          </button>
-                        </td>
-                        <td style={{ textTransform: 'capitalize' }}>{parent.relationship || 'Guardian'}</td>
-                        <td>{new Date(parent.createdAt).toLocaleDateString()}</td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              onClick={() => handleApproveParent(parent._id)}
-                              className="dashboard-btn-primary"
-                              style={{ padding: '6px 12px', fontSize: '12px', margin: 0, background: '#10b981', borderColor: '#10b981' }}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleOpenRejectParentModal(parent)}
-                              className="logout-btn"
-                              style={{ padding: '6px 12px', fontSize: '12px', margin: 0, background: '#ef4444', borderColor: '#ef4444' }}
-                            >
-                              Reject
-                            </button>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px', marginTop: '16px' }}>
+            {pendingParents.length === 0 ? (
+              <div style={{ gridColumn: '1/-1', textAlign: 'center', color: 'var(--text-muted)', padding: '40px 20px', background: '#12122A', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                No pending parent requests found.
+              </div>
+            ) : (
+              pendingParents.map((parent) => {
+                const student = parent.student;
+                return (
+                  <div key={parent._id} style={{
+                    backgroundColor: '#12122A',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div>
+                      {/* circular photo/avatar */}
+                      <div style={{ float: 'left', marginRight: '16px' }}>
+                        {parent.profilePhotoUrl || parent.profilePhoto ? (
+                          <img
+                            src={parent.profilePhotoUrl || parent.profilePhoto}
+                            alt={parent.fullName}
+                            style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '60px',
+                            height: '60px',
+                            borderRadius: '50%',
+                            backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#a78bfa',
+                            fontSize: '18px',
+                            fontWeight: '600'
+                          }}>
+                            {parent.fullName ? parent.fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'P'}
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                        )}
+                      </div>
+
+                      {/* stacked content */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ fontWeight: '600', color: 'white', fontSize: '15px' }}>{parent.fullName}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{parent.email}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Phone size={12} />
+                          <span>{parent.phone || 'N/A'}</span>
+                        </div>
+                        
+                        <div style={{ marginTop: '8px', padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                          <div style={{ fontSize: '13px', color: 'white', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <User size={12} style={{ color: 'var(--accent)' }} />
+                            <span>Child: {student ? student.name : 'No Child Linked'}</span>
+                          </div>
+                          {student && (
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '16px' }}>
+                              Class {student.className}{student.section} &bull; Roll No: {student.rollNumber || 'N/A'}
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                          <Clock size={12} />
+                          <span>Submitted: {new Date(parent.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+
+                        {/* Requester Badge */}
+                        <div style={{ marginTop: '8px' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            fontSize: '11px',
+                            padding: '4px 10px',
+                            borderRadius: '9999px',
+                            backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                            color: '#60a5fa',
+                            fontWeight: '600'
+                          }}>
+                            Requested via School Admin Portal
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ clear: 'both' }}></div>
+                    </div>
+
+                    <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {/* View details button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedDetailsParent(parent);
+                          setShowDetailsModal(true);
+                        }}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          background: 'rgba(124, 58, 237, 0.1)',
+                          border: '1px solid #7c3aed',
+                          color: '#a78bfa',
+                          borderRadius: '10px',
+                          padding: '10px 16px',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Eye size={14} />
+                        <span>View Submitted Details</span>
+                      </button>
+
+                      {/* Action buttons */}
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => handleApproveParent(parent._id)}
+                          style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            border: 'none',
+                            color: 'white',
+                            borderRadius: '9999px',
+                            padding: '8px 16px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <CheckCircle size={14} />
+                          <span>Approve</span>
+                        </button>
+                        <button
+                          onClick={() => handleOpenRejectParentModal(parent)}
+                          style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid #ef4444',
+                            color: '#ef4444',
+                            borderRadius: '9999px',
+                            padding: '8px 16px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <X size={14} />
+                          <span>Reject</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}
@@ -9794,7 +10476,7 @@ export const SchoolAdminDashboard = () => {
               className="dashboard-btn-primary"
               style={{ margin: 0, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
-              📢 Request Details Update
+              Request Details Update
             </button>
           </div>
           <div className="dashboard-table-container">
@@ -9861,7 +10543,7 @@ export const SchoolAdminDashboard = () => {
           <div style={{ marginTop: '40px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
-                <h3 className="dashboard-form-title" style={{ margin: 0 }}>📝 Profile Details Update Logs</h3>
+                <h3 className="dashboard-form-title" style={{ margin: 0 }}>Profile Details Update Logs</h3>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                   Real-time list of parent profile update submissions sorted by latest submission time.
                 </p>
@@ -9898,7 +10580,7 @@ export const SchoolAdminDashboard = () => {
                           {parent.fatherName ? (
                             <div>
                               <div>{parent.fatherName}</div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>📞 {parent.fatherPhone || 'N/A'}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Phone: {parent.fatherPhone || 'N/A'}</div>
                             </div>
                           ) : (
                             <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Not Provided</span>
@@ -9908,7 +10590,7 @@ export const SchoolAdminDashboard = () => {
                           {parent.motherName ? (
                             <div>
                               <div>{parent.motherName}</div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>📞 {parent.motherPhone || 'N/A'}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Phone: {parent.motherPhone || 'N/A'}</div>
                             </div>
                           ) : (
                             <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Not Provided</span>
@@ -9935,7 +10617,7 @@ export const SchoolAdminDashboard = () => {
                         <td style={{ fontSize: '12.5px' }}>
                           {parent.updatedAt ? (
                             <span style={{ color: '#34d399', fontWeight: '500' }}>
-                              ⏱️ {new Date(parent.updatedAt).toLocaleString()}
+                              {new Date(parent.updatedAt).toLocaleString()}
                             </span>
                           ) : (
                             'N/A'
@@ -10287,6 +10969,14 @@ export const SchoolAdminDashboard = () => {
         </div>
       )}
 
+      <ParentDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        parent={selectedDetailsParent}
+        onApprove={handleApproveParent}
+        onReject={handleRejectParentDirect}
+        userRole="school_admin"
+      />
       <LogoutConfirmationModal 
         isOpen={showLogoutModal} 
         onClose={() => setShowLogoutModal(false)} 
@@ -10329,6 +11019,8 @@ export const PrincipalDashboard = () => {
   const [classes, setClasses] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [pendingParents, setPendingParents] = useState([]);
+  const [selectedDetailsParent, setSelectedDetailsParent] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   // Fleet monitoring states
   const [activeBuses, setActiveBuses] = useState([]);
@@ -10445,7 +11137,7 @@ export const PrincipalDashboard = () => {
           schoolLogo: reader.result
         });
         if (res.data.status === 'success') {
-          setSuccess('School logo updated! ✅');
+          setSuccess('School logo updated!');
           setSchoolDetails(res.data.school);
         }
       } catch (err) {
@@ -10631,7 +11323,7 @@ export const PrincipalDashboard = () => {
               iconAnchor: [14, 14]
             });
 
-            const tooltipContent = `<div style="font-family: system-ui, -apple-system, sans-serif; font-weight: 700; color: white; background: ${alertColor}; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 11px; text-align: center; text-transform: uppercase; white-space: nowrap;">⚠️ Bus ${bus.busNumber} ${alertTitle} Reported<br/><span style="font-weight: 500; font-size: 9px; opacity: 0.9; text-transform: none;">Coords: ${bus.incidentCoords.lat.toFixed(5)}, ${bus.incidentCoords.lng.toFixed(5)}</span></div>`;
+            const tooltipContent = `<div style="font-family: system-ui, -apple-system, sans-serif; font-weight: 700; color: white; background: ${alertColor}; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 11px; text-align: center; text-transform: uppercase; white-space: nowrap;"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Bus ${bus.busNumber} ${alertTitle} Reported<br/><span style="font-weight: 500; font-size: 9px; opacity: 0.9; text-transform: none;">Coords: ${bus.incidentCoords.lat.toFixed(5)}, ${bus.incidentCoords.lng.toFixed(5)}</span></div>`;
 
             if (!principalMarkersRef.current[incidentKey]) {
               principalMarkersRef.current[incidentKey] = L.marker(incidentLatLng, { icon: incidentIcon })
@@ -10748,6 +11440,26 @@ export const PrincipalDashboard = () => {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to approve parent request');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectParentDirect = async (parentObj, reason) => {
+    try {
+      setError('');
+      setSuccess('');
+      setLoading(true);
+      const res = await axios.post(`${API_URL}/admin/parents/${parentObj._id}/reject`, {
+        reason
+      });
+      if (res.data.status === 'success') {
+        setSuccess('Details saved successfully');
+        setTimeout(() => setSuccess(''), 4000);
+        fetchInitialData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to reject parent request');
     } finally {
       setLoading(false);
     }
@@ -11296,81 +12008,174 @@ export const PrincipalDashboard = () => {
             Review pending parent registrations, verify child link details, and approve or reject access.
           </p>
 
-          <div className="dashboard-table-container">
-            <table className="dashboard-table">
-              <thead>
-                <tr>
-                  <th>Parent Name</th>
-                  <th>Parent Email</th>
-                  <th>Child Associated</th>
-                  <th>Details</th>
-                  <th>Relationship</th>
-                  <th>Date Submitted</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingParents.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>No pending parent requests found.</td>
-                  </tr>
-                ) : (
-                  pendingParents.map((parent) => {
-                    const student = parent.student;
-                    return (
-                      <tr key={parent._id}>
-                        <td><strong>{parent.fullName}</strong></td>
-                        <td>{parent.email}</td>
-                        <td>
-                          {student ? (
-                            <div>
-                              <strong>{student.name}</strong>
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                Class {student.className} - {student.section} {student.rollNumber ? `| Roll: ${student.rollNumber}` : ''}
-                              </div>
-                            </div>
-                          ) : (
-                            <span style={{ color: 'var(--danger)' }}>No Child Linked</span>
-                          )}
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              alert(`Parent Contact:\nFather: ${parent.fatherName || 'N/A'} (${parent.fatherPhone || 'N/A'})\nMother: ${parent.motherName || 'N/A'} (${parent.motherPhone || 'N/A'})\nEmergency: ${parent.emergencyContact || 'N/A'}\n\nAddress: ${parent.homeAddress || 'N/A'}`);
-                            }}
-                            className="code-action-btn"
-                            style={{ padding: '4px 8px', fontSize: '11px' }}
-                          >
-                            View Full Details
-                          </button>
-                        </td>
-                        <td style={{ textTransform: 'capitalize' }}>{parent.relationship || 'Guardian'}</td>
-                        <td>{new Date(parent.createdAt).toLocaleDateString()}</td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              onClick={() => handleApproveParent(parent._id)}
-                              className="dashboard-btn-primary"
-                              style={{ padding: '6px 12px', fontSize: '12px', margin: 0, background: '#10b981', borderColor: '#10b981' }}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleOpenRejectParentModal(parent)}
-                              className="logout-btn"
-                              style={{ padding: '6px 12px', fontSize: '12px', margin: 0, background: '#ef4444', borderColor: '#ef4444' }}
-                            >
-                              Reject
-                            </button>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px', marginTop: '16px' }}>
+            {pendingParents.length === 0 ? (
+              <div style={{ gridColumn: '1/-1', textAlign: 'center', color: 'var(--text-muted)', padding: '40px 20px', background: '#12122A', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                No pending parent requests found.
+              </div>
+            ) : (
+              pendingParents.map((parent) => {
+                const student = parent.student;
+                return (
+                  <div key={parent._id} style={{
+                    backgroundColor: '#12122A',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div>
+                      {/* circular photo/avatar */}
+                      <div style={{ float: 'left', marginRight: '16px' }}>
+                        {parent.profilePhotoUrl || parent.profilePhoto ? (
+                          <img
+                            src={parent.profilePhotoUrl || parent.profilePhoto}
+                            alt={parent.fullName}
+                            style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '60px',
+                            height: '60px',
+                            borderRadius: '50%',
+                            backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#a78bfa',
+                            fontSize: '18px',
+                            fontWeight: '600'
+                          }}>
+                            {parent.fullName ? parent.fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'P'}
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                        )}
+                      </div>
+
+                      {/* stacked content */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ fontWeight: '600', color: 'white', fontSize: '15px' }}>{parent.fullName}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{parent.email}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Phone size={12} />
+                          <span>{parent.phone || 'N/A'}</span>
+                        </div>
+                        
+                        <div style={{ marginTop: '8px', padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                          <div style={{ fontSize: '13px', color: 'white', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <User size={12} style={{ color: 'var(--accent)' }} />
+                            <span>Child: {student ? student.name : 'No Child Linked'}</span>
+                          </div>
+                          {student && (
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '16px' }}>
+                              Class {student.className}{student.section} &bull; Roll No: {student.rollNumber || 'N/A'}
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                          <Clock size={12} />
+                          <span>Submitted: {new Date(parent.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+
+                        {/* Requester Badge */}
+                        <div style={{ marginTop: '8px' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            fontSize: '11px',
+                            padding: '4px 10px',
+                            borderRadius: '9999px',
+                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                            color: '#34d399',
+                            fontWeight: '600'
+                          }}>
+                            Requested via Principal Portal
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ clear: 'both' }}></div>
+                    </div>
+
+                    <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {/* View details button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedDetailsParent(parent);
+                          setShowDetailsModal(true);
+                        }}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          background: 'rgba(124, 58, 237, 0.1)',
+                          border: '1px solid #7c3aed',
+                          color: '#a78bfa',
+                          borderRadius: '10px',
+                          padding: '10px 16px',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Eye size={14} />
+                        <span>View Submitted Details</span>
+                      </button>
+
+                      {/* Action buttons */}
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => handleApproveParent(parent._id)}
+                          style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            border: 'none',
+                            color: 'white',
+                            borderRadius: '9999px',
+                            padding: '8px 16px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <CheckCircle size={14} />
+                          <span>Approve</span>
+                        </button>
+                        <button
+                          onClick={() => handleOpenRejectParentModal(parent)}
+                          style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid #ef4444',
+                            color: '#ef4444',
+                            borderRadius: '9999px',
+                            padding: '8px 16px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <X size={14} />
+                          <span>Reject</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}
@@ -11384,7 +12189,7 @@ export const PrincipalDashboard = () => {
               className="dashboard-btn-primary"
               style={{ margin: 0, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}
             >
-              📢 Request Details Update
+              Request Details Update
             </button>
           </div>
           <div className="dashboard-table-container">
@@ -11451,7 +12256,7 @@ export const PrincipalDashboard = () => {
           <div style={{ marginTop: '40px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
-                <h3 className="dashboard-form-title" style={{ margin: 0 }}>📝 Profile Details Update Logs</h3>
+                <h3 className="dashboard-form-title" style={{ margin: 0 }}>Profile Details Update Logs</h3>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                   Real-time list of parent profile update submissions sorted by latest submission time.
                 </p>
@@ -11488,7 +12293,7 @@ export const PrincipalDashboard = () => {
                           {parent.fatherName ? (
                             <div>
                               <div>{parent.fatherName}</div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>📞 {parent.fatherPhone || 'N/A'}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Phone: {parent.fatherPhone || 'N/A'}</div>
                             </div>
                           ) : (
                             <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Not Provided</span>
@@ -11498,7 +12303,7 @@ export const PrincipalDashboard = () => {
                           {parent.motherName ? (
                             <div>
                               <div>{parent.motherName}</div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>📞 {parent.motherPhone || 'N/A'}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Phone: {parent.motherPhone || 'N/A'}</div>
                             </div>
                           ) : (
                             <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Not Provided</span>
@@ -11525,7 +12330,7 @@ export const PrincipalDashboard = () => {
                         <td style={{ fontSize: '12.5px' }}>
                           {parent.updatedAt ? (
                             <span style={{ color: '#34d399', fontWeight: '500' }}>
-                              ⏱️ {new Date(parent.updatedAt).toLocaleString()}
+                              {new Date(parent.updatedAt).toLocaleString()}
                             </span>
                           ) : (
                             'N/A'
@@ -11897,6 +12702,14 @@ export const PrincipalDashboard = () => {
         </div>
       )}
 
+      <ParentDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        parent={selectedDetailsParent}
+        onApprove={handleApproveParent}
+        onReject={handleRejectParentDirect}
+        userRole="principal"
+      />
       <LogoutConfirmationModal 
         isOpen={showLogoutModal} 
         onClose={() => setShowLogoutModal(false)} 
@@ -12484,7 +13297,7 @@ export const TeacherDashboard = () => {
                     </div>
                     {todayDiary.lastEditedAt && (
                       <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', color: '#60a5fa' }}>
-                        ✏️ Last edited at {new Date(todayDiary.lastEditedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        Last edited at {new Date(todayDiary.lastEditedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     )}
                     <div>
@@ -12519,8 +13332,8 @@ export const TeacherDashboard = () => {
                         }}
                       >
                         {showReadStatus 
-                          ? '👁️ Hide who read diary' 
-                          : `👁️ View who read diary (${readStatusData.readCount}/${readStatusData.totalCount})`
+                          ? 'Hide who read diary' 
+                          : `View who read diary (${readStatusData.readCount}/${readStatusData.totalCount})`
                         }
                       </button>
 
@@ -12577,7 +13390,7 @@ export const TeacherDashboard = () => {
                                     : 'Not read yet';
                                   return (
                                     <li key={p.parentId} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: p.markedAsRead ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                                      <span>{p.markedAsRead ? '✅' : '❌'}</span>
+                                      <span>{p.markedAsRead ? 'Yes' : 'No'}</span>
                                       <span style={{ fontWeight: p.markedAsRead ? '600' : 'normal' }}>
                                         {p.fullName} — {timeStr}
                                       </span>
@@ -12625,7 +13438,7 @@ export const TeacherDashboard = () => {
                     fontWeight: attendanceShift === 'Morning' ? '600' : 'normal'
                   }}
                 >
-                  🌅 Morning Shift
+                  Morning Shift
                 </button>
                 <button
                   type="button"
@@ -12642,7 +13455,7 @@ export const TeacherDashboard = () => {
                     fontWeight: attendanceShift === 'Afternoon' ? '600' : 'normal'
                   }}
                 >
-                  ☀️ Afternoon Shift
+                  Afternoon Shift
                 </button>
               </div>
 
@@ -12700,12 +13513,12 @@ export const TeacherDashboard = () => {
                   gap: '8px',
                   textAlign: 'center'
                 }}>
-                  ✅ Attendance Submitted!
+                  Attendance Submitted!
                 </div>
 
                 <div className="glass-card" style={{ padding: '24px', border: '1px solid var(--border)' }}>
                   <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
-                    <span>📅</span> Your Schedule Today
+                    Your Schedule Today
                   </h4>
                   {todaySchedule && todaySchedule.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -12743,7 +13556,7 @@ export const TeacherDashboard = () => {
                                 fontWeight: '600',
                                 margin: '4px 0'
                               }}>
-                                <span>🍽️</span> Lunch Break
+                                Lunch Break
                               </div>
                             )}
                           </React.Fragment>
@@ -12752,7 +13565,7 @@ export const TeacherDashboard = () => {
                     </div>
                   ) : (
                     <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                      <p style={{ fontWeight: 'bold', fontSize: '15px', color: 'white', marginBottom: '4px' }}>📅 No schedule assigned</p>
+                      <p style={{ fontWeight: 'bold', fontSize: '15px', color: 'white', marginBottom: '4px' }}>No schedule assigned</p>
                       <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Contact your principal</p>
                     </div>
                   )}
@@ -13031,7 +13844,7 @@ export const TeacherDashboard = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="glass-card" style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: 'white', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>📅</span> My Weekly Schedule
+              My Weekly Schedule
             </h3>
             
             {/* Horizontal Day selection strip */}
@@ -13080,7 +13893,7 @@ export const TeacherDashboard = () => {
               <div style={{ textAlign: 'center', padding: '40px' }}>Loading schedule...</div>
             ) : !fullScheduleDoc ? (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <p style={{ fontWeight: 'bold', fontSize: '16px', color: 'white', marginBottom: '6px' }}>📅 No schedule assigned</p>
+                <p style={{ fontWeight: 'bold', fontSize: '16px', color: 'white', marginBottom: '6px' }}>No schedule assigned</p>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Contact your principal</p>
               </div>
             ) : (
@@ -13170,7 +13983,7 @@ export const TeacherDashboard = () => {
                               fontWeight: '600',
                               margin: '4px 0'
                             }}>
-                              <span>🍽️</span> Lunch Break
+                              Lunch Break
                             </div>
                           )}
                         </React.Fragment>
@@ -13579,7 +14392,7 @@ export const DriverDashboard = () => {
             iconAnchor: [14, 14]
           });
 
-          const tooltipContent = `<div style="font-family: system-ui, -apple-system, sans-serif; font-weight: 700; color: white; background: ${alertColor}; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 11px; text-align: center; text-transform: uppercase; white-space: nowrap;">⚠️ My Incident Reported Here: ${alertTitle}<br/><span style="font-weight: 500; font-size: 9px; opacity: 0.9; text-transform: none;">Coords: ${incidentCoords.lat.toFixed(5)}, ${incidentCoords.lng.toFixed(5)}</span></div>`;
+          const tooltipContent = `<div style="font-family: system-ui, -apple-system, sans-serif; font-weight: 700; color: white; background: ${alertColor}; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 11px; text-align: center; text-transform: uppercase; white-space: nowrap;"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>My Incident Reported Here: ${alertTitle}<br/><span style="font-weight: 500; font-size: 9px; opacity: 0.9; text-transform: none;">Coords: ${incidentCoords.lat.toFixed(5)}, ${incidentCoords.lng.toFixed(5)}</span></div>`;
 
           if (!incidentMarkerRef.current) {
             incidentMarkerRef.current = L.marker(incidentLatLng, { icon: incidentIcon })
@@ -13911,7 +14724,7 @@ export const DriverDashboard = () => {
             <div className="vertical-stack">
               <div className="glass-card" style={{ padding: '24px', background: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
-                  <h3 style={{ color: '#34d399', marginBottom: '4px' }}>🎉 Shift Completed Successfully!</h3>
+                  <h3 style={{ color: '#34d399', marginBottom: '4px' }}>Shift Completed Successfully!</h3>
                   <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>You logged a total distance of <strong>{justCompletedTrip.distance} km</strong>. Review your route playback below.</p>
                 </div>
                 <button 
@@ -14350,6 +15163,7 @@ export const ParentDashboard = () => {
 
   // Home coordinates prompt states
   const [showHomePromptModal, setShowHomePromptModal] = useState(false);
+  const [isResubmitting, setIsResubmitting] = useState(false);
   const [showTrackLocationChoiceModal, setShowTrackLocationChoiceModal] = useState(false);
   const [showDashboardMapSelector, setShowDashboardMapSelector] = useState(false);
   const [showParentEditorMapSelector, setShowParentEditorMapSelector] = useState(false);
@@ -14425,8 +15239,9 @@ export const ParentDashboard = () => {
       if (res.data.status === 'success') {
         setUser(res.data.user);
         saveUserToLocalStorage(res.data.user);
-        setProfileSuccess('Profile details saved successfully! ✅');
+        setProfileSuccess('Details saved successfully');
         setIsEditingProfile(false);
+        setIsResubmitting(false);
         setTimeout(() => setProfileSuccess(''), 3000);
       }
     } catch (err) {
@@ -14498,7 +15313,7 @@ export const ParentDashboard = () => {
   // Helper for notification trigger
   const triggerGeofenceNotification = (eta) => {
     // Show in-app banner alert
-    setSuccess(`🔔 Geofence Alert: Bus ${busNumber} is within your geofence (${geofenceRadius} km)! Estimated arrival: ${eta} minutes.`);
+    setSuccess(`Geofence Alert: Bus ${busNumber} is within your geofence (${geofenceRadius} km)! Estimated arrival: ${eta} minutes.`);
     setTimeout(() => setSuccess(''), 7000);
 
     // Browser Push Notification
@@ -14566,9 +15381,13 @@ export const ParentDashboard = () => {
 
       // Call backend to update profile homeAddress descriptive string
       const coordString = `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-      await axios.put(`${API_URL}/auth/update-profile`, { homeAddress: coordString });
+      const res = await axios.put(`${API_URL}/auth/update-profile`, { homeAddress: coordString });
+      if (res.data.status === 'success') {
+        setUser(res.data.user);
+        saveUserToLocalStorage(res.data.user);
+      }
 
-      setPromptSuccess('Home coordinates saved successfully! 🏠');
+      setPromptSuccess('Details saved successfully');
       setTimeout(() => {
         setShowHomePromptModal(false);
         setPromptSuccess('');
@@ -14629,9 +15448,13 @@ export const ParentDashboard = () => {
 
             // Call backend to update profile homeAddress descriptive string
             const coordString = `Coordinates: ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`;
-            await axios.put(`${API_URL}/auth/update-profile`, { homeAddress: coordString });
+            const res = await axios.put(`${API_URL}/auth/update-profile`, { homeAddress: coordString });
+            if (res.data.status === 'success') {
+              setUser(res.data.user);
+              saveUserToLocalStorage(res.data.user);
+            }
 
-            alert("Successfully updated and saved current location as your home point! 🏠");
+            alert("Successfully updated and saved current location as your home point!");
             setShowTrackLocationChoiceModal(false);
           } catch (err) {
             console.error(err);
@@ -14952,7 +15775,7 @@ export const ParentDashboard = () => {
     document.body.className = 'theme-parent';
     fetchSchoolDetails();
     fetchLinkedChild();
-    if (user?.approvalStatus === 'pending') {
+    if (user?.approvalStatus === 'pending' || user?.approvalStatus === 'rejected') {
       fetchPreStudentsDirectory();
     } else {
       fetchDiaryData();
@@ -14963,15 +15786,39 @@ export const ParentDashboard = () => {
       fetchParentCalendarForBanner();
 
       // Check home location prompt
-      const savedHome = localStorage.getItem(`parent_home_location_${user?.id || user?._id}`);
-      const prompted = localStorage.getItem(`parent_home_prompt_shown_${user?.id || user?._id}`);
+      let savedHome = localStorage.getItem(`parent_home_location_${user?.id || user?._id}`);
+      let prompted = localStorage.getItem(`parent_home_prompt_shown_${user?.id || user?._id}`);
+      
+      if (!savedHome && user?.homeAddress) {
+        let coords = null;
+        if (user.homeAddress.includes('Coordinates:')) {
+          const coordPart = user.homeAddress.split('Coordinates:')[1];
+          try {
+            const parts = coordPart.split(',');
+            if (parts.length >= 2) {
+              const lat = parseFloat(parts[0].trim());
+              const lng = parseFloat(parts[1].trim());
+              if (!isNaN(lat) && !isNaN(lng)) {
+                coords = { lat, lng };
+              }
+            }
+          } catch (e) {}
+        }
+        if (coords) {
+          localStorage.setItem(`parent_home_location_${user.id || user._id}`, JSON.stringify(coords));
+          savedHome = JSON.stringify(coords);
+        }
+        localStorage.setItem(`parent_home_prompt_shown_${user.id || user._id}`, 'true');
+        prompted = 'true';
+      }
+
       if (!savedHome && !prompted) {
         setShowHomePromptModal(true);
       }
     }
 
     const interval = setInterval(() => {
-      if (user?.approvalStatus === 'pending') {
+      if (user?.approvalStatus === 'pending' || user?.approvalStatus === 'rejected') {
         fetchPreStudentsDirectory();
       } else {
         fetchDiaryData(true);
@@ -15222,7 +16069,7 @@ export const ParentDashboard = () => {
             iconAnchor: [14, 14]
           });
 
-          const tooltipContent = `<div style="font-family: system-ui, -apple-system, sans-serif; font-weight: 700; color: white; background: ${alertColor}; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 11px; text-align: center; text-transform: uppercase; white-space: nowrap;">⚠️ Bus ${tripData.busNumber || ''} ${alertTitle} Reported<br/><span style="font-weight: 500; font-size: 9px; opacity: 0.9; text-transform: none;">Coords: ${tripData.incidentCoords.lat.toFixed(5)}, ${tripData.incidentCoords.lng.toFixed(5)}</span></div>`;
+          const tooltipContent = `<div style="font-family: system-ui, -apple-system, sans-serif; font-weight: 700; color: white; background: ${alertColor}; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 11px; text-align: center; text-transform: uppercase; white-space: nowrap;"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Bus ${tripData.busNumber || ''} ${alertTitle} Reported<br/><span style="font-weight: 500; font-size: 9px; opacity: 0.9; text-transform: none;">Coords: ${tripData.incidentCoords.lat.toFixed(5)}, ${tripData.incidentCoords.lng.toFixed(5)}</span></div>`;
 
           if (!incidentMarkerRef.current) {
             incidentMarkerRef.current = L.marker(incidentLatLng, { icon: incidentIcon })
@@ -15353,8 +16200,9 @@ export const ParentDashboard = () => {
       }
       const res = await axios.post(`${API_URL}/auth/link-child`, payload);
       if (res.data.status === 'success') {
-        setSuccess('Child details updated and linked successfully! Reloading portal...');
+        setSuccess('Details saved successfully');
         if (res.data.user) {
+          setUser(res.data.user);
           saveUserToLocalStorage(res.data.user);
         }
         setTimeout(() => {
@@ -15388,9 +16236,9 @@ export const ParentDashboard = () => {
     <DashboardLayout
       roleName={parentRoleName}
       user={user}
-      activeTab={user?.approvalStatus === 'pending' ? 'pending' : activeTab}
-      setActiveTab={user?.approvalStatus === 'pending' ? () => {} : setActiveTab}
-      tabs={user?.approvalStatus === 'pending' ? [{ id: 'pending', label: 'Awaiting Approval', icon: ShieldAlert }] : parentTabs}
+      activeTab={user?.approvalStatus === 'pending' ? 'pending' : user?.approvalStatus === 'rejected' ? 'rejected' : activeTab}
+      setActiveTab={user?.approvalStatus === 'pending' || user?.approvalStatus === 'rejected' ? () => {} : setActiveTab}
+      tabs={user?.approvalStatus === 'pending' ? [{ id: 'pending', label: 'Awaiting Approval', icon: ShieldAlert }] : user?.approvalStatus === 'rejected' ? [{ id: 'rejected', label: 'Registration Rejected', icon: ShieldAlert }] : parentTabs}
       handleLogout={() => setShowLogoutModal(true)}
     >
 
@@ -15398,7 +16246,7 @@ export const ParentDashboard = () => {
       {success && <div className="success-banner">{success}</div>}
 
       {/* Smart Dashboard Banner */}
-      {user?.approvalStatus !== 'pending' && !bannerDismissed && (() => {
+      {user?.approvalStatus !== 'pending' && user?.approvalStatus !== 'rejected' && !bannerDismissed && (() => {
         const currentHour = new Date().getHours();
         let bannerConfig = null;
         
@@ -15406,7 +16254,7 @@ export const ParentDashboard = () => {
           if (busNumber) {
             bannerConfig = {
               type: 'morning-bus',
-              emoji: '🚌',
+              iconName: 'Bus',
               title: `School Bus Approaching`,
               desc: `Bus ${busNumber} is on the way. Tap to track live location.`,
               actionText: 'Track Now →',
@@ -15418,7 +16266,7 @@ export const ParentDashboard = () => {
           } else {
             bannerConfig = {
               type: 'morning-generic',
-              emoji: '🌅',
+              iconName: 'Compass',
               title: `Good Morning!`,
               desc: `Have a great day ahead. Tap to view today's timetable.`,
               actionText: 'View Schedule →',
@@ -15441,7 +16289,7 @@ export const ParentDashboard = () => {
           if (isPresent) {
             bannerConfig = {
               type: 'midmorning-present',
-              emoji: '✅',
+              iconName: 'CheckCircle',
               title: `${childName} is Present`,
               desc: `Marked at ${markedTime}`,
               actionText: 'View Attendance →',
@@ -15453,7 +16301,7 @@ export const ParentDashboard = () => {
           } else {
             bannerConfig = {
               type: 'midmorning-absent',
-              emoji: '❌',
+              iconName: 'X',
               title: `${childName} is Absent`,
               desc: `Contact school if wrong.`,
               actionText: 'View Details →',
@@ -15489,7 +16337,7 @@ export const ParentDashboard = () => {
           if (tomorrowExam) {
             bannerConfig = {
               type: 'afternoon-exam',
-              emoji: '📝',
+              iconName: 'Edit2',
               title: `Exam Tomorrow!`,
               desc: `${tomorrowExam.title} - ${tomorrowExam.description || 'All Chapters'}`,
               actionText: 'View Timetable →',
@@ -15501,7 +16349,7 @@ export const ParentDashboard = () => {
           } else if (feeDueSoon) {
             bannerConfig = {
               type: 'afternoon-fee',
-              emoji: '💰',
+              iconName: 'DollarSign',
               title: `Fee Due in ${feeDueDays} Days`,
               desc: `Pending Amount: ₹${feeDetails.pendingAmount.toLocaleString()}`,
               actionText: 'View Fee Details →',
@@ -15515,7 +16363,7 @@ export const ParentDashboard = () => {
             const startTime = tomorrowFirst?.time?.split('-')[0] || '8:00 AM';
             bannerConfig = {
               type: 'afternoon-default',
-              emoji: '📅',
+              iconName: 'Calendar',
               title: `Tomorrow's First Period`,
               desc: `${subject} - ${startTime}`,
               actionText: 'Full Schedule →',
@@ -15531,7 +16379,7 @@ export const ParentDashboard = () => {
             const count = todayDiary.homework?.length || 0;
             bannerConfig = {
               type: 'evening-diary-ready',
-              emoji: '📔',
+              iconName: 'BookOpen',
               title: `Today's Diary is Ready`,
               desc: `Homework: ${count} subjects assigned.`,
               actionText: 'View Diary →',
@@ -15543,7 +16391,7 @@ export const ParentDashboard = () => {
           } else {
             bannerConfig = {
               type: 'evening-diary-none',
-              emoji: '📔',
+              iconName: 'BookOpen',
               title: `No Diary Yet Today`,
               desc: `Check back later for updates.`,
               actionText: '',
@@ -15565,7 +16413,7 @@ export const ParentDashboard = () => {
           
           bannerConfig = {
             type: 'night-schedule',
-            emoji: '📅',
+            iconName: 'Calendar',
             title: `Tomorrow's Schedule`,
             desc: `First Period: ${subject} at ${startTime}`,
             actionText: 'View Full Day →',
@@ -15674,7 +16522,7 @@ export const ParentDashboard = () => {
       })()}
 
       {/* Current Period Timetable Banner */}
-      {user?.approvalStatus !== 'pending' && (
+      {user?.approvalStatus !== 'pending' && user?.approvalStatus !== 'rejected' && (
         <div className="glass-card" style={{ 
           padding: '16px 20px', 
           marginBottom: '20px', 
@@ -15687,7 +16535,7 @@ export const ParentDashboard = () => {
           gap: '12px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '20px' }}>⏰</span>
+            <Clock size={20} style={{ color: 'var(--accent)' }} />
             <div>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold', letterSpacing: '0.05em', display: 'block' }}>
                 CURRENT PERIOD STATUS
@@ -15719,7 +16567,82 @@ export const ParentDashboard = () => {
         </div>
       )}
 
-      {user?.approvalStatus === 'pending' ? (
+      {user?.approvalStatus === 'rejected' && !isResubmitting ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '800px', margin: '0 auto', padding: '20px 0' }}>
+          {/* Rejection Alert Card */}
+          <div className="glass-card" style={{ 
+            padding: '30px', 
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)',
+            borderColor: 'rgba(239, 68, 68, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '20px',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.15)',
+              color: '#ef4444',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <ShieldAlert size={30} />
+            </div>
+            <div style={{ flex: 1, minWidth: '250px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'var(--font-title)', marginBottom: '6px', color: '#f87171' }}>
+                Registration Request Rejected
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
+                Your request was not approved by the school administration.
+              </p>
+            </div>
+          </div>
+
+          {/* Rejection Details */}
+          <div className="glass-card" style={{ padding: '24px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: 'white' }}>Rejection Details</h3>
+            
+            <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
+              <div style={{ fontSize: '12px', color: '#f87171', fontWeight: '600', textTransform: 'uppercase', marginBottom: '4px' }}>Reason for Rejection:</div>
+              <div style={{ fontSize: '14px', color: 'white', lineHeight: '1.5' }}>
+                {user.rejectionReason || 'No reason specified by administrator.'}
+              </div>
+            </div>
+
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: '1.6' }}>
+              Please contact the school administration or your child's class teacher if you believe this is a mistake or to clarify registration requirements.
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setIsResubmitting(true)}
+                style={{
+                  background: 'var(--accent)',
+                  borderColor: 'var(--accent)',
+                  color: 'white',
+                  borderRadius: '9999px',
+                  padding: '12px 30px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)'
+                }}
+              >
+                <Edit3 size={16} />
+                <span>Submit Again</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : user?.approvalStatus === 'pending' || isResubmitting ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Welcome and Pending Status Banner */}
           <div className="glass-card" style={{ 
@@ -15746,7 +16669,7 @@ export const ParentDashboard = () => {
             </div>
             <div style={{ flex: 1, minWidth: '250px' }}>
               <h2 style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'var(--font-title)', marginBottom: '6px' }}>
-                Hello, {user.fullName} 👋
+                Hello, {user.fullName}
               </h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
                 Your parent registration request is currently <strong style={{ color: '#fbbf24' }}>Pending Approval</strong>.
@@ -15777,9 +16700,10 @@ export const ParentDashboard = () => {
                         });
                       }} 
                       className="code-action-btn"
-                      style={{ margin: 0, padding: '6px 14px' }}
+                      style={{ margin: 0, padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
-                      ✏️ Edit Child Details
+                      <Edit3 size={12} />
+                      <span>Edit Child Details</span>
                     </button>
                   </div>
 
@@ -15866,10 +16790,15 @@ export const ParentDashboard = () => {
                         margin: 0, 
                         padding: '10px',
                         background: linkMode === 'search' ? 'var(--accent-glow)' : 'rgba(0,0,0,0.15)',
-                        borderColor: linkMode === 'search' ? 'var(--accent)' : 'var(--border)'
+                        borderColor: linkMode === 'search' ? 'var(--accent)' : 'var(--border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
                       }}
                     >
-                      🔍 Search School Directory
+                      <Search size={14} />
+                      <span>Search School Directory</span>
                     </button>
                     <button
                       type="button"
@@ -15880,10 +16809,15 @@ export const ParentDashboard = () => {
                         margin: 0, 
                         padding: '10px',
                         background: linkMode === 'manual' ? 'var(--accent-glow)' : 'rgba(0,0,0,0.15)',
-                        borderColor: linkMode === 'manual' ? 'var(--accent)' : 'var(--border)'
+                        borderColor: linkMode === 'manual' ? 'var(--accent)' : 'var(--border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
                       }}
                     >
-                      📝 Enter Details Manually
+                      <FileEdit size={14} />
+                      <span>Enter Details Manually</span>
                     </button>
                   </div>
 
@@ -16024,9 +16958,10 @@ export const ParentDashboard = () => {
                         type="submit"
                         className="dashboard-btn-primary"
                         disabled={loading}
-                        style={{ width: '100%', margin: 0, padding: '12px' }}
+                        style={{ width: '100%', margin: 0, padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                       >
-                        {loading ? 'Saving Details...' : '💾 Save & Link Child Details'}
+                        <Save size={14} />
+                        <span>{loading ? 'Saving Details...' : 'Save & Link Child Details'}</span>
                       </button>
                     </form>
                   )}
@@ -16136,7 +17071,7 @@ export const ParentDashboard = () => {
                           gap: '4px'
                         }}
                       >
-                        <span>📍</span> Select on Map
+                        Select on Map
                       </button>
                     </div>
                   </div>
@@ -16168,7 +17103,7 @@ export const ParentDashboard = () => {
                     boxShadow: '0 4px 20px rgba(168, 85, 247, 0.4)'
                   }}
                 >
-                  {profileLoading ? 'Submitting...' : '📤 Submit Profile Details'}
+                  {profileLoading ? 'Submitting...' : 'Submit Profile Details'}
                 </button>
                 {user?.updatedAt && (
                   <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'right', marginTop: '6px' }}>
@@ -16186,7 +17121,7 @@ export const ParentDashboard = () => {
                 color: '#60a5fa', 
                 marginTop: '10px' 
               }}>
-                ℹ️ Once you select or enter your child's profile, a school administrator or class teacher can view it instantly on their dashboard and approve your access request.
+                Once you select or enter your child's profile, a school administrator or class teacher can view it instantly on their dashboard and approve your access request.
               </div>
             </div>
           </div>
@@ -16203,11 +17138,11 @@ export const ParentDashboard = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', borderBottom: '1px solid var(--border)', paddingBottom: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
                       <div>
-                        📅 <strong>Posted:</strong> {new Date(todayDiary.postedAt || todayDiary.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <strong>Posted:</strong> {new Date(todayDiary.postedAt || todayDiary.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                       {todayDiary.lastEditedAt && (
                         <div>
-                          ✏️ <strong>Edited:</strong> {new Date(todayDiary.lastEditedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          <strong>Edited:</strong> {new Date(todayDiary.lastEditedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       )}
                     </div>
@@ -16252,7 +17187,11 @@ export const ParentDashboard = () => {
                                   justifyContent: 'center',
                                   background: isDone ? '#10b981' : 'transparent'
                                 }}>
-                                  {isDone && <span style={{ color: 'white', fontSize: '12px', fontWeight: 'bold' }}>✓</span>}
+                                  {isDone && (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -16325,7 +17264,7 @@ export const ParentDashboard = () => {
                           fontSize: '18px',
                           border: '1px solid #10B981'
                         }}>
-                          <span style={{ fontSize: '24px', marginRight: '8px', animation: 'drawTick 0.5s ease-out forwards' }}>✅</span> Success!
+                          Success!
                         </div>
                       )}
                       {(() => {
@@ -16351,7 +17290,7 @@ export const ParentDashboard = () => {
                             gap: '8px',
                             width: '100%'
                           }}>
-                            ✅ Read at {new Date(readTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            Read at {new Date(readTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>
                         ) : (
                           <button
@@ -16383,7 +17322,7 @@ export const ParentDashboard = () => {
                               boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)'
                             }}
                           >
-                            Mark as Read ✅
+                            Mark as Read
                           </button>
                         );
                       })()}
@@ -16464,7 +17403,7 @@ export const ParentDashboard = () => {
                         </div>
                         <div style={{ display: 'flex', justifyBlock: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
                           <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>School Phone:</span>
-                          <span style={{ marginLeft: 'auto' }}>📞 {schoolDetails.phone}</span>
+                          <span style={{ marginLeft: 'auto' }}>{schoolDetails.phone}</span>
                         </div>
                         <div style={{ display: 'flex', justifyBlock: 'space-between', paddingBottom: '6px' }}>
                           <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>School Address:</span>
@@ -16830,7 +17769,7 @@ export const ParentDashboard = () => {
                               gap: '15px'
                             }}>
                               <span style={{ fontSize: '13px', color: 'white', fontWeight: '600', whiteSpace: 'nowrap' }}>
-                                📍 Click anywhere on the map to set your Home location.
+                                Click anywhere on the map to set your Home location.
                               </span>
                               <button 
                                 type="button"
@@ -16873,7 +17812,7 @@ export const ParentDashboard = () => {
                               boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
                             }}
                           >
-                            🏠 Set Home Point
+                            Set Home Point
                           </button>
                           <button
                             type="button"
@@ -17147,7 +18086,7 @@ export const ParentDashboard = () => {
                   alignItems: 'center',
                   gap: '12px'
                 }}>
-                  <span style={{ fontSize: '24px' }}>ℹ️</span>
+                  
                   <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
                     Your fee details are not uploaded yet. Once uploaded, we will notify you.
                   </p>
@@ -17165,8 +18104,9 @@ export const ParentDashboard = () => {
                   <DollarSign size={16} /> Pay Dues Online (Simulate)
                 </button>
               ) : (
-                <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '14px', borderRadius: '8px', color: '#34d399', textAlign: 'center', fontWeight: '500' }}>
-                  ✓ Account fully cleared. No outstanding pending fee dues.
+                <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '14px', borderRadius: '8px', color: '#34d399', textAlign: 'center', fontWeight: '500', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                  <span>Account fully cleared. No outstanding pending fee dues.</span>
                 </div>
               )
             )}
@@ -17182,7 +18122,7 @@ export const ParentDashboard = () => {
               <div>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>OFFICIAL HELPLINE</span>
                 <p style={{ fontSize: '14px', fontWeight: 'bold', color: 'white', marginTop: '2px' }}>
-                  📞 {feeDetails?.officePhone || '+91 80 2345 6789'}
+                  Phone: {feeDetails?.officePhone || '+91 80 2345 6789'}
                 </p>
               </div>
               <div>
@@ -17278,7 +18218,7 @@ export const ParentDashboard = () => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-title)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🏠</span> Set Home Location
+                Set Home Location
               </h3>
               <button 
                 onClick={() => {
@@ -17347,7 +18287,7 @@ export const ParentDashboard = () => {
                   }}
                   title="Click anywhere on the map to set your home marker"
                 >
-                  📍 Select on Map
+                  Select on Map
                 </button>
               </div>
 
@@ -17384,19 +18324,41 @@ export const ParentDashboard = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px', flexWrap: 'wrap' }}>
               <button 
                 type="button" 
                 onClick={() => {
                   setShowHomePromptModal(false);
                   localStorage.setItem(`parent_home_prompt_shown_${user?.id || user?._id}`, 'true');
                   handleCancelSelect();
-                  setShowHomePromptModal(false);
                 }} 
                 className="code-action-btn"
                 style={{ margin: 0, padding: '10px 20px' }}
               >
                 Skip
+              </button>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowHomePromptModal(false);
+                  localStorage.setItem(`parent_home_prompt_shown_${user?.id || user?._id}`, 'true');
+                  handleCancelSelect();
+                  setActiveTab('profile');
+                }} 
+                className="code-action-btn"
+                style={{ 
+                  margin: 0, 
+                  padding: '10px 20px',
+                  background: 'rgba(168, 85, 247, 0.1)',
+                  borderColor: 'rgba(168, 85, 247, 0.3)',
+                  color: '#a855f7',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <User size={14} />
+                <span>Go to Profile</span>
               </button>
               <button 
                 type="button" 
@@ -17445,7 +18407,7 @@ export const ParentDashboard = () => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-title)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>📍</span> Location Options
+                Location Options
               </h3>
               <button 
                 onClick={() => setShowTrackLocationChoiceModal(false)} 
@@ -17466,7 +18428,7 @@ export const ParentDashboard = () => {
                 className="dashboard-btn-primary"
                 style={{ margin: 0, padding: '12px', background: 'var(--accent)', borderColor: 'var(--accent)', fontWeight: 'bold' }}
               >
-                🏠 Use Saved Home Location
+                Use Saved Home Location
               </button>
               
               <button 
@@ -17476,7 +18438,7 @@ export const ParentDashboard = () => {
                 className="code-action-btn"
                 style={{ margin: 0, padding: '12px', color: 'white', borderColor: 'var(--border)' }}
               >
-                🔄 {promptLoading ? 'Fetching...' : 'Update My Location as Home Location'}
+                {promptLoading ? 'Fetching...' : 'Update My Location as Home Location'}
               </button>
             </div>
 
@@ -17688,8 +18650,8 @@ export const SchoolAttendanceView = ({ user, schools = [] }) => {
             value={selectedShift}
             onChange={(e) => setSelectedShift(e.target.value)}
           >
-            <option value="Morning">🌅 Morning Shift</option>
-            <option value="Afternoon">☀️ Afternoon Shift</option>
+            <option value="Morning">Morning Shift</option>
+            <option value="Afternoon">Afternoon Shift</option>
           </select>
         </div>
 
@@ -17733,7 +18695,7 @@ export const SchoolAttendanceView = ({ user, schools = [] }) => {
             gap: '12px'
           }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {isSubmitted ? '🔒' : '⚠️'} {isSubmitted ? `Attendance Log Submitted for ${selectedShift} Shift` : `Attendance Log NOT Submitted yet`}
+              {isSubmitted ? '[Submitted]' : '[Not Submitted]'} {isSubmitted ? `Attendance Log Submitted for ${selectedShift} Shift` : `Attendance Log NOT Submitted yet`}
             </span>
             {isSubmitted && ['super_admin', 'school_admin', 'principal'].includes(user.role) && (
               <button
@@ -17771,7 +18733,7 @@ export const SchoolAttendanceView = ({ user, schools = [] }) => {
               padding: '16px' 
             }}>
               <h4 style={{ color: '#34d399', borderBottom: '1px solid rgba(16, 185, 129, 0.15)', paddingBottom: '10px', marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '15px' }}>
-                <span>✅ Present Students</span>
+                <span>Present Students</span>
                 <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '12px', fontSize: '12px' }}>{presentStudents.length}</span>
               </h4>
               {presentStudents.length === 0 ? (
@@ -17796,7 +18758,7 @@ export const SchoolAttendanceView = ({ user, schools = [] }) => {
               padding: '16px' 
             }}>
               <h4 style={{ color: '#f87171', borderBottom: '1px solid rgba(239, 68, 68, 0.15)', paddingBottom: '10px', marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '15px' }}>
-                <span>❌ Absent Students</span>
+                <span>Absent Students</span>
                 <span className="badge" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', padding: '2px 8px', borderRadius: '12px', fontSize: '12px' }}>{absentStudents.length}</span>
               </h4>
               {absentStudents.length === 0 ? (

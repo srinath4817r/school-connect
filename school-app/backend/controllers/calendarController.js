@@ -116,16 +116,16 @@ exports.addCalendarEntry = async (req, res) => {
     const formattedDate = parsedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
     if (isSunday && (dayType === 'working' || dayType === 'celebration' || dayType === 'event')) {
-      notificationMessage = `⚠️ Sunday ${formattedDate} is a working day! ${title}`;
+      notificationMessage = `Sunday ${formattedDate} is a working day! ${title}`;
     } else if (notifyTarget && notifyTarget !== 'none') {
       if (dayType === 'holiday') {
-        notificationMessage = `🎉 Holiday ${title} on ${formattedDate}!`;
+        notificationMessage = `Holiday ${title} on ${formattedDate}!`;
       } else if (dayType === 'exam') {
-        notificationMessage = `📝 Exam on ${formattedDate}: ${title}`;
+        notificationMessage = `Exam on ${formattedDate}: ${title}`;
       } else if (dayType === 'event' || dayType === 'celebration') {
-        notificationMessage = `🎊 Event on ${formattedDate}: ${title}`;
+        notificationMessage = `Event on ${formattedDate}: ${title}`;
       } else {
-        notificationMessage = `📅 Calendar Update: ${title} on ${formattedDate}`;
+        notificationMessage = `Calendar Update: ${title} on ${formattedDate}`;
       }
     }
 

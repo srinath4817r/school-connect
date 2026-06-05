@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { 
   Home, GraduationCap, Bus, School, Menu, X, Users,
   ShieldCheck, LayoutDashboard, BookOpen, ClipboardList, CheckSquare, Wifi,
-  MapPin, Navigation, Play, Clock, Bell, MessageSquare, CreditCard, Award, Building
+  MapPin, Navigation, Play, Clock, Bell, MessageSquare, CreditCard, Award, Building,
+  Smartphone, Sparkles, Zap, Folder, ArrowRight, Phone, Mail, Cpu, Monitor, Rocket
 } from 'lucide-react';
 import schoolHeroImg from '../assets/school_hero.png';
 import './Landing.css';
@@ -416,7 +417,9 @@ const Landing = () => {
             <div className="hero-buttons" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <Link to="/login" className="btn btn-primary hero-btn" style={{ borderRadius: '20px', padding: '12px 28px' }}>Login to Portal</Link>
               {!isNativeApp && (
-                <Link to="/download" className="btn btn-secondary hero-btn" style={{ borderRadius: '20px', padding: '12px 28px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>📲 Download App</Link>
+                <Link to="/download" className="btn btn-secondary hero-btn" style={{ borderRadius: '20px', padding: '12px 28px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Smartphone size={16} /> Download App
+                </Link>
               )}
               <button onClick={() => setShowContactModal(true)} className="btn btn-secondary hero-btn" style={{ borderRadius: '20px', padding: '12px 28px' }}>Register School</button>
             </div>
@@ -537,14 +540,14 @@ const Landing = () => {
               </p>
               <div className="evo-bullet-list">
                 <div className="evo-bullet">
-                  <div className="bullet-icon">✨</div>
+                  <div className="bullet-icon"><Sparkles size={16} /></div>
                   <div>
                     <h4>100% Paperless & Mobile</h4>
                     <p>Attendance checklists, homework, and fee collection recorded dynamically on the go.</p>
                   </div>
                 </div>
                 <div className="evo-bullet">
-                  <div className="bullet-icon">⚡</div>
+                  <div className="bullet-icon"><Zap size={16} /></div>
                   <div>
                     <h4>Real-Time Communication</h4>
                     <p>Parents get instant updates and fee notifications, ensuring complete transparency.</p>
@@ -557,16 +560,16 @@ const Landing = () => {
               <div className="visual-comparison">
                 <div className="comparison-box old-way">
                   <span className="box-badge">Outdated System</span>
-                  <div className="box-icon">📁</div>
+                  <div className="box-icon"><Folder size={24} /></div>
                   <h4>Paper Registers</h4>
                   <p>Heavy, manual, easy to lose, and disconnected from parents.</p>
                 </div>
                 <div className="comparison-connector">
-                  <div className="connector-arrow">➔</div>
+                  <div className="connector-arrow"><ArrowRight size={20} /></div>
                 </div>
                 <div className="comparison-box new-way">
                   <span className="box-badge primary">School Connect</span>
-                  <div className="box-icon pulse">⚡</div>
+                  <div className="box-icon pulse"><Zap size={24} /></div>
                   <h4>Digital Sync</h4>
                   <p>Cloud-synchronized dashboards keep everyone connected in real-time.</p>
                 </div>
@@ -625,9 +628,18 @@ const Landing = () => {
             <div className="footer-col">
               <h4 className="footer-title">Contact Office</h4>
               <ul className="footer-links">
-                <li>📞 Phone: <a href="tel:9346022857" style={{ color: 'inherit', textDecoration: 'none' }}>+91 93460 22857</a></li>
-                <li>📧 Email: <a href="mailto:thinkerslab001@gmail.com" style={{ color: 'inherit', textDecoration: 'none' }}>thinkerslab001@gmail.com</a></li>
-                <li>🏢 Head Office: Hyderabad, India</li>
+                <li className="animate-hover-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <Phone size={16} style={{ color: 'var(--accent)', transition: 'color 0.2s, transform 0.2s' }} />
+                  <span>Phone: <a href="tel:9346022857" style={{ color: 'inherit', textDecoration: 'none' }}>+91 93460 22857</a></span>
+                </li>
+                <li className="animate-hover-mail" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <Mail size={16} style={{ color: 'var(--accent)', transition: 'color 0.2s, transform 0.2s' }} />
+                  <span>Email: <a href="mailto:thinkerslab001@gmail.com" style={{ color: 'inherit', textDecoration: 'none' }}>thinkerslab001@gmail.com</a></span>
+                </li>
+                <li className="animate-hover-building" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <Building size={16} style={{ color: 'var(--accent)', transition: 'color 0.2s, transform 0.2s' }} />
+                  <span>Head Office: Hyderabad, India</span>
+                </li>
               </ul>
             </div>
           </div>
@@ -654,21 +666,21 @@ const Landing = () => {
               </p>
               <div className="contact-card-grid">
                 <a href="tel:9346022857" className="contact-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <span className="contact-icon">📞</span>
+                  <span className="contact-icon"><Phone size={20} /></span>
                   <div>
                     <h4>Call Support</h4>
                     <p className="contact-detail">+91 93460 22857</p>
                   </div>
                 </a>
                 <a href="mailto:thinkerslab001@gmail.com?subject=School%20Connect%20Registration%20Request" className="contact-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <span className="contact-icon">📧</span>
+                  <span className="contact-icon"><Mail size={20} /></span>
                   <div>
                     <h4>Email Onboarding</h4>
                     <p className="contact-detail">thinkerslab001@gmail.com</p>
                   </div>
                 </a>
                 <div className="contact-card">
-                  <span className="contact-icon">🏢</span>
+                  <span className="contact-icon"><Building size={20} /></span>
                   <div>
                     <h4>Head Office</h4>
                     <p className="contact-detail">Hyderabad, Telangana, India</p>
@@ -698,7 +710,7 @@ const Landing = () => {
             <button className="landing-modal-close" onClick={handleDismissDownload}>&times;</button>
             <div className="landing-modal-header" style={{ marginBottom: '16px' }}>
               <div className="modal-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(124, 58, 237, 0.1)', color: '#7c3aed', width: '56px', height: '56px', borderRadius: '50%', margin: '0 auto 12px auto' }}>
-                📱
+                <Smartphone size={28} />
               </div>
               <h3 className="modal-title" style={{ fontSize: '22px', fontWeight: '800', textAlign: 'center', width: '100%' }}>
                 Get the School Connect App
@@ -720,8 +732,8 @@ const Landing = () => {
                 justifyContent: 'center',
                 gap: '12px'
               }}>
-                <span style={{ fontSize: '24px' }}>
-                  {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? '🤖' : '💻'}
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? <Cpu size={24} style={{ color: 'var(--accent)' }} /> : <Monitor size={24} style={{ color: 'var(--accent)' }} />}
                 </span>
                 <div style={{ textAlign: 'left' }}>
                   <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
@@ -746,10 +758,14 @@ const Landing = () => {
                   background: 'linear-gradient(135deg, #7c3aed 0%, #0ea5e9 100%)',
                   border: 'none',
                   color: 'white',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
                 }}
               >
-                🚀 Download Native App
+                <Rocket size={16} /> Download Native App
               </button>
               <button 
                 onClick={handleDismissDownload}

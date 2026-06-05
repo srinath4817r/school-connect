@@ -41,7 +41,7 @@ exports.createSchedule = async (req, res) => {
       sender: req.user._id,
       recipient: teacherId,
       type: 'general',
-      message: '📅 Your schedule has been updated'
+      message: 'Your schedule has been updated'
     });
     await newNotification.save();
 
@@ -81,7 +81,7 @@ exports.updateSchedule = async (req, res) => {
       sender: req.user._id,
       recipient: existingSchedule.teacherId,
       type: 'general',
-      message: '📅 Your schedule has been updated'
+      message: 'Your schedule has been updated'
     });
     await newNotification.save();
 

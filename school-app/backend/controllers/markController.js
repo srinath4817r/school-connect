@@ -60,7 +60,7 @@ exports.submitMarks = async (req, res) => {
         const parent = students.find(s => s._id.toString() === studentId);
         const studentName = parent ? parent.fullName : 'Your child';
         const percentage = Math.round((Number(marksObtained) / Number(totalMarks)) * 100);
-        const message = `📝 Results Update: New marks published for ${studentName} in ${subject} (${examName}). Scored: ${marksObtained}/${totalMarks} (${percentage}%).`;
+        const message = `Results Update: New marks published for ${studentName} in ${subject} (${examName}). Scored: ${marksObtained}/${totalMarks} (${percentage}%).`;
 
         const newNotification = new Notification({
           school: req.user.school,

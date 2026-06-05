@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowDown, Check, Settings, ShieldAlert, Smartphone, ArrowRight, Home, Monitor, QrCode, School, X } from 'lucide-react';
+import { ArrowDown, Check, Settings, ShieldAlert, Smartphone, ArrowRight, Home, Monitor, QrCode, School, X, Key, Phone, Mail, Building } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const DownloadPage = () => {
@@ -141,7 +141,7 @@ const DownloadPage = () => {
             onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
           >
-            🔑 Login to Portal
+            <Key size={16} /> Login to Portal
           </Link>
           
           <button onClick={() => setShowContactModal(true)} style={{
@@ -167,7 +167,7 @@ const DownloadPage = () => {
               e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
-            🏫 Register School
+            <School size={16} /> Register School
           </button>
         </div>
 
@@ -238,8 +238,8 @@ const DownloadPage = () => {
                     e.currentTarget.style.boxShadow = '0 12px 30px rgba(124, 58, 237, 0.4)';
                   }}
                 >
-                  <span style={{ fontSize: '18px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    ⬇️ Install APK Directly
+                  <span style={{ fontSize: '18px', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <ArrowDown size={18} /> Install APK Directly
                   </span>
                   <span style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>
                     schoolconnect.apk • File Size: ~96MB
@@ -257,8 +257,8 @@ const DownloadPage = () => {
                   padding: '20px',
                   marginBottom: '20px'
                 }}>
-                  <h4 style={{ color: '#fb923c', margin: '0 0 8px 0', fontSize: '15px', fontWeight: '700' }}>
-                    ⚠️ iOS Compatibility
+                  <h4 style={{ color: '#fb923c', margin: '0 0 8px 0', fontSize: '15px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <ShieldAlert size={16} /> iOS Compatibility
                   </h4>
                   <p style={{ color: '#a0aec0', fontSize: '13px', lineHeight: '1.5', margin: 0 }}>
                     The mobile package is currently packaged for Android devices (.APK). The Apple iOS version is currently in development. You can still download the APK to your PC or check back later!
@@ -332,7 +332,7 @@ const DownloadPage = () => {
                     onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                     onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                   >
-                    <span>⬇️ Download APK</span>
+                    <ArrowDown size={14} /> Download APK
                   </a>
                 </div>
 
@@ -392,9 +392,12 @@ const DownloadPage = () => {
               textAlign: 'left',
               marginBottom: '20px',
               borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-              paddingBottom: '8px'
+              paddingBottom: '8px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
             }}>
-              ⚙️ Installation Guide
+              <Settings size={18} /> Installation Guide
             </h3>
 
             {/* Guide Steps */}
@@ -531,7 +534,7 @@ const DownloadPage = () => {
                 onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)'}
               >
-                <span style={{ fontSize: '20px' }}>📞</span>
+                <Phone size={20} style={{ color: '#a78bfa' }} />
                 <div>
                   <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#718096', margin: '0 0 2px 0', letterSpacing: '0.05em' }}>Call Support</h4>
                   <p style={{ fontSize: '15px', fontWeight: '700', color: 'white', margin: 0 }}>+91 93460 22857</p>
@@ -553,7 +556,7 @@ const DownloadPage = () => {
                 onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)'}
               >
-                <span style={{ fontSize: '20px' }}>📧</span>
+                <Mail size={20} style={{ color: '#a78bfa' }} />
                 <div>
                   <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#718096', margin: '0 0 2px 0', letterSpacing: '0.05em' }}>Email Onboarding</h4>
                   <p style={{ fontSize: '15px', fontWeight: '700', color: 'white', margin: 0 }}>thinkerslab001@gmail.com</p>
@@ -569,7 +572,7 @@ const DownloadPage = () => {
                 border: '1px solid rgba(255, 255, 255, 0.05)',
                 borderRadius: '14px',
               }}>
-                <span style={{ fontSize: '20px' }}>🏢</span>
+                <Building size={20} style={{ color: '#a78bfa' }} />
                 <div>
                   <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#718096', margin: '0 0 2px 0', letterSpacing: '0.05em' }}>Head Office</h4>
                   <p style={{ fontSize: '15px', fontWeight: '700', color: 'white', margin: 0 }}>Hyderabad, Telangana, India</p>

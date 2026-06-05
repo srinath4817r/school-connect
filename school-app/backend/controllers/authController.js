@@ -376,15 +376,7 @@ exports.login = async (req, res) => {
     user.lockUntil = undefined;
     await user.save();
 
-    // Check Parent approval status
-    if (user.role === 'parent') {
-      if (user.approvalStatus === 'rejected') {
-        return res.status(403).json({
-          status: 'error',
-          message: `Your registration request was rejected. Reason: ${user.rejectionReason || 'No reason specified'}`
-        });
-      }
-    }
+
 
     // Check if user account is deactivated
     if (user.isActive === false) {
@@ -651,6 +643,12 @@ exports.linkChild = async (req, res) => {
     // Reset previous child links first to avoid multiple parents/previous links issues
     await PreRegisteredStudent.updateMany({ parent: parentId }, { parent: null });
 
+    // If parent was rejected and is linking a child, reset status to pending
+    if (parent.approvalStatus === 'rejected') {
+      parent.approvalStatus = 'pending';
+      parent.rejectionReason = '';
+    }
+
     if (preRegisteredStudentId) {
       // Find from directory
       const preStudent = await PreRegisteredStudent.findById(preRegisteredStudentId);
@@ -807,6 +805,12 @@ exports.updateProfile = async (req, res) => {
       if (motherPhone !== undefined) user.motherPhone = motherPhone;
       if (emergencyContact !== undefined) user.emergencyContact = emergencyContact;
       if (homeAddress !== undefined) user.homeAddress = homeAddress;
+
+      // If parent was rejected and is updating profile details, reset status to pending
+      if (user.approvalStatus === 'rejected') {
+        user.approvalStatus = 'pending';
+        user.rejectionReason = '';
+      }
     } else if (user.role === 'driver') {
       if (vehicleNumber !== undefined) user.vehicleNumber = vehicleNumber;
       if (licenseNumber !== undefined) user.licenseNumber = licenseNumber;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { X, MapPin } from 'lucide-react';
 
 const InteractiveMapSelectorModal = ({ isOpen, onClose, onSelect, initialLat, initialLng }) => {
   const [selectedCoords, setSelectedCoords] = useState(null);
@@ -93,7 +93,7 @@ const InteractiveMapSelectorModal = ({ isOpen, onClose, onSelect, initialLat, in
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '18px', fontFamily: 'var(--font-title)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'white' }}>
-            <span>📍</span> Select Home Location
+            <MapPin size={18} /> Select Home Location
           </h3>
           <button 
             type="button"

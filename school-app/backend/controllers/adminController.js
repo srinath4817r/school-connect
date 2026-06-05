@@ -4,6 +4,7 @@ const School = require('../models/School');
 const TempInviteCode = require('../models/TempInviteCode');
 const Class = require('../models/Class');
 const PreRegisteredStudent = require('../models/PreRegisteredStudent');
+const Notification = require('../models/Notification');
 const { uploadToCloudinary, deleteFromCloudinary, cloudinary } = require('../utils/cloudinary');
 const calendarController = require('./calendarController');
 
@@ -603,13 +604,24 @@ exports.approveParent = async (req, res) => {
     parent.approvedAt = new Date();
     await parent.save();
 
+    const school = await School.findById(parent.school);
+    const schoolName = school ? school.name : 'your school';
+
+    await Notification.create({
+      school: parent.school,
+      sender: req.user._id,
+      recipient: parent._id,
+      type: 'general',
+      message: `Account Approved! Your registration has been approved by ${schoolName}. Login now to view your child's information.`
+    });
+
     console.log(`[APPROVAL] Parent ${parent.fullName} (${parent.email}) has been approved by ${req.user.fullName}`);
     
     // Log nodemailer/simulation link
     console.log(`\n==========================================`);
     console.log(`[EMAIL SIMULATION FOR ${parent.email}]`);
-    console.log(`Subject: Your account is approved!`);
-    console.log(`Content: Your account is approved! Login to access your child's information.`);
+    console.log(`Subject: Account Approved!`);
+    console.log(`Content: Your registration has been approved by ${schoolName}. Login now to view your child's information.`);
     console.log(`==========================================\n`);
 
     res.status(200).json({
@@ -651,7 +663,22 @@ exports.rejectParent = async (req, res) => {
       { $set: { parent: null } }
     );
 
+    await Notification.create({
+      school: parent.school,
+      sender: req.user._id,
+      recipient: parent._id,
+      type: 'general',
+      message: `Registration Rejected. Reason: ${parent.rejectionReason}. Please contact school for more information.`
+    });
+
     console.log(`[REJECTION] Parent ${parent.fullName} (${parent.email}) rejected by ${req.user.fullName}. Reason: ${reason}`);
+
+    // Log nodemailer/simulation link
+    console.log(`\n==========================================`);
+    console.log(`[EMAIL SIMULATION FOR ${parent.email}]`);
+    console.log(`Subject: Registration Rejected`);
+    console.log(`Content: Registration Rejected. Reason: ${parent.rejectionReason}. Please contact school for more information.`);
+    console.log(`==========================================\n`);
 
     res.status(200).json({
       status: 'success',
