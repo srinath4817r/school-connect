@@ -2959,6 +2959,7 @@ const DashboardLayout = ({
 
   const getMobileLabel = (label) => {
     const l = label.toLowerCase();
+    if (l.includes('calendar')) return 'Calendar';
     if (l.includes('diary')) return 'Diary';
     if (l.includes('timetable')) return 'Timetable';
     if (l.includes('attendance')) return 'Attendance';
@@ -2985,6 +2986,10 @@ const DashboardLayout = ({
     if (l.includes('trip')) return 'Trip';
     return label.split(' ')[0];
   };
+
+  const mobileTabs = (user?.role === 'parent')
+    ? tabs.filter(t => ['overview', 'diary', 'attendance', 'calendar', 'bus'].includes(t.id))
+    : tabs;
 
   let displayMobileTabs = [];
   let hiddenMobileTabs = [];
@@ -3382,13 +3387,13 @@ const DashboardLayout = ({
         {/* MOBILE BOTTOM NAVIGATION BAR */}
         <nav 
           className={`lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-[#141425]/95 backdrop-blur-lg border-t border-white/8 flex items-center z-45 ${
-            tabs.length <= 5 
+            mobileTabs.length <= 5 
               ? 'justify-around px-2' 
               : 'justify-start overflow-x-auto px-4 gap-2 scrollbar-none'
           }`}
-          style={tabs.length > 5 ? { WebkitOverflowScrolling: 'touch' } : {}}
+          style={mobileTabs.length > 5 ? { WebkitOverflowScrolling: 'touch' } : {}}
         >
-          {tabs.map((tab) => {
+          {mobileTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -3399,7 +3404,7 @@ const DashboardLayout = ({
                   setIsMoreOpen(false);
                 }}
                 className={`flex flex-col items-center justify-center h-full py-1 text-[10px] font-bold transition-all duration-300 cursor-pointer ${
-                  tabs.length <= 5 ? 'flex-1' : 'flex-none min-w-[72px]'
+                  mobileTabs.length <= 5 ? 'flex-1' : 'flex-none min-w-[72px]'
                 } ${
                   isActive 
                     ? 'text-[var(--accent)] scale-105' 

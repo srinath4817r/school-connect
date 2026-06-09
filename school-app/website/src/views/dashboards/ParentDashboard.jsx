@@ -183,6 +183,7 @@ export const ParentDashboard = () => {
   const geofenceCircleRef = useRef(null);
   const incidentMarkerRef = useRef(null);
   const hasCenteredMapRef = useRef(false);
+  const dateInputRef = useRef(null);
 
   // Home coordinates prompt states
   const [showHomePromptModal, setShowHomePromptModal] = useState(false);
@@ -1240,11 +1241,12 @@ export const ParentDashboard = () => {
   };
 
   // Weekdays logic (M, T, W, T, F, S)
+  // Weekdays logic (M, T, W, T, F, S)
   const weekDays = useMemo(() => {
-    const today = new Date();
-    const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1); // get Monday
-    const monday = new Date(today.setDate(diff));
+    const baseDate = new Date(selectedOverviewDate);
+    const day = baseDate.getDay();
+    const diff = baseDate.getDate() - day + (day === 0 ? -6 : 1); // get Monday of selected week
+    const monday = new Date(baseDate.setDate(diff));
     
     const days = [];
     for (let i = 0; i < 6; i++) {
@@ -1253,7 +1255,7 @@ export const ParentDashboard = () => {
       days.push(d);
     }
     return days;
-  }, []);
+  }, [selectedOverviewDate]);
 
   const overviewPeriods = useMemo(() => {
     if (!fullTimetable || fullTimetable.length === 0) {
@@ -1474,7 +1476,6 @@ Remarks: Good academic performance. Keep it up!
     { id: 'attendance', label: 'Attendance Tracker', icon: CheckSquare },
     { id: 'calendar', label: 'School Calendar', icon: Calendar },
     { id: 'bus', label: 'Bus Tracker', icon: Bus },
-    { id: 'timetable', label: 'Class Timetable', icon: Clock },
     { id: 'marks', label: 'Marks Report Card', icon: Award },
     { id: 'chat', label: 'Direct Chat', icon: Mail },
     { id: 'clubs', label: 'Activity Clubs', icon: GraduationCap },
@@ -1776,7 +1777,7 @@ Remarks: Good academic performance. Keep it up!
       })()}
 
       {/* Current Period Timetable Banner */}
-      {user?.approvalStatus !== 'pending' && user?.approvalStatus !== 'rejected' && (
+      {user?.approvalStatus !== 'pending' && user?.approvalStatus !== 'rejected' && timetableData.length > 0 && (
         <div className="glass-card" style={{ 
           padding: '16px 20px', 
           marginBottom: '20px', 
@@ -2391,7 +2392,9 @@ Remarks: Good academic performance. Keep it up!
                   <img 
                     src={linkedChild?.profilePhoto || user?.profilePhoto || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"} 
                     alt="Student Avatar"
-                    style={{ width: '56px', height: '56px', borderRadius: '50%', border: '2px solid rgba(255, 255, 255, 0.2)', objectFit: 'cover' }}
+                    style={{ width: '56px', height: '56px', borderRadius: '50%', border: '2px solid rgba(255, 255, 255, 0.2)', objectFit: 'cover', cursor: 'pointer' }}
+                    onClick={() => setActiveTab('profile')}
+                    title="View Profile Settings"
                   />
                   <div>
                     <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)', display: 'block' }}>Hello👋</span>
@@ -2474,7 +2477,7 @@ Remarks: Good academic performance. Keep it up!
                     
                     <button 
                       className="live-join-btn"
-                      onClick={() => setActiveTab('timetable')}
+                      onClick={() => document.querySelector('.mockup-schedule-container')?.scrollIntoView({ behavior: 'smooth' })}
                     >
                       View Timetable
                     </button>
@@ -2490,8 +2493,83 @@ Remarks: Good academic performance. Keep it up!
                 </div>
               </div>
 
+              {/* Quick Portals Strip */}
+              <div className="scrollbar-none" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '4px', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
+                <button onClick={() => setActiveTab('marks')} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '8px 16px', color: '#60a5fa', fontSize: '12.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'} onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}>
+                  <Award size={14} /> Marks Report
+                </button>
+                <button onClick={() => setActiveTab('chat')} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '8px 16px', color: '#f472b6', fontSize: '12.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'} onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}>
+                  <Mail size={14} /> Direct Chat
+                </button>
+                <button onClick={() => setActiveTab('clubs')} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '8px 16px', color: '#34d399', fontSize: '12.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'} onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}>
+                  <GraduationCap size={14} /> Activity Clubs
+                </button>
+                <button onClick={() => setActiveTab('fees')} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '8px 16px', color: '#fbbf24', fontSize: '12.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'} onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}>
+                  <DollarSign size={14} /> Fee Dues
+                </button>
+              </div>
+
               {/* Calendar Strip */}
-              <div className="calendar-strip-container">
+              <div className="calendar-strip-container" style={{ marginTop: '16px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', padding: '0 4px' }}>
+                  <div>
+                    <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '2px' }}>Selected Date</span>
+                    <span style={{ fontSize: '16px', fontWeight: '800', color: '#ffffff' }}>
+                      {selectedOverviewDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </span>
+                  </div>
+                  
+                  {/* Small popup calendar trigger icon */}
+                  <div>
+                    <input 
+                      type="date" 
+                      ref={dateInputRef} 
+                      value={selectedOverviewDate.toISOString().split('T')[0]} 
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setSelectedOverviewDate(new Date(e.target.value));
+                        }
+                      }} 
+                      style={{ 
+                        position: 'absolute',
+                        opacity: 0,
+                        width: 0,
+                        height: 0,
+                        pointerEvents: 'none'
+                      }} 
+                    />
+                    <button 
+                      onClick={() => {
+                        if (dateInputRef.current) {
+                          try {
+                            dateInputRef.current.showPicker();
+                          } catch (err) {
+                            dateInputRef.current.click();
+                          }
+                        }
+                      }}
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '10px',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#ffffff',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'}
+                      title="Select date"
+                    >
+                      <Calendar size={16} />
+                    </button>
+                  </div>
+                </div>
+
                 <div className="calendar-strip">
                   {weekDays.map((date, idx) => {
                     const isSelected = selectedOverviewDate.toDateString() === date.toDateString();
