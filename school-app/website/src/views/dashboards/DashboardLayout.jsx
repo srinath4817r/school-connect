@@ -3380,8 +3380,15 @@ const DashboardLayout = ({
         )}
 
         {/* MOBILE BOTTOM NAVIGATION BAR */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-[#141425]/95 backdrop-blur-lg border-t border-white/8 flex items-center justify-around z-45 px-2">
-          {displayMobileTabs.map((tab) => {
+        <nav 
+          className={`lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-[#141425]/95 backdrop-blur-lg border-t border-white/8 flex items-center z-45 ${
+            tabs.length <= 5 
+              ? 'justify-around px-2' 
+              : 'justify-start overflow-x-auto px-4 gap-2 scrollbar-none'
+          }`}
+          style={tabs.length > 5 ? { WebkitOverflowScrolling: 'touch' } : {}}
+        >
+          {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -3391,7 +3398,9 @@ const DashboardLayout = ({
                   handleTabChange(tab.id, false);
                   setIsMoreOpen(false);
                 }}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all duration-300 cursor-pointer ${
+                className={`flex flex-col items-center justify-center h-full py-1 text-[10px] font-bold transition-all duration-300 cursor-pointer ${
+                  tabs.length <= 5 ? 'flex-1' : 'flex-none min-w-[72px]'
+                } ${
                   isActive 
                     ? 'text-[var(--accent)] scale-105' 
                     : 'text-[#94A3B8] hover:text-white'
@@ -3438,56 +3447,6 @@ const DashboardLayout = ({
               </button>
             );
           })}
-          
-          {tabs.length > 5 && (
-            <button
-              onClick={() => setIsMoreOpen(!isMoreOpen)}
-              className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-bold transition-all duration-300 cursor-pointer ${
-                isMoreOpen
-                  ? 'text-[var(--accent)] scale-105' 
-                  : 'text-[#94A3B8] hover:text-white'
-              }`}
-            >
-              <div style={{ 
-                position: 'relative', 
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '6px 14px',
-                borderRadius: '16px',
-                background: isMoreOpen ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
-                transition: 'all 0.3s ease',
-                marginBottom: '2px'
-              }}>
-                <MoreHorizontal size={18} style={{
-                  transform: isMoreOpen ? 'scale(1.15)' : 'scale(1)',
-                  transition: 'transform 0.3s ease',
-                  color: isMoreOpen ? '#a855f7' : 'inherit'
-                }} />
-                {hiddenMobileTabs.some(t => t.badge) && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '-2px',
-                    right: '-4px',
-                    background: 'var(--danger)',
-                    color: 'white',
-                    fontSize: '9px',
-                    fontWeight: 'bold',
-                    borderRadius: '50%',
-                    minWidth: '14px',
-                    height: '14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '0 2px'
-                  }}>
-                    !
-                  </span>
-                )}
-              </div>
-              <span>More</span>
-            </button>
-          )}
         </nav>
 
         <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">

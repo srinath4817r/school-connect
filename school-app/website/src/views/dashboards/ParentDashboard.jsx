@@ -1300,25 +1300,25 @@ export const ParentDashboard = () => {
       const active = calculateActivePeriod(dayRecord.periods);
       if (active) {
         return {
-          isLive: true,
-          timeDesc: 'LIVE NOW',
+          statusText: 'ONGOING',
+          timeDesc: active.time,
           subject: active.subject,
-          details: `Room: ${active.room || 'Virtual'} • Period: ${active.periodName || 'Active'}`
+          details: `Room: ${active.room || 'Classroom 4A'} • Period: ${active.periodName || 'Active'}`
         };
       }
       const first = dayRecord.periods[0];
       return {
-          isLive: false,
+          statusText: 'UPCOMING',
           timeDesc: `Starts at ${first.time.split('-')[0].trim()}`,
           subject: first.subject,
-          details: `Room: ${first.room || 'Virtual'} • Period: ${first.periodName || 'Upcoming'}`
+          details: `Room: ${first.room || 'Classroom 4A'} • Period: ${first.periodName || 'Upcoming'}`
       };
     }
     return {
-      isLive: true,
+      statusText: 'NEXT CLASS',
       timeDesc: 'after 30 mins',
       subject: 'Micro Finance',
-      details: 'Section: Morning • chapter 6'
+      details: 'Section: Morning • Room: Classroom 4A'
     };
   }, [fullTimetable]);
 
@@ -2450,12 +2450,22 @@ Remarks: Good academic performance. Keep it up!
                 >
                   <div style={{ flex: 1, zIndex: 2 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      {featuredClass.isLive && (
-                        <div className="live-pulsing-dot">
-                          <span className="live-pulse-circle"></span>
-                          LIVE
-                        </div>
-                      )}
+                      <div 
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          letterSpacing: '0.05em',
+                          background: featuredClass.statusText === 'ONGOING' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(124, 58, 237, 0.15)',
+                          color: featuredClass.statusText === 'ONGOING' ? '#34d399' : '#a78bfa',
+                          border: featuredClass.statusText === 'ONGOING' ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(124, 58, 237, 0.25)'
+                        }}
+                      >
+                        {featuredClass.statusText || 'TODAY'}
+                      </div>
                       <span className="live-time-desc">{featuredClass.timeDesc}</span>
                     </div>
                     
@@ -2464,9 +2474,9 @@ Remarks: Good academic performance. Keep it up!
                     
                     <button 
                       className="live-join-btn"
-                      onClick={() => alert("Launching virtual classroom...")}
+                      onClick={() => setActiveTab('timetable')}
                     >
-                      Join live
+                      View Timetable
                     </button>
                   </div>
                   
