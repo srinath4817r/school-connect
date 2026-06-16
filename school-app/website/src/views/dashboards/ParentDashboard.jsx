@@ -601,8 +601,6 @@ export const ParentDashboard = () => {
   // 6. Fee States
   const [feeDetails, setFeeDetails] = useState(null);
   const [feeLoaded, setFeeLoaded] = useState(false);
-  const [showPayModal, setShowPayModal] = useState(false);
-  const [payAmount, setPayAmount] = useState('');
 
   // 7. Timetable and Current Period States
   const [timetableData, setTimetableData] = useState([]);
@@ -1206,33 +1204,7 @@ export const ParentDashboard = () => {
     }
   };
 
-  // 6. Fee Payment Handler
-  const handleOnlinePayment = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
 
-    const amount = Number(payAmount);
-    if (isNaN(amount) || amount <= 0 || amount > feeDetails?.pendingAmount) {
-      setError('Please input a valid payment amount not exceeding pending dues.');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const res = await axios.post(`${API_URL}/fees/${feeDetails._id}/pay`, { payAmount: amount });
-      if (res.data.status === 'success') {
-        setSuccess(res.data.message);
-        setFeeDetails(res.data.fee);
-        setShowPayModal(false);
-        setPayAmount('');
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Payment gateway connection failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Handle Parent linking their child
   const handleLinkChild = async (studentIdOrManual) => {
@@ -4210,6 +4182,7 @@ Remarks: Good academic performance. Keep it up!
                 <span style={{ width: '6px', height: '6px', background: 'var(--text-primary)', borderRadius: '50%', animation: 'bounce-typing 0.6s infinite alternate 0.4s' }}></span>
               </div>
             )}
+          </div>
           {/* Quick Actions / Request Actions */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
             <button
