@@ -1526,6 +1526,41 @@ export const ParentDashboard = () => {
     );
   };
 
+  const handleSendQuickAction = (actionTitle, actionText) => {
+    const userMsg = {
+      id: Date.now().toString(),
+      sender: 'parent',
+      text: actionText,
+      timestamp: new Date().toISOString()
+    };
+    const updated = [...chatMessages, userMsg];
+    setChatMessages(updated);
+    localStorage.setItem(`parent_chat_messages_${user?.id || user?._id}`, JSON.stringify(updated));
+
+    setIsTeacherTyping(true);
+    setTimeout(() => {
+      setIsTeacherTyping(false);
+      let replyText = "We have informed the teacher. She will get back to you with a message or call.";
+      if (actionTitle === "Inquire Child Progress") {
+        replyText = "We have informed the teacher. She will check your child's academic progress and get back to you.";
+      } else if (actionTitle === "Homework Query") {
+        replyText = "We have informed the teacher. She will review your homework query and get back to you.";
+      }
+      
+      const teacherMsg = {
+        id: (Date.now() + 1).toString(),
+        sender: 'teacher',
+        text: replyText,
+        timestamp: new Date().toISOString()
+      };
+      setChatMessages(prev => {
+        const next = [...prev, teacherMsg];
+        localStorage.setItem(`parent_chat_messages_${user?.id || user?._id}`, JSON.stringify(next));
+        return next;
+      });
+    }, 1200);
+  };
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
@@ -1543,18 +1578,10 @@ export const ParentDashboard = () => {
     setIsTeacherTyping(true);
     setTimeout(() => {
       setIsTeacherTyping(false);
-      const replies = [
-        "Thank you for reaching out. I'll check your child's progress and update you by tomorrow morning.",
-        "Yes, I noticed the submission. Overall, Kristian is doing great in class projects!",
-        "I received your note about the upcoming leave request. I have marked it in the teacher records.",
-        "Please ensure Kristian reviews Chapter 6 before the upcoming quiz this Friday.",
-        "Let's schedule a brief call during parent-teacher conference hours next week to discuss this."
-      ];
-      const randomReply = replies[Math.floor(Math.random() * replies.length)];
       const teacherMsg = {
         id: (Date.now() + 1).toString(),
         sender: 'teacher',
-        text: randomReply,
+        text: "We have informed the teacher. She will get back to you with a message or call.",
         timestamp: new Date().toISOString()
       };
       setChatMessages(prev => {
@@ -1562,7 +1589,7 @@ export const ParentDashboard = () => {
         localStorage.setItem(`parent_chat_messages_${user?.id || user?._id}`, JSON.stringify(next));
         return next;
       });
-    }, 1500);
+    }, 1200);
   };
 
   const handleToggleClub = (clubId) => {
@@ -4209,6 +4236,38 @@ Remarks: Good academic performance. Keep it up!
                 <span style={{ width: '6px', height: '6px', background: 'var(--text-primary)', borderRadius: '50%', animation: 'bounce-typing 0.6s infinite alternate 0.4s' }}></span>
               </div>
             )}
+          {/* Quick Actions / Request Actions */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => handleSendQuickAction("Request Callback", "I would like to request a callback from the teacher.")}
+              className="code-action-btn"
+              style={{ fontSize: '12.5px', padding: '8px 14px', borderRadius: '12px', margin: 0, cursor: 'pointer', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'white', transition: 'all 0.2s ease' }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+            >
+              📞 Request Callback
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSendQuickAction("Inquire Child Progress", "I would like to inquire about my child's progress.")}
+              className="code-action-btn"
+              style={{ fontSize: '12.5px', padding: '8px 14px', borderRadius: '12px', margin: 0, cursor: 'pointer', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'white', transition: 'all 0.2s ease' }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+            >
+              📊 Inquire Child Progress
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSendQuickAction("Homework Query", "I have a question about the recent homework assignments.")}
+              className="code-action-btn"
+              style={{ fontSize: '12.5px', padding: '8px 14px', borderRadius: '12px', margin: 0, cursor: 'pointer', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'white', transition: 'all 0.2s ease' }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+            >
+              📝 Homework Query
+            </button>
           </div>
 
           <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '10px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
