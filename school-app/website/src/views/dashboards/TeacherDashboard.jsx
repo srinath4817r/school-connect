@@ -96,6 +96,10 @@ export const TeacherDashboard = () => {
   const [attendanceShift, setAttendanceShift] = useState('Morning');
   const [attendanceList, setAttendanceList] = useState([]);
   const [attendanceSubmitted, setAttendanceSubmitted] = useState(false);
+  const [attendanceSubTab, setAttendanceSubTab] = useState('mark'); // 'mark' or 'report'
+  const [classReportData, setClassReportData] = useState([]);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [errorReport, setErrorReport] = useState('');
 
   // 4. Marks States
   const [marksForm, setMarksForm] = useState({
@@ -170,6 +174,22 @@ export const TeacherDashboard = () => {
       setError('Failed to fetch class student list.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchClassAttendanceReport = async () => {
+    try {
+      setLoadingReport(true);
+      setErrorReport('');
+      const res = await axios.get(`${API_URL}/attendance/class-report`);
+      if (res.data.status === 'success') {
+        setClassReportData(res.data.report || []);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorReport(err.response?.data?.message || 'Failed to fetch attendance reports.');
+    } finally {
+      setLoadingReport(false);
     }
   };
 
@@ -260,6 +280,12 @@ export const TeacherDashboard = () => {
       fetchClassData();
     }
   }, [attendanceDate, attendanceShift, activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'attendance' && attendanceSubTab === 'report') {
+      fetchClassAttendanceReport();
+    }
+  }, [activeTab, attendanceSubTab]);
 
   // Sync marks list when marks form options change or when tab changes
   useEffect(() => {
@@ -718,7 +744,143 @@ export const TeacherDashboard = () => {
       {/* Attendance Tab */}
       {activeTab === 'attendance' && (
         <div className="glass-card" style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
+          {/* Sub Tab Selector */}
+          <div className="dashboard-tabs" style={{ background: 'rgba(0,0,0,0.15)', padding: '4px', borderRadius: '8px', marginBottom: '24px', display: 'flex', gap: '4px', maxWidth: '380px' }}>
+            <button
+              onClick={() => setAttendanceSubTab('mark')}
+              className={`tab-btn ${attendanceSubTab === 'mark' ? 'active' : ''}`}
+              style={{ padding: '8px 16px', fontSize: '13px', margin: 0, flex: 1 }}
+            >
+              Mark Today's Attendance
+            </button>
+            <button
+              onClick={() => setAttendanceSubTab('report')}
+              className={`tab-btn ${attendanceSubTab === 'report' ? 'active' : ''}`}
+              style={{ padding: '8px 16px', fontSize: '13px', margin: 0, flex: 1 }}
+            >
+              Attendance Reports
+            </button>
+          </div>
+
+          {attendanceSubTab === 'report' ? (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div>
+                  <h3 style={{ margin: 0 }}>Class Attendance Reports</h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                    Month-wise and cumulative attendance details for all class students.
+                  </p>
+                </div>
+                <button 
+                  onClick={fetchClassAttendanceReport}
+                  className="code-action-btn"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}
+                  disabled={loadingReport}
+                >
+                  <RefreshCw size={14} className={loadingReport ? 'spin-anim' : ''} />
+                  <span>Refresh Report</span>
+                </button>
+              </div>
+
+              {loadingReport ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                  Loading class reports...
+                </div>
+              ) : errorReport ? (
+                <div className="error-banner" style={{ marginBottom: '20px' }}>
+                  {errorReport}
+                </div>
+              ) : classReportData.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                  No student records available for this class.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  {classReportData.map((student) => {
+                    const formatDays = (daysVal) => {
+                      if (daysVal === undefined || daysVal === null) return '0';
+                      const integerPart = Math.floor(daysVal);
+                      const hasHalf = (daysVal % 1) !== 0;
+                      if (hasHalf) {
+                        return integerPart > 0 ? `${integerPart} 1/2` : '1/2';
+                      }
+                      return String(integerPart);
+                    };
+
+                    return (
+                      <div 
+                        key={student.studentId}
+                        className="glass-card"
+                        style={{
+                          padding: '20px',
+                          background: 'rgba(255, 255, 255, 0.01)',
+                          border: '1.5px solid var(--border)',
+                          borderRadius: '12px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: '16px', color: 'white' }}>{student.fullName}</h4>
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{student.email}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                            <div style={{ textAlign: 'center' }}>
+                              <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Attendance Rate</span>
+                              <strong style={{ fontSize: '18px', color: student.stats.presentRate >= 85 ? '#34d399' : '#f87171' }}>
+                                {student.stats.presentRate}%
+                              </strong>
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Present</span>
+                              <strong style={{ fontSize: '18px', color: '#34d399' }}>{formatDays(student.stats.present)} d</strong>
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Absent</span>
+                              <strong style={{ fontSize: '18px', color: '#f87171' }}>{formatDays(student.stats.absent)} d</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Monthly breakdown */}
+                        <div>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Month-wise Breakdown</span>
+                          {student.stats.monthly.length === 0 ? (
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No monthly data log.</span>
+                          ) : (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px' }}>
+                              {student.stats.monthly.map((m, mIdx) => (
+                                <div 
+                                  key={mIdx}
+                                  style={{
+                                    background: 'rgba(255, 255, 255, 0.02)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '8px',
+                                    padding: '10px 12px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  <strong style={{ fontSize: '13px', color: 'white' }}>{m.month}</strong>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>P: <strong style={{ color: '#34d399' }}>{formatDays(m.presentDays)}</strong></span>
+                                    <span style={{ color: 'var(--text-muted)' }}>A: <strong style={{ color: '#f87171' }}>{formatDays(m.absentDays)}</strong></span>
+                                    <span style={{ fontWeight: 'bold', color: m.presentRate >= 85 ? '#34d399' : '#f87171' }}>{m.presentRate}%</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
             <h3>Log Student Attendance</h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
               {/* Shift Segmented Selector */}
@@ -979,6 +1141,8 @@ export const TeacherDashboard = () => {
               </form>
             );
           })()}
+          </>
+          )}
         </div>
       )}
 

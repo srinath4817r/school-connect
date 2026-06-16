@@ -34,6 +34,15 @@ ChartJS.register(
 import { DashboardLayout, API_URL, BroadcastDetailsModal, LogoutConfirmationModal, ProfileSettingsTab, AnimatedCounter } from './DashboardLayout';
 import { ClassRequestsManagement, StudentDirectoryModule, SchoolAttendanceView, SchoolCalendarModule } from './DashboardModules';
 
+// Calculate active duration in days
+const getActiveDurationText = (createdAt) => {
+  const created = new Date(createdAt);
+  const today = new Date();
+  const diffTime = today - created;
+  const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+  return `Active since ${created.toLocaleDateString()} (${diffDays} day${diffDays > 1 ? 's' : ''})`;
+};
+
 export const SuperAdminDashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();

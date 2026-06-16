@@ -872,4 +872,29 @@ exports.logoutAll = async (req, res) => {
   }
 };
 
+// Get class teacher details for parent
+exports.getClassTeacher = async (req, res) => {
+  try {
+    if (req.user.role !== 'parent') {
+      return res.status(400).json({ status: 'error', message: 'Only parents can query class teacher' });
+    }
+
+    if (!req.user.classAssigned || !req.user.sectionAssigned) {
+      return res.status(200).json({ status: 'success', teacher: null });
+    }
+
+    const teacher = await User.findOne({
+      role: 'teacher',
+      school: req.user.school,
+      classAssigned: req.user.classAssigned,
+      sectionAssigned: req.user.sectionAssigned
+    }).select('fullName email phone profilePhotoUrl');
+
+    res.status(200).json({ status: 'success', teacher });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+
 

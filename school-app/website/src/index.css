@@ -77,10 +77,108 @@
 }
 
 .theme-parent {
-  --accent: #EC4899;
-  --accent-glow: rgba(236, 72, 153, 0.15);
-  --border-focus: rgba(236, 72, 153, 0.5);
+  --primary: #FF8A00;
+  --secondary: #FFC857;
+  --accent: #FF8A00;
+  --accent-glow: rgba(255, 138, 0, 0.12);
+  --border-focus: #FF8A00;
+  
+  --bg-main: #FAF3E8; /* Beautiful soft warm light peach-cream */
+  --bg: #FAF3E8;
+  --bg-gradient: linear-gradient(135deg, #FAF3E8 0%, #F5E5D3 100%);
+  --bg-card: #FFFBF5; /* Exquisite light warm orange/cream tint, not pure white */
+  --bg-card-hover: #FFF6EB;
+  --card-bg: #FFFBF5;
+  --card-hover: #FFF6EB;
+  --border: #E8DCCB;
+  
+  --text-primary: #1F2937;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  
+  --shadow: 0 8px 30px rgba(232, 220, 203, 0.45), 0 2px 8px rgba(31, 41, 55, 0.03);
+  --shadow-hover: 0 12px 40px rgba(232, 220, 203, 0.65), 0 4px 12px rgba(31, 41, 55, 0.05);
+
+  --radius-md: 20px;
+  --radius-lg: 24px;
+  --radius-xl: 24px;
 }
+
+/* Light mode overrides for form controls under the Parent Sunset Theme */
+.theme-parent input.form-input, 
+.theme-parent select.form-select,
+.theme-parent textarea.form-textarea,
+.theme-parent .form-input {
+  background: #FFFDF8 !important;
+  border: 1.5px solid #E8DCCB !important;
+  color: #1F2937 !important;
+}
+
+.theme-parent input.form-input:focus, 
+.theme-parent select.form-select:focus,
+.theme-parent textarea.form-textarea:focus,
+.theme-parent .form-input:focus {
+  border-color: #FF8A00 !important;
+  box-shadow: 0 0 0 3px rgba(255, 138, 0, 0.15) !important;
+  background: #FFFDF8 !important;
+}
+
+.theme-parent input.form-input::placeholder,
+.theme-parent .form-input::placeholder {
+  color: #9CA3AF !important;
+}
+
+.theme-parent select option {
+  background-color: #FFFDF8 !important;
+  color: #1F2937 !important;
+}
+
+/* Modal and layout typography overrides for parent dashboard */
+.theme-parent h1,
+.theme-parent h2,
+.theme-parent h3,
+.theme-parent h4,
+.theme-parent h5,
+.theme-parent h6,
+.theme-parent strong,
+.theme-parent label,
+.theme-parent .modal-content h3,
+.theme-parent .modal-content h2,
+.theme-parent .modal-content label {
+  color: #1F2937 !important;
+}
+
+/* Overriding any elements styled with inline white/light text to ensure readability in light theme */
+.theme-parent [style*="color: white"]:not(button):not(a):not(.active):not(.selected):not(.badge):not(.calendar-strip-item):not(.calendar-strip-item *):not(.badge *):not(button *),
+.theme-parent [style*="color: #ffffff"]:not(button):not(a):not(.active):not(.selected):not(.badge):not(.calendar-strip-item):not(.calendar-strip-item *):not(.badge *):not(button *),
+.theme-parent [style*="color: #fff"]:not(button):not(a):not(.active):not(.selected):not(.badge):not(.calendar-strip-item):not(.calendar-strip-item *):not(.badge *):not(button *),
+.theme-parent [style*="color:white"]:not(button):not(a):not(.active):not(.selected):not(.badge):not(.calendar-strip-item):not(.calendar-strip-item *):not(.badge *):not(button *),
+.theme-parent [style*="color:#ffffff"]:not(button):not(a):not(.active):not(.selected):not(.badge):not(.calendar-strip-item):not(.calendar-strip-item *):not(.badge *):not(button *),
+.theme-parent [style*="color:#fff"]:not(button):not(a):not(.active):not(.selected):not(.badge):not(.calendar-strip-item):not(.calendar-strip-item *):not(.badge *):not(button *),
+.theme-parent [style*="color: rgb(255, 255, 255)"]:not(button):not(a):not(.active):not(.selected):not(.badge):not(.calendar-strip-item):not(.calendar-strip-item *):not(.badge *):not(button *),
+.theme-parent [style*="color:rgb(255,255,255)"]:not(button):not(a):not(.active):not(.selected):not(.badge):not(.calendar-strip-item):not(.calendar-strip-item *):not(.badge *):not(button *),
+.theme-parent [style*="color: rgba(255, 255, 255"]:not(button):not(a):not(.active):not(.selected):not(.badge):not(.calendar-strip-item):not(.calendar-strip-item *):not(.badge *):not(button *),
+.theme-parent [style*="color:rgba(255,255,255"]:not(button):not(a):not(.active):not(.selected):not(.badge):not(.calendar-strip-item):not(.calendar-strip-item *):not(.badge *):not(button *),
+.theme-parent [style*="color: rgba(255,255,255"]:not(button):not(a):not(.active):not(.selected):not(.badge):not(.calendar-strip-item):not(.calendar-strip-item *):not(.badge *):not(button *) {
+  color: #1F2937 !important;
+}
+
+/* High contrast table styling for parent light theme */
+.theme-parent .dashboard-table td:nth-child(1) {
+  color: var(--text-primary) !important;
+}
+.theme-parent .dashboard-table td {
+  color: var(--text-secondary) !important;
+}
+.theme-parent .dashboard-table tr {
+  background: var(--card-bg) !important;
+  border-color: var(--border) !important;
+}
+.theme-parent .dashboard-table tr:hover {
+  background: var(--card-hover) !important;
+}
+
+
 
 /* Reset & Base Styles */
 * {

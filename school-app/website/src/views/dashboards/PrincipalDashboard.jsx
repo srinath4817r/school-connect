@@ -57,6 +57,10 @@ export const PrincipalDashboard = () => {
   const principalMapRef = useRef(null);
   const principalMarkersRef = useRef({});
 
+  // Registered Members Filter & Search states
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState('');
+
   // UI state
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -590,6 +594,23 @@ export const PrincipalDashboard = () => {
   const parentCount = schoolUsers.filter(u => u.role === 'parent').length;
   const driverCount = schoolUsers.filter(u => u.role === 'driver').length;
 
+  const filteredSchoolUsers = useMemo(() => {
+    return schoolUsers.filter(mbr => {
+      const matchesSearch = userSearchQuery.trim() === '' || 
+        mbr.fullName.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+        mbr.email.toLowerCase().includes(userSearchQuery.toLowerCase());
+      
+      let matchesRole = true;
+      if (userRoleFilter === 'staff') {
+        matchesRole = ['teacher', 'school_admin', 'principal'].includes(mbr.role);
+      } else if (userRoleFilter !== '') {
+        matchesRole = mbr.role === userRoleFilter;
+      }
+      
+      return matchesSearch && matchesRole;
+    });
+  }, [schoolUsers, userSearchQuery, userRoleFilter]);
+
   const detailsSubmissions = schoolUsers.filter(u => 
     u.role === 'parent' && 
     (u.fatherName || u.motherName || u.homeAddress || u.fatherPhone || u.motherPhone || u.emergencyContact)
@@ -875,6 +896,174 @@ export const PrincipalDashboard = () => {
             ) : (
               <p>Loading school details...</p>
             )}
+          </div>
+
+          {/* Promotional Media Configuration Card */}
+          <div className="glass-card" style={{ padding: '30px', marginTop: '24px' }}>
+            <h3 style={{ margin: 0, fontFamily: 'var(--font-title)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Play size={20} style={{ color: 'var(--accent)' }} /> School Promotional Media Configuration
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', marginBottom: '20px' }}>
+              Configure a promotional video or auto-sliding slideshow that parents will see on their dashboard overview tab.
+            </p>
+
+            <form onSubmit={handleSavePromoMedia} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>PROMOTIONAL MEDIA TYPE</label>
+                <select
+                  value={promoType}
+                  onChange={(e) => setPromoType(e.target.value)}
+                  className="dashboard-input"
+                  style={{ width: '100%', padding: '10px' }}
+                >
+                  <option value="none">None (Shows Default Welcome Card)</option>
+                  <option value="video">Promotional Video Loop</option>
+                  <option value="slideshow">Image Slideshow (Slides every 2 seconds)</option>
+                </select>
+              </div>
+
+              {promoType === 'video' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px' }}>UPLOAD PROMOTIONAL VIDEO (30-60 SECONDS)</label>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={handleVideoSelect}
+                    className="dashboard-input"
+                    style={{ width: '100%', padding: '10px' }}
+                  />
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Only video files are accepted. Client-validated to strictly enforce a 30 to 60-second limit to avoid storage bloat.
+                  </p>
+                </div>
+              )}
+
+              {promoType === 'slideshow' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px' }}>UPLOAD SLIDESHOW IMAGES</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImagesSelect}
+                    className="dashboard-input"
+                    style={{ width: '100%', padding: '10px' }}
+                  />
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Select one or multiple images to append to the slideshow.
+                  </p>
+
+                  {promoImages.length > 0 && (
+                    <div>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>CURRENT SLIDESHOW IMAGES</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '10px' }}>
+                        {promoImages.map((imgUrl, idx) => (
+                          <div key={idx} style={{ position: 'relative', aspectRatio: '1', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                            <img src={imgUrl} alt="Slideshow item" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <button
+                              type="button"
+                              onClick={() => removePromoImage(idx)}
+                              style={{
+                                position: 'absolute',
+                                top: '4px',
+                                right: '4px',
+                                background: 'rgba(239, 68, 68, 0.9)',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '20px',
+                                height: '20px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                cursor: 'pointer',
+                                fontSize: '10px'
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Live Preview Section */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px', marginTop: '10px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>LIVE PREVIEW (HOW PARENTS SEE IT)</span>
+                
+                {promoType === 'video' ? (
+                  <div style={{ width: '100%', maxWidth: '400px', aspectRatio: '16/9', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', background: '#000', position: 'relative' }}>
+                    {promoVideo || schoolDetails?.promoVideoUrl ? (
+                      <video
+                        src={promoVideo || schoolDetails?.promoVideoUrl}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: '13px' }}>
+                        No video selected/uploaded yet.
+                      </div>
+                    )}
+                  </div>
+                ) : promoType === 'slideshow' ? (
+                  <div style={{ width: '100%', maxWidth: '400px', aspectRatio: '16/9', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)', background: '#000', position: 'relative' }}>
+                    {promoImages.length > 0 ? (
+                      promoImages.map((imgUrl, idx) => (
+                        <img
+                          key={imgUrl}
+                          src={imgUrl}
+                          alt={`Preview Slide ${idx + 1}`}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            transition: 'opacity 0.8s ease-in-out',
+                            opacity: idx === promoSlideIndex ? 1 : 0
+                          }}
+                        />
+                      ))
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: '13px' }}>
+                        No slideshow images uploaded yet.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ width: '100%', maxWidth: '400px', padding: '20px', borderRadius: '12px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.03)' }}>
+                    <h4 style={{ margin: '0 0 4px 0' }}>Welcome</h4>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
+                      No active promotional loop. Parents will see a basic school welcome card.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '10px' }}>
+                <button
+                  type="submit"
+                  className="dashboard-btn-primary"
+                  style={{ padding: '10px 24px', margin: 0, display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  disabled={promoUploading}
+                >
+                  {promoUploading ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" /> Saving Configuration...
+                    </>
+                  ) : (
+                    'Save Media Configuration'
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1222,6 +1411,35 @@ export const PrincipalDashboard = () => {
               Request Details Update
             </button>
           </div>
+          
+          {/* Search & Filter Controls */}
+          <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '200px' }}>
+              <input 
+                type="text"
+                className="dashboard-input"
+                placeholder="Search members by name or email..."
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                style={{ width: '100%', padding: '10px' }}
+              />
+            </div>
+            <div style={{ width: '200px' }}>
+              <select
+                className="form-select"
+                value={userRoleFilter}
+                onChange={(e) => setUserRoleFilter(e.target.value)}
+                style={{ width: '100%', padding: '10px' }}
+              >
+                <option value="">-- All Roles --</option>
+                <option value="parent">Parents / Students</option>
+                <option value="driver">Drivers</option>
+                <option value="teacher">Teachers</option>
+                <option value="staff">Administrative Staff</option>
+              </select>
+            </div>
+          </div>
+
           <div className="dashboard-table-container">
             <table className="dashboard-table">
               <thead>
@@ -1236,12 +1454,12 @@ export const PrincipalDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {schoolUsers.length === 0 ? (
+                {filteredSchoolUsers.length === 0 ? (
                   <tr>
                     <td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No members registered yet.</td>
                   </tr>
                 ) : (
-                  schoolUsers.map((mbr) => (
+                  filteredSchoolUsers.map((mbr) => (
                     <tr key={mbr._id}>
                       <td><strong>{mbr.fullName}</strong></td>
                       <td>{mbr.email}</td>

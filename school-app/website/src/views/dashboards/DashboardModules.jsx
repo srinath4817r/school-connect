@@ -1231,6 +1231,44 @@ const StudentDirectoryModule = ({ defaultSchoolId = null }) => {
   );
 };
 
+// Time helpers for timetable picker
+const formatTimeRange = (start24, end24) => {
+  if (!start24 || !end24) return '';
+  const to12Hr = (time24) => {
+    const [hrs, mins] = time24.split(':');
+    const h = parseInt(hrs);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12.toString().padStart(2, '0')}:${mins} ${ampm}`;
+  };
+  return `${to12Hr(start24)} - ${to12Hr(end24)}`;
+};
+
+const parseTimeRange = (timeStr) => {
+  if (!timeStr) return { start: '', end: '' };
+  const parts = timeStr.split('-');
+  if (parts.length < 2) return { start: '', end: '' };
+
+  const parseSingleTime = (str) => {
+    str = str.trim();
+    const match = str.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+    if (!match) return '';
+    let [_, hrsStr, minsStr, ampm] = match;
+    let hrs = parseInt(hrsStr);
+    const mins = minsStr;
+    if (ampm) {
+      if (ampm.toUpperCase() === 'PM' && hrs < 12) hrs += 12;
+      if (ampm.toUpperCase() === 'AM' && hrs === 12) hrs = 0;
+    }
+    return `${hrs.toString().padStart(2, '0')}:${mins}`;
+  };
+
+  return {
+    start: parseSingleTime(parts[0]),
+    end: parseSingleTime(parts[1])
+  };
+};
+
 // =============================================================
 // CLASS TIMETABLE MODULE
 // =============================================================
@@ -1247,13 +1285,22 @@ const ClassTimetableModule = ({ viewOnly = false }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [timetableApplyDays, setTimetableApplyDays] = useState(['Monday']);
+
+  useEffect(() => {
+    if (isEditMode) {
+      setTimetableApplyDays([selectedDay]);
+    }
+  }, [selectedDay, isEditMode]);
   
   // Form state for adding/editing periods
   const [newPeriod, setNewPeriod] = useState({
     periodNumber: '',
     time: '',
     subject: '',
-    teacherName: ''
+    teacherName: '',
+    startTime: '',
+    endTime: ''
   });
 
   // Class Creation Request states
@@ -1355,7 +1402,15 @@ const ClassTimetableModule = ({ viewOnly = false }) => {
       if (res.data.status === 'success') {
         const dayRecord = res.data.timetable.find(t => t.day === selectedDay);
         if (dayRecord) {
-          setPeriods(dayRecord.periods);
+          const mappedPeriods = dayRecord.periods.map(p => {
+            const { start, end } = parseTimeRange(p.time);
+            return {
+              ...p,
+              startTime: start,
+              endTime: end
+            };
+          });
+          setPeriods(mappedPeriods);
         } else {
           setPeriods([]);
         }
@@ -1383,7 +1438,7 @@ const ClassTimetableModule = ({ viewOnly = false }) => {
     e.preventDefault();
     setError('');
     
-    if (!newPeriod.periodNumber || !newPeriod.time || !newPeriod.subject || !newPeriod.teacherName) {
+    if (!newPeriod.periodNumber || !newPeriod.startTime || !newPeriod.endTime || !newPeriod.subject || !newPeriod.teacherName) {
       setError('Please fill in all period details.');
       return;
     }
@@ -1400,15 +1455,19 @@ const ClassTimetableModule = ({ viewOnly = false }) => {
       return;
     }
 
+    const formattedTime = formatTimeRange(newPeriod.startTime, newPeriod.endTime);
+
     const updated = [...periods, {
       periodNumber: pNum,
-      time: newPeriod.time.trim(),
+      time: formattedTime,
+      startTime: newPeriod.startTime,
+      endTime: newPeriod.endTime,
       subject: newPeriod.subject.trim(),
       teacherName: newPeriod.teacherName.trim()
     }].sort((a, b) => a.periodNumber - b.periodNumber);
 
     setPeriods(updated);
-    setNewPeriod({ periodNumber: '', time: '', subject: '', teacherName: '' });
+    setNewPeriod({ periodNumber: '', time: '', subject: '', teacherName: '', startTime: '', endTime: '' });
   };
 
   const handleRemovePeriod = (idx) => {
@@ -1422,17 +1481,20 @@ const ClassTimetableModule = ({ viewOnly = false }) => {
       setLoading(true);
       setError('');
       setSuccess('');
-      const res = await axios.post(`${API_URL}/timetable`, {
-        classId: selectedClass,
-        section: selectedSection,
-        day: selectedDay,
-        periods: periods
-      });
-      if (res.data.status === 'success') {
-        setSuccess(`Successfully saved timetable for ${selectedDay}.`);
-        setIsEditMode(false);
-        fetchTimetable();
-      }
+      const finalDays = Array.from(new Set([selectedDay, ...timetableApplyDays]));
+      
+      await Promise.all(finalDays.map(day => 
+        axios.post(`${API_URL}/timetable`, {
+          classId: selectedClass,
+          section: selectedSection,
+          day: day,
+          periods: periods
+        })
+      ));
+
+      setSuccess(`Successfully saved timetable for ${finalDays.join(', ')}.`);
+      setIsEditMode(false);
+      fetchTimetable();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to save timetable.');
     } finally {
@@ -1691,32 +1753,73 @@ const ClassTimetableModule = ({ viewOnly = false }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Action Buttons */}
           {canEdit && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              {!isEditMode ? (
-                <button
-                  onClick={() => setIsEditMode(true)}
-                  className="code-action-btn"
-                  style={{ margin: 0, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <Edit2 size={14} /> Edit Timetable
-                </button>
-              ) : (
-                <>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                {!isEditMode ? (
                   <button
-                    onClick={() => { setIsEditMode(false); fetchTimetable(); }}
+                    onClick={() => setIsEditMode(true)}
                     className="code-action-btn"
-                    style={{ margin: 0, padding: '8px 16px', background: 'rgba(255,255,255,0.05)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <X size={14} /> Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveTimetable}
-                    className="dashboard-btn-primary"
                     style={{ margin: 0, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
-                    <Save size={14} /> Save Changes
+                    <Edit2 size={14} /> Edit Timetable
                   </button>
-                </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { setIsEditMode(false); fetchTimetable(); }}
+                      className="code-action-btn"
+                      style={{ margin: 0, padding: '8px 16px', background: 'rgba(255,255,255,0.05)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <X size={14} /> Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveTimetable}
+                      className="dashboard-btn-primary"
+                      style={{ margin: 0, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Save size={14} /> Save Changes
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              {isEditMode && (
+                <div style={{ 
+                  padding: '12px 16px', 
+                  background: 'rgba(255, 255, 255, 0.02)', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: '10px',
+                  width: '100%',
+                  maxWidth: '500px',
+                  textAlign: 'left'
+                }}>
+                  <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                    Save timetable to multiple days:
+                  </label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                    {DAYS_OF_WEEK.map(day => {
+                      const isCurrent = day === selectedDay;
+                      const isChecked = timetableApplyDays.includes(day);
+                      return (
+                        <label key={day} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', cursor: 'pointer', color: isCurrent ? 'var(--accent)' : 'white' }}>
+                          <input 
+                            type="checkbox"
+                            checked={isChecked}
+                            disabled={isCurrent}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setTimetableApplyDays(prev => [...prev, day]);
+                              } else {
+                                setTimetableApplyDays(prev => prev.filter(d => d !== day));
+                              }
+                            }}
+                          />
+                          {day.substring(0, 3)}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -1771,20 +1874,41 @@ const ClassTimetableModule = ({ viewOnly = false }) => {
                           style={{ padding: '8px' }}
                         />
                       </div>
-                      <div style={{ flex: 1, minWidth: '150px' }}>
-                        <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Time block (e.g. 09:00 - 10:00 AM)</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          value={p.time}
-                          onChange={(e) => {
-                            const updated = [...periods];
-                            updated[idx].time = e.target.value;
-                            setPeriods(updated);
-                          }}
-                          required
-                          style={{ padding: '8px' }}
-                        />
+                      <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '220px' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Start Time</label>
+                          <input
+                            type="time"
+                            className="form-input"
+                            value={p.startTime || ''}
+                            onChange={(e) => {
+                              const start = e.target.value;
+                              const updated = [...periods];
+                              updated[idx].startTime = start;
+                              updated[idx].time = formatTimeRange(start, p.endTime || '');
+                              setPeriods(updated);
+                            }}
+                            required
+                            style={{ padding: '8px' }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>End Time</label>
+                          <input
+                            type="time"
+                            className="form-input"
+                            value={p.endTime || ''}
+                            onChange={(e) => {
+                              const end = e.target.value;
+                              const updated = [...periods];
+                              updated[idx].endTime = end;
+                              updated[idx].time = formatTimeRange(p.startTime || '', end);
+                              setPeriods(updated);
+                            }}
+                            required
+                            style={{ padding: '8px' }}
+                          />
+                        </div>
                       </div>
                       <div style={{ flex: 1, minWidth: '150px' }}>
                         <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Subject</label>
@@ -1877,16 +2001,37 @@ const ClassTimetableModule = ({ viewOnly = false }) => {
                     required
                   />
                 </div>
-                <div style={{ flex: 1, minWidth: '150px' }}>
-                  <label className="form-label" style={{ fontSize: '12px' }}>Time *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. 09:00 AM - 10:00 AM"
-                    value={newPeriod.time}
-                    onChange={(e) => setNewPeriod({ ...newPeriod, time: e.target.value })}
-                    required
-                  />
+                <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '220px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>Start Time *</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={newPeriod.startTime || ''}
+                      onChange={(e) => {
+                        const start = e.target.value;
+                        const end = newPeriod.endTime || '';
+                        const formatted = formatTimeRange(start, end);
+                        setNewPeriod({ ...newPeriod, startTime: start, time: formatted });
+                      }}
+                      required
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>End Time *</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={newPeriod.endTime || ''}
+                      onChange={(e) => {
+                        const start = newPeriod.startTime || '';
+                        const end = e.target.value;
+                        const formatted = formatTimeRange(start, end);
+                        setNewPeriod({ ...newPeriod, endTime: end, time: formatted });
+                      }}
+                      required
+                    />
+                  </div>
                 </div>
                 <div style={{ flex: 1, minWidth: '150px' }}>
                   <label className="form-label" style={{ fontSize: '12px' }}>Subject *</label>
@@ -1910,7 +2055,7 @@ const ClassTimetableModule = ({ viewOnly = false }) => {
                     required
                   />
                 </div>
-                <button type="submit" className="code-action-btn" style={{ margin: 0, padding: '10px 18px', background: 'var(--accent)', border: '1px solid var(--accent)', color: '#fff' }}>
+                <button type="submit" className="dashboard-btn-primary" style={{ margin: 0, padding: '10px 18px' }}>
                   Add Period
                 </button>
               </form>

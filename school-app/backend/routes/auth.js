@@ -46,6 +46,12 @@ router.post('/link-child', protect, authController.linkChild);
 // @access  Private
 router.get('/my-child', protect, authController.getMyChild);
 
+// @route   GET /api/auth/class-teacher
+// @desc    Get linked child's class teacher details
+// @access  Private
+router.get('/class-teacher', protect, authController.getClassTeacher);
+
+
 // @route   PUT /api/auth/update-profile
 // @desc    Update user profile details
 // @access  Private

@@ -25,6 +25,7 @@ router.put('/schools/profile', authorize(['super_admin', 'school_admin', 'princi
 router.put('/schools/wifi', authorize(['super_admin', 'school_admin', 'principal']), adminController.updateSchoolWifi);
 router.put('/schools/photo', authorize(['super_admin', 'school_admin', 'principal']), adminController.updateSchoolPhoto);
 router.put('/schools/logo', authorize(['super_admin', 'school_admin', 'principal']), adminController.updateSchoolLogo);
+router.put('/schools/promo', authorize(['super_admin', 'school_admin', 'principal']), adminController.updateSchoolPromoMedia);
 router.put('/schools/:id/toggle-active', authorize('super_admin'), adminController.toggleSchoolActive);
 router.put('/schools/:id', authorize('super_admin'), adminController.editSchool);
 

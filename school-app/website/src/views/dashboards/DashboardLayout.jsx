@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext, saveUserToLocalStorage } from '../../context/AuthContext';
-import { Menu, MoreHorizontal, Users, UserCheck, ShieldAlert, Building, Phone, MapPin, GraduationCap, Bus, Play, Square, Compass, RefreshCw, Milestone, Navigation, BookOpen, Image, Calendar, Award, DollarSign, CheckSquare, Trash2, Camera, Clock, LogOut, AlertTriangle, CheckCircle, RefreshCcw, Edit2, Edit3, FileEdit, Search, X, Save, Plus, School, Upload, Bell, Wifi, User, Lock, Unlock, Key, Mail, MailOpen, Eye, Monitor, Download } from 'lucide-react';
+import { Menu, MoreHorizontal, Users, UserCheck, ShieldAlert, Building, Phone, MapPin, GraduationCap, Bus, Play, Square, Compass, RefreshCw, Milestone, Navigation, BookOpen, Image, Calendar, Award, DollarSign, CheckSquare, Trash2, Camera, Clock, LogOut, AlertTriangle, CheckCircle, RefreshCcw, Edit2, Edit3, FileEdit, Search, X, Save, Plus, School, Upload, Bell, Wifi, User, Lock, Unlock, Key, Mail, MailOpen, Eye, Monitor, Download, Smartphone } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -2003,22 +2003,24 @@ const ProfileSettingsTab = () => {
             <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--accent)' }}>Teacher Assignment Details</h4>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Primary Class Assigned</label>
+                <label className="form-label">Primary Class Assigned (Read-only)</label>
                 <input 
                   type="text" 
                   className="form-input" 
                   value={primaryClass} 
-                  onChange={(e) => setPrimaryClass(e.target.value)} 
+                  disabled
+                  style={{ opacity: 0.6, cursor: 'not-allowed' }}
                   placeholder="e.g. 5"
                 />
               </div>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Primary Section Assigned</label>
+                <label className="form-label">Primary Section Assigned (Read-only)</label>
                 <input 
                   type="text" 
                   className="form-input" 
                   value={primarySection} 
-                  onChange={(e) => setPrimarySection(e.target.value)} 
+                  disabled
+                  style={{ opacity: 0.6, cursor: 'not-allowed' }}
                   placeholder="e.g. A"
                 />
               </div>
@@ -2548,17 +2550,7 @@ const DashboardLayout = ({
 
   const handleTabChange = (tabId, isFromMore = false) => {
     if (activeTab === tabId) return;
-    const targetTab = tabs.find(t => t.id === tabId);
-    const label = targetTab?.label || 'Loading';
-    const IconComponent = targetTab?.icon || Building;
-
-    setTransitionTab({ id: tabId, label, isFromMore, icon: IconComponent });
-
-    // Exactly 1s transition delay for all page navigation transitions
-    setTimeout(() => {
-      setActiveTab(tabId);
-      setTransitionTab(null);
-    }, 1000);
+    setActiveTab(tabId);
   };
 
   const renderThemedTransition = (tabId, IconComponent) => {
@@ -2847,7 +2839,8 @@ const DashboardLayout = ({
     }
 
     // 3. Prompt for App Icon branding preference if not yet chosen
-    if (user && !localStorage.getItem('appIconPreference')) {
+    const deservesIconPrompt = user && !['super_admin', 'school_admin', 'principal'].includes(user.role);
+    if (deservesIconPrompt && !localStorage.getItem('appIconPreference')) {
       setShowAppIconModal(true);
     }
   }, [user]);
@@ -2865,10 +2858,14 @@ const DashboardLayout = ({
 
   // Listen to external request to open selection modal
   useEffect(() => {
-    const handleOpenIconModal = () => setShowAppIconModal(true);
+    const handleOpenIconModal = () => {
+      if (user && !['super_admin', 'school_admin', 'principal'].includes(user.role)) {
+        setShowAppIconModal(true);
+      }
+    };
     window.addEventListener('openAppIconSelectionModal', handleOpenIconModal);
     return () => window.removeEventListener('openAppIconSelectionModal', handleOpenIconModal);
-  }, []);
+  }, [user]);
 
   // Pull to Refresh Handlers
   const handleTouchStart = (e) => {
@@ -2953,9 +2950,10 @@ const DashboardLayout = ({
   };
 
   const schoolLogo = schoolData?.schoolPhoto;
-  const currentAppIcon = (appIconPreference === 'school' && schoolLogo) 
-    ? schoolLogo 
-    : '/default_app_logo.jpg';
+  const isAdminRole = user && ['super_admin', 'school_admin', 'principal'].includes(user.role);
+  const currentAppIcon = isAdminRole 
+    ? (schoolLogo || '/default_app_logo.jpg') 
+    : ((appIconPreference === 'school' && schoolLogo) ? schoolLogo : '/default_app_logo.jpg');
 
   const getMobileLabel = (label) => {
     const l = label.toLowerCase();
@@ -2987,9 +2985,7 @@ const DashboardLayout = ({
     return label.split(' ')[0];
   };
 
-  const mobileTabs = (user?.role === 'parent')
-    ? tabs.filter(t => ['overview', 'diary', 'attendance', 'calendar', 'bus'].includes(t.id))
-    : tabs;
+  const mobileTabs = tabs;
 
   let displayMobileTabs = [];
   let hiddenMobileTabs = [];
@@ -3013,7 +3009,10 @@ const DashboardLayout = ({
   const [isDesktopMoreOpen, setIsDesktopMoreOpen] = useState(isCurrentTabHidden);
 
   return (
-    <div className="h-screen bg-[#0F0F1A] text-white flex flex-col relative overflow-hidden">
+    <div 
+      className="h-screen flex flex-col relative overflow-hidden transition-colors duration-300"
+      style={{ backgroundColor: 'var(--bg)', color: 'var(--text-primary)' }}
+    >
       <style>{`
         /* Custom Leaflet Incident Tooltip */
         .leaflet-tooltip.custom-incident-tooltip {
@@ -3262,18 +3261,123 @@ const DashboardLayout = ({
           0% { transform: scale(0.5); opacity: 0.8; }
           100% { transform: scale(1.5); opacity: 0; }
         }
+
+        /* Focus outlines and mobile highlights reset */
+        button, a, .calendar-strip-item, .tab-btn, [role="button"] {
+          outline: none !important;
+          -webkit-tap-highlight-color: transparent !important;
+        }
+        button:focus, button:active, a:focus, a:active, .calendar-strip-item:focus, .tab-btn:focus {
+          outline: none !important;
+          box-shadow: none !important;
+        }
+
+        /* Active Navigation Icon Micro-Animations */
+        @keyframes navCompassWiggle {
+          0%, 100% { transform: rotate(0deg) scale(1.15); }
+          25% { transform: rotate(-15deg) scale(1.15); }
+          75% { transform: rotate(20deg) scale(1.15); }
+        }
+        .nav-icon-active-overview {
+          animation: navCompassWiggle 1.4s ease-in-out infinite;
+        }
+
+        @keyframes navBookFlip {
+          0%, 100% { transform: scaleX(1.15) scaleY(1.15); }
+          50% { transform: scaleX(0.85) scaleY(1.15) skewY(-2deg); }
+        }
+        .nav-icon-active-diary {
+          animation: navBookFlip 1.4s ease-in-out infinite;
+        }
+
+        @keyframes navCheckPop {
+          0%, 100% { transform: scale(1.15); }
+          50% { transform: scale(1.3) rotate(-5deg); }
+        }
+        .nav-icon-active-attendance {
+          animation: navCheckPop 1.2s ease-in-out infinite;
+        }
+
+        @keyframes navCalendarRock {
+          0%, 100% { transform: rotate(0deg) scale(1.15); }
+          25% { transform: rotate(-8deg) scale(1.15); }
+          75% { transform: rotate(8deg) scale(1.15); }
+        }
+        .nav-icon-active-calendar {
+          animation: navCalendarRock 1.2s ease-in-out infinite;
+        }
+
+        @keyframes navBusMove {
+          0%, 100% { transform: translateX(0) scale(1.15); }
+          20% { transform: translateX(-2px) translateY(-0.5px) scale(1.15); }
+          40% { transform: translateX(2px) translateY(0.5px) scale(1.15); }
+          60% { transform: translateX(-1px) translateY(-0.5px) scale(1.15); }
+          80% { transform: translateX(1.5px) translateY(0.5px) scale(1.15); }
+        }
+        .nav-icon-active-bus {
+          animation: navBusMove 1.6s ease-in-out infinite;
+        }
+
+        @keyframes navMarksUpDown {
+          0%, 100% { transform: translateY(0) scale(1.15); }
+          50% { transform: translateY(-4px) scale(1.15); }
+        }
+        .nav-icon-active-marks {
+          animation: navMarksUpDown 1.2s ease-in-out infinite alternate;
+        }
+
+        @keyframes navMailBounce {
+          0%, 100% { transform: translateY(0) scale(1.15); }
+          35% { transform: translateY(-3px) rotate(-4deg) scale(1.15); }
+          70% { transform: translateY(-1px) rotate(4deg) scale(1.15); }
+        }
+        .nav-icon-active-chat {
+          animation: navMailBounce 1.5s ease-in-out infinite;
+        }
+
+        @keyframes navCapBob {
+          0%, 100% { transform: translateY(0) rotate(0deg) scale(1.15); }
+          50% { transform: translateY(-2.5px) rotate(4deg) scale(1.15); }
+        }
+        .nav-icon-active-clubs {
+          animation: navCapBob 1.4s ease-in-out infinite;
+        }
+
+        @keyframes navDollarPulse {
+          0%, 100% { transform: scale(1.15) rotate(0deg); }
+          50% { transform: scale(1.3) rotate(8deg); }
+        }
+        .nav-icon-active-fees {
+          animation: navDollarPulse 1.2s ease-in-out infinite;
+        }
+
+        @keyframes navUserPulse {
+          0%, 100% { transform: scale(1.15) translateY(0); }
+          50% { transform: scale(1.25) translateY(-2px); }
+        }
+        .nav-icon-active-profile {
+          animation: navUserPulse 1.2s ease-in-out infinite;
+        }
       `}</style>
 
       {/* DASHBOARD CONTENT WRAPPER */}
       <div className={`dashboard-content-wrapper ${splashDone ? 'dashboard-content-active' : ''} flex-1 flex flex-col min-h-0`}>
         {/* MOBILE NAVBAR */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#141425]/90 backdrop-blur-md border-b border-white/8 sticky top-0 z-40 w-full">
+        <header 
+          className="lg:hidden flex items-center justify-between px-4 py-3 border-b sticky top-0 z-40 w-full transition-colors duration-300"
+          style={{ 
+            backgroundColor: 'color-mix(in srgb, var(--bg-card) 90%, transparent)', 
+            borderBottomColor: 'var(--border)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)'
+          }}
+        >
           <div className="flex items-center gap-2">
             <img 
-              onClick={() => setShowAppIconModal(true)}
+              onClick={!isAdminRole ? () => setShowAppIconModal(true) : undefined}
               src={currentAppIcon} 
               alt="App Logo" 
-              title="Click to change app icon theme"
+              title={!isAdminRole ? "Click to change app icon theme" : undefined}
               style={{ 
                 width: '28px', 
                 height: '28px', 
@@ -3281,10 +3385,10 @@ const DashboardLayout = ({
                 objectFit: 'cover',
                 boxShadow: '0 0 8px rgba(168, 85, 247, 0.4)',
                 border: '1.5px solid var(--accent)',
-                cursor: 'pointer'
+                cursor: !isAdminRole ? 'pointer' : 'default'
               }} 
             />
-            <span className="font-semibold text-sm tracking-tight font-title text-white truncate max-w-[150px]">
+            <span className="font-semibold text-sm tracking-tight font-title text-[var(--text-primary)] truncate max-w-[150px]">
               {schoolData?.name || 'School Connect'}
             </span>
           </div>
@@ -3292,28 +3396,66 @@ const DashboardLayout = ({
           <div className="flex items-center gap-3">
             {user?.role === 'parent' && (
               <>
-                <span className="text-xs font-semibold text-white/80" style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span className="text-xs font-semibold text-[var(--text-secondary)]" style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {user.fullName.split(' ')[0]}
                 </span>
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent('checkNotificationsManual'))}
-                  className="p-1.5 hover:bg-white/5 rounded-lg text-[#94A3B8] hover:text-white transition-all cursor-pointer relative"
+                  className="p-1.5 hover:bg-white/5 rounded-lg text-[var(--text-primary)] transition-all cursor-pointer relative"
                   title="Notifications"
                   style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center' }}
                 >
-                  <Bell size={18} />
+                  <Bell size={22} strokeWidth={2.5} style={{ color: 'var(--text-primary)' }} />
                 </button>
               </>
             )}
-            <button 
-              onClick={handleLogout}
-              className="p-1.5 hover:bg-red-500/10 text-red-400 hover:text-red-300 rounded-lg transition-all cursor-pointer"
-              title="Logout"
-              style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center' }}
-            >
-              <LogOut size={18} />
-            </button>
-            {renderUserAvatar('w-8 h-8', 'w-2.5 h-2.5')}
+            <div className="relative">
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="focus:outline-none flex items-center justify-center cursor-pointer"
+                style={{ background: 'none', border: 'none', padding: 0 }}
+              >
+                {renderUserAvatar('w-8 h-8', 'w-2.5 h-2.5')}
+              </button>
+              
+              {isDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-45" 
+                    onClick={() => setIsDropdownOpen(false)} 
+                  />
+                  <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="px-4 py-2 border-b border-[var(--border)]">
+                      <p className="text-xs text-[var(--text-secondary)] font-medium">Logged in as</p>
+                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{user?.fullName || 'User'}</p>
+                      <p className="text-[10px] text-[var(--accent)] font-bold capitalize">{user?.role || 'Parent'}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setActiveTab('profile');
+                        setIsDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center gap-2"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      <User size={14} style={{ color: 'var(--accent)' }} />
+                      <span>Profile Details</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        handleLogout();
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2 border-t border-[var(--border)]"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      <LogOut size={14} />
+                      <span>Log Out</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 
@@ -3386,12 +3528,27 @@ const DashboardLayout = ({
 
         {/* MOBILE BOTTOM NAVIGATION BAR */}
         <nav 
-          className={`lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-[#141425]/95 backdrop-blur-lg border-t border-white/8 flex items-center z-45 ${
-            mobileTabs.length <= 5 
-              ? 'justify-around px-2' 
-              : 'justify-start overflow-x-auto px-4 gap-2 scrollbar-none'
-          }`}
-          style={mobileTabs.length > 5 ? { WebkitOverflowScrolling: 'touch' } : {}}
+          className={user?.role === 'parent' 
+            ? `lg:hidden fixed bottom-3 left-3 right-3 h-[60px] shadow-lg border border-[#E8DCCB] rounded-[28px] flex items-center z-45 ${
+                mobileTabs.length <= 5 
+                  ? 'justify-around px-2' 
+                  : 'justify-start overflow-x-auto px-4 gap-2 scrollbar-none'
+              }`
+            : `lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-transparent backdrop-blur-md border-t border-white/8 flex items-center z-45 ${
+                mobileTabs.length <= 5 
+                  ? 'justify-around px-2' 
+                  : 'justify-start overflow-x-auto px-4 gap-2 scrollbar-none'
+              }`
+          }
+          style={user?.role === 'parent' 
+            ? { 
+                backgroundColor: 'rgba(255, 255, 255, 0.45)', 
+                backdropFilter: 'blur(20px)', 
+                WebkitBackdropFilter: 'blur(20px)',
+                ...(mobileTabs.length > 5 ? { WebkitOverflowScrolling: 'touch' } : {})
+              } 
+            : (mobileTabs.length > 5 ? { WebkitOverflowScrolling: 'touch' } : {})
+          }
         >
           {mobileTabs.map((tab) => {
             const Icon = tab.icon;
@@ -3408,7 +3565,7 @@ const DashboardLayout = ({
                 } ${
                   isActive 
                     ? 'text-[var(--accent)] scale-105' 
-                    : 'text-[#94A3B8] hover:text-white'
+                    : (user?.role === 'parent' ? 'text-[#6B7280] hover:text-[#1F2937]' : 'text-[#94A3B8] hover:text-white')
                 }`}
               >
                 <div style={{ 
@@ -3416,17 +3573,24 @@ const DashboardLayout = ({
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '6px 14px',
-                  borderRadius: '16px',
-                  background: isActive ? 'rgba(168, 85, 247, 0.1)' : 'transparent',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  padding: isActive ? '6px 24px' : '6px 10px',
+                  borderRadius: isActive ? '32px' : '20px',
+                  background: isActive ? 'var(--accent-glow)' : 'transparent',
+                  border: isActive ? '1.5px solid var(--accent)' : '1.2px solid transparent',
+                  transform: isActive ? 'scale(1.12)' : 'scale(1)',
+                  boxShadow: isActive ? '0 4px 12px var(--accent-glow)' : 'none',
+                  transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
                   marginBottom: '2px'
                 }}>
-                  <Icon size={18} style={{ 
-                    transform: isActive ? 'scale(1.15)' : 'scale(1)',
-                    transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    color: isActive ? '#a855f7' : 'inherit'
-                  }} />
+                  <Icon 
+                    size={18} 
+                    className={isActive ? `nav-icon-active-${tab.id}` : ''} 
+                    style={{ 
+                      transform: isActive ? undefined : 'scale(1)',
+                      transition: 'color 0.3s, transform 0.3s',
+                      color: isActive ? 'var(--accent)' : 'inherit'
+                    }} 
+                  />
                   {tab.badge && (
                     <span style={{
                       position: 'absolute',
@@ -3456,15 +3620,21 @@ const DashboardLayout = ({
 
         <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {/* DESKTOP HEADER WITH DROPDOWN SELECTOR */}
-          <header className="hidden lg:flex items-center justify-between px-8 py-4 bg-[#141425]/40 border-b border-white/8 backdrop-blur-md sticky top-0 z-30">
+          <header 
+            className="hidden lg:flex items-center justify-between px-8 py-4 border-b backdrop-blur-md sticky top-0 z-30 transition-colors duration-300"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--bg-card) 40%, transparent)',
+              borderBottomColor: 'var(--border)'
+            }}
+          >
             <div className="flex items-center gap-4">
               {/* School Logo & Name */}
               <div className="flex items-center gap-3">
                 <img 
-                  onClick={() => setShowAppIconModal(true)}
+                  onClick={!isAdminRole ? () => setShowAppIconModal(true) : undefined}
                   src={currentAppIcon} 
                   alt="App Logo" 
-                  title="Click to change app icon theme"
+                  title={!isAdminRole ? "Click to change app icon theme" : undefined}
                   style={{ 
                     width: '36px', 
                     height: '36px', 
@@ -3472,11 +3642,11 @@ const DashboardLayout = ({
                     objectFit: 'cover',
                     boxShadow: '0 0 10px rgba(168, 85, 247, 0.4)',
                     border: '1.5px solid var(--accent)',
-                    cursor: 'pointer'
+                    cursor: !isAdminRole ? 'pointer' : 'default'
                   }} 
                 />
                 <div className="flex flex-col">
-                  <span className="font-bold text-sm font-title text-white tracking-tight leading-none">
+                  <span className="font-bold text-sm font-title text-[var(--text-primary)] tracking-tight leading-none">
                     {schoolData?.name || 'School Connect'}
                   </span>
                   <span className="text-[10px] text-[var(--accent)] font-semibold tracking-widest uppercase mt-1">
@@ -4210,7 +4380,13 @@ const DashboardLayout = ({
       )}
       <AppIconSelectionModal 
         isOpen={showAppIconModal} 
-        onClose={() => setShowAppIconModal(false)} 
+        onClose={() => {
+          setShowAppIconModal(false);
+          if (!localStorage.getItem('appIconPreference')) {
+            localStorage.setItem('appIconPreference', 'default');
+            setAppIconPreference('default');
+          }
+        }} 
         schoolLogo={schoolLogo} 
         onSelect={handleSelectAppIcon} 
       />

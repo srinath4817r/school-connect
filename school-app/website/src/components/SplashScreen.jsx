@@ -2,6 +2,15 @@ import React, { useEffect, useState } from 'react';
 
 const SplashScreen = ({ user, schoolData, onComplete }) => {
   const [isFadingOut, setIsFadingOut] = useState(false);
+  const [defaultLogo, setDefaultLogo] = useState('/default_app_logo.jpg');
+
+  useEffect(() => {
+    const img = new window.Image();
+    img.src = '/default_app_logo.gif';
+    img.onload = () => {
+      setDefaultLogo('/default_app_logo.gif');
+    };
+  }, []);
 
   useEffect(() => {
     // 0.5s: Transition out starts
@@ -48,7 +57,7 @@ const SplashScreen = ({ user, schoolData, onComplete }) => {
     return '#A855F7';
   };
 
-  const schoolLogoSrc = schoolData?.logoUrl || schoolData?.schoolPhoto || '/default_app_logo.jpg';
+  const schoolLogoSrc = schoolData?.logoUrl || schoolData?.schoolPhoto || defaultLogo;
   const userPhotoSrc = user?.profilePhotoUrl || user?.profilePhoto;
 
   const roleColor = getRoleColor(user?.role);

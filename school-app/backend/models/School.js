@@ -31,6 +31,19 @@ const SchoolSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  promoVideoUrl: {
+    type: String,
+    default: ''
+  },
+  promoImages: {
+    type: [String],
+    default: []
+  },
+  promoType: {
+    type: String,
+    enum: ['none', 'video', 'slideshow'],
+    default: 'none'
+  },
   generatedCodes: [{
     code: { type: String },
     role: { type: String, enum: ['principal', 'teacher', 'parent', 'driver'] },

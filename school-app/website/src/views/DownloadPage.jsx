@@ -307,12 +307,12 @@ const DownloadPage = () => {
                 }}>
                   <h4 style={{ color: 'white', fontSize: '15px', fontWeight: '700', margin: '0 0 8px 0' }}>Download to PC</h4>
                   <p style={{ color: '#a0aec0', fontSize: '12px', lineHeight: '1.5', marginBottom: '16px' }}>
-                    Download the installer package directly to your computer to run in an Android Emulator or transfer manually.
+                    Download the Windows desktop app directly to your computer to launch School Connect in a dedicated workspace window.
                   </p>
                   
                   <a
-                    href="/downloads/schoolconnect.apk"
-                    download="schoolconnect.apk"
+                    href="/downloads/school-connect-setup.exe"
+                    download="school-connect-setup.exe"
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -332,7 +332,7 @@ const DownloadPage = () => {
                     onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                     onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                   >
-                    <ArrowDown size={14} /> Download APK
+                    <ArrowDown size={14} /> Download PC App
                   </a>
                 </div>
 
@@ -541,7 +541,7 @@ const DownloadPage = () => {
                 </div>
               </a>
 
-              <a href="mailto:thinkerslab001@gmail.com?subject=School%20Connect%20Registration%20Request" style={{
+              <a href="https://mail.google.com/mail/?view=cm&fs=1&to=thinkerslab001@gmail.com&su=Request%20of%20Onboarding%20Code" target="_blank" rel="noopener noreferrer" style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '16px',
@@ -586,7 +586,7 @@ const DownloadPage = () => {
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: '12px' }}>
-              <a href="mailto:thinkerslab001@gmail.com?subject=School%20Connect%20Registration%20Request" style={{
+              <a href="https://mail.google.com/mail/?view=cm&fs=1&to=thinkerslab001@gmail.com&su=Request%20of%20Onboarding%20Code" target="_blank" rel="noopener noreferrer" style={{
                 flex: 1,
                 textDecoration: 'none',
                 background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',

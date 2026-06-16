@@ -40,6 +40,7 @@ exports.updateStudentFee = async (req, res) => {
         school: req.user.school,
         totalAmount: Number(totalAmount),
         paidAmount: Number(paidAmount),
+        pendingAmount: Number(totalAmount) - Number(paidAmount),
         dueDate: new Date(dueDate),
         officePhone: officePhone.trim()
       },

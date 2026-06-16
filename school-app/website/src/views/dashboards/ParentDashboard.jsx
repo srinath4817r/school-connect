@@ -31,13 +31,23 @@ ChartJS.register(
   Legend,
   Filler
 );
-import { DashboardLayout, API_URL, LogoutConfirmationModal, ProfileSettingsTab } from './DashboardLayout';
+import { DashboardLayout, API_URL, addSatelliteHybridLayers, LogoutConfirmationModal, ProfileSettingsTab } from './DashboardLayout';
 import { ClassTimetableModule, SchoolCalendarModule } from './DashboardModules';
 import { TripPlaybackPanel } from './DriverDashboard';
 
 export const ParentDashboard = () => {
   const { user, setUser, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  const formatDays = (daysVal) => {
+    if (daysVal === undefined || daysVal === null) return '0';
+    const integerPart = Math.floor(daysVal);
+    const hasHalf = (daysVal % 1) !== 0;
+    if (hasHalf) {
+      return integerPart > 0 ? `${integerPart} 1/2` : '1/2';
+    }
+    return String(integerPart);
+  };
 
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('activeTab_parent') || 'overview'); // 'overview', 'diary', 'bus', 'attendance', 'timetable', 'marks', 'fees'
   const [selectedOverviewDate, setSelectedOverviewDate] = useState(() => new Date());
@@ -314,6 +324,7 @@ export const ParentDashboard = () => {
   const [etaMinutes, setEtaMinutes] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [schoolDetails, setSchoolDetails] = useState(null);
+  const [promoSlideIndex, setPromoSlideIndex] = useState(0);
 
   const handleMarkAsRead = async (diaryId) => {
     try {
@@ -743,6 +754,15 @@ export const ParentDashboard = () => {
     }
   };
 
+  useEffect(() => {
+    if (schoolDetails?.promoType === 'slideshow' && schoolDetails?.promoImages?.length > 0) {
+      const interval = setInterval(() => {
+        setPromoSlideIndex(prev => (prev + 1) % schoolDetails.promoImages.length);
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [schoolDetails]);
+
   const fetchLinkedChild = async () => {
     try {
       const res = await axios.get(`${API_URL}/auth/my-child`);
@@ -1066,8 +1086,12 @@ export const ParentDashboard = () => {
 
           // Fit bounds to show both simultaneously (prevent maxZoom over-zooming when points are close/identical)
           if (!hasCenteredMapRef.current) {
-            const bounds = L.latLngBounds(roadRoutePath.length > 0 ? roadRoutePath : [parentLatLng, busLatLng]);
-            map.fitBounds(bounds, { maxZoom: 15, padding: [50, 50] });
+            if (!isBusActive && !tripData.isPlaceholder) {
+              map.setView(busLatLng, 15);
+            } else {
+              const bounds = L.latLngBounds(roadRoutePath.length > 0 ? roadRoutePath : [parentLatLng, busLatLng]);
+              map.fitBounds(bounds, { maxZoom: 15, padding: [50, 50] });
+            }
             hasCenteredMapRef.current = true;
           }
         } else {
@@ -1393,6 +1417,115 @@ export const ParentDashboard = () => {
     alert("Leave application submitted successfully!");
   };
 
+  const getTodayAttendanceStatus = () => {
+    const today = new Date();
+    const todayRecords = attendanceRecords.filter(r => {
+      const d = new Date(r.date);
+      return d.getFullYear() === today.getFullYear() &&
+             d.getMonth() === today.getMonth() &&
+             d.getDate() === today.getDate();
+    });
+    const morning = todayRecords.find(r => r.shift === 'Morning');
+    const afternoon = todayRecords.find(r => r.shift === 'Afternoon');
+
+    return {
+      morning: morning ? morning.status : 'Not Taken Yet',
+      afternoon: afternoon ? afternoon.status : 'Not Taken Yet'
+    };
+  };
+
+  const renderTodayAttendanceStatusCard = () => {
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    const { morning, afternoon } = getTodayAttendanceStatus();
+
+    const getStatusStyle = (status) => {
+      if (status === 'Present') {
+        return {
+          bg: 'rgba(16, 185, 129, 0.1)',
+          text: '#10b981',
+          border: 'rgba(16, 185, 129, 0.25)'
+        };
+      } else if (status === 'Absent') {
+        return {
+          bg: 'rgba(239, 68, 68, 0.1)',
+          text: '#ef4444',
+          border: 'rgba(239, 68, 68, 0.25)'
+        };
+      } else if (status === 'Late') {
+        return {
+          bg: 'rgba(245, 158, 11, 0.1)',
+          text: '#f59e0b',
+          border: 'rgba(245, 158, 11, 0.25)'
+        };
+      }
+      return { // Not Taken Yet
+        bg: 'var(--bg-main)',
+        text: 'var(--text-muted)',
+        border: 'var(--border)'
+      };
+    };
+
+    const mStyle = getStatusStyle(morning);
+    const aStyle = getStatusStyle(afternoon);
+
+    return (
+      <div 
+        className="glass-card" 
+        style={{ 
+          padding: '20px', 
+          borderRadius: 'var(--radius-lg)', 
+          background: 'var(--bg-card)', 
+          border: '1.5px solid var(--border)',
+          boxShadow: 'var(--shadow)',
+          marginBottom: '20px'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h4 style={{ margin: 0, fontSize: '15px', color: 'var(--text-secondary)', fontWeight: '600' }}>Today's Attendance Status</h4>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>{dateStr}</span>
+        </div>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div 
+            style={{ 
+              flex: 1, 
+              padding: '14px', 
+              borderRadius: '16px', 
+              background: mStyle.bg, 
+              border: `1px solid ${mStyle.border}`, 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '4px' 
+            }}
+          >
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700', letterSpacing: '0.05em' }}>MORNING</span>
+            <span style={{ fontSize: '16px', fontWeight: '800', color: mStyle.text }}>{morning}</span>
+          </div>
+          <div 
+            style={{ 
+              flex: 1, 
+              padding: '14px', 
+              borderRadius: '16px', 
+              background: aStyle.bg, 
+              border: `1px solid ${aStyle.border}`, 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '4px' 
+            }}
+          >
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700', letterSpacing: '0.05em' }}>AFTERNOON</span>
+            <span style={{ fontSize: '16px', fontWeight: '800', color: aStyle.text }}>{afternoon}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
@@ -1500,281 +1633,7 @@ Remarks: Good academic performance. Keep it up!
       {error && <div className="error-banner">{error}</div>}
       {success && <div className="success-banner">{success}</div>}
 
-      {/* Smart Dashboard Banner */}
-      {user?.approvalStatus !== 'pending' && user?.approvalStatus !== 'rejected' && !bannerDismissed && (() => {
-        const currentHour = new Date().getHours();
-        let bannerConfig = null;
-        
-        if (currentHour >= 5 && currentHour < 9) {
-          if (busNumber) {
-            bannerConfig = {
-              type: 'morning-bus',
-              iconName: 'Bus',
-              title: `School Bus Approaching`,
-              desc: `Bus ${busNumber} is on the way. Tap to track live location.`,
-              actionText: 'Track Now →',
-              tab: 'bus',
-              background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-              borderColor: 'rgba(124, 58, 237, 0.4)',
-              textColor: 'white'
-            };
-          } else {
-            bannerConfig = {
-              type: 'morning-generic',
-              iconName: 'Compass',
-              title: `Good Morning!`,
-              desc: `Have a great day ahead. Tap to view today's timetable.`,
-              actionText: 'View Schedule →',
-              tab: 'timetable',
-              background: 'linear-gradient(135deg, #0f172a, #1e293b)',
-              borderColor: 'rgba(255, 255, 255, 0.08)',
-              textColor: '#a78bfa'
-            };
-          }
-        }
-        else if (currentHour >= 9 && currentHour < 12) {
-          const todayDateStr = new Date().toISOString().split('T')[0];
-          const todayRecord = attendanceRecords.find(r => new Date(r.date).toISOString().split('T')[0] === todayDateStr);
-          const isPresent = todayRecord ? (todayRecord.status === 'Present' || todayRecord.status === 'Late') : true;
-          const markedTime = todayRecord?.createdAt 
-            ? new Date(todayRecord.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-            : '8:45 AM';
-          const childName = linkedChild?.name || 'Your child';
 
-          if (isPresent) {
-            bannerConfig = {
-              type: 'midmorning-present',
-              iconName: 'CheckCircle',
-              title: `${childName} is Present`,
-              desc: `Marked at ${markedTime}`,
-              actionText: 'View Attendance →',
-              tab: 'attendance',
-              background: 'rgba(16, 185, 129, 0.08)',
-              borderColor: 'rgba(16, 185, 129, 0.3)',
-              textColor: '#34d399'
-            };
-          } else {
-            bannerConfig = {
-              type: 'midmorning-absent',
-              iconName: 'X',
-              title: `${childName} is Absent`,
-              desc: `Contact school if wrong.`,
-              actionText: 'View Details →',
-              tab: 'attendance',
-              background: 'rgba(239, 68, 68, 0.08)',
-              borderColor: 'rgba(239, 68, 68, 0.3)',
-              textColor: '#f87171'
-            };
-          }
-        }
-        else if (currentHour >= 12 && currentHour < 17) {
-          const tomorrowStr = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          const tomorrowExam = parentCalendarEntries.find(e => {
-            const entryDateStr = new Date(e.date).toISOString().split('T')[0];
-            return entryDateStr === tomorrowStr && e.dayType === 'exam';
-          });
-
-          const hasFeeDue = feeDetails && feeDetails.pendingAmount > 0;
-          let feeDueDays = -1;
-          if (hasFeeDue && feeDetails.dueDate) {
-            const dueDate = new Date(feeDetails.dueDate);
-            const diffTime = dueDate - Date.now();
-            feeDueDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          }
-          const feeDueSoon = hasFeeDue && feeDueDays >= 0 && feeDueDays <= 3;
-
-          const tomorrowDayName = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long' });
-          const tomorrowRecord = fullTimetable.find(t => t.day === tomorrowDayName);
-          const tomorrowFirst = tomorrowRecord?.periods && tomorrowRecord.periods.length > 0 
-            ? [...tomorrowRecord.periods].sort((a,b) => (a.periodNumber || 1) - (b.periodNumber || 1))[0] 
-            : null;
-
-          if (tomorrowExam) {
-            bannerConfig = {
-              type: 'afternoon-exam',
-              iconName: 'Edit2',
-              title: `Exam Tomorrow!`,
-              desc: `${tomorrowExam.title} - ${tomorrowExam.description || 'All Chapters'}`,
-              actionText: 'View Timetable →',
-              tab: 'timetable',
-              background: 'rgba(249, 115, 22, 0.08)',
-              borderColor: 'rgba(249, 115, 22, 0.3)',
-              textColor: '#fb923c'
-            };
-          } else if (feeDueSoon) {
-            bannerConfig = {
-              type: 'afternoon-fee',
-              iconName: 'DollarSign',
-              title: `Fee Due in ${feeDueDays} Days`,
-              desc: `Pending Amount: ₹${feeDetails.pendingAmount.toLocaleString()}`,
-              actionText: 'View Fee Details →',
-              tab: 'fees',
-              background: 'rgba(234, 179, 8, 0.08)',
-              borderColor: 'rgba(234, 179, 8, 0.3)',
-              textColor: '#facc15'
-            };
-          } else {
-            const subject = tomorrowFirst?.subject || 'Mathematics';
-            const startTime = tomorrowFirst?.time?.split('-')[0] || '8:00 AM';
-            bannerConfig = {
-              type: 'afternoon-default',
-              iconName: 'Calendar',
-              title: `Tomorrow's First Period`,
-              desc: `${subject} - ${startTime}`,
-              actionText: 'Full Schedule →',
-              tab: 'timetable',
-              background: 'rgba(124, 58, 237, 0.08)',
-              borderColor: 'rgba(124, 58, 237, 0.2)',
-              textColor: '#a78bfa'
-            };
-          }
-        }
-        else if (currentHour >= 17 && currentHour < 21) {
-          if (todayDiary) {
-            const count = todayDiary.homework?.length || 0;
-            bannerConfig = {
-              type: 'evening-diary-ready',
-              iconName: 'BookOpen',
-              title: `Today's Diary is Ready`,
-              desc: `Homework: ${count} subjects assigned.`,
-              actionText: 'View Diary →',
-              tab: 'diary',
-              background: 'rgba(59, 130, 246, 0.08)',
-              borderColor: 'rgba(59, 130, 246, 0.3)',
-              textColor: '#60a5fa'
-            };
-          } else {
-            bannerConfig = {
-              type: 'evening-diary-none',
-              iconName: 'BookOpen',
-              title: `No Diary Yet Today`,
-              desc: `Check back later for updates.`,
-              actionText: '',
-              tab: 'diary',
-              background: 'rgba(156, 163, 175, 0.08)',
-              borderColor: 'rgba(156, 163, 175, 0.2)',
-              textColor: '#9ca3af'
-            };
-          }
-        }
-        else {
-          const tomorrowDayName = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long' });
-          const tomorrowRecord = fullTimetable.find(t => t.day === tomorrowDayName);
-          const tomorrowFirst = tomorrowRecord?.periods && tomorrowRecord.periods.length > 0 
-            ? [...tomorrowRecord.periods].sort((a,b) => (a.periodNumber || 1) - (b.periodNumber || 1))[0] 
-            : null;
-          const subject = tomorrowFirst?.subject || 'Mathematics';
-          const startTime = tomorrowFirst?.time?.split('-')[0] || '8:00 AM';
-          
-          bannerConfig = {
-            type: 'night-schedule',
-            iconName: 'Calendar',
-            title: `Tomorrow's Schedule`,
-            desc: `First Period: ${subject} at ${startTime}`,
-            actionText: 'View Full Day →',
-            tab: 'timetable',
-            background: 'rgba(124, 58, 237, 0.15)',
-            borderColor: 'rgba(124, 58, 237, 0.3)',
-            textColor: '#a78bfa'
-          };
-        }
-
-        if (!bannerConfig) return null;
-
-        const handleBannerDismiss = (e) => {
-          e.stopPropagation();
-          const todayDateStr = new Date().toISOString().split('T')[0];
-          try {
-            localStorage.setItem(`parent_banner_dismissed_${user?.id || user?._id}`, todayDateStr);
-            setBannerDismissed(true);
-          } catch (err) {
-            console.error(err);
-          }
-        };
-
-        return (
-          <div 
-            onClick={() => setActiveTab(bannerConfig.tab)}
-            className="smart-banner-slide"
-            style={{
-              background: bannerConfig.background,
-              border: '1px solid',
-              borderColor: bannerConfig.borderColor,
-              borderRadius: '16px',
-              padding: '16px 20px',
-              marginBottom: '20px',
-              cursor: 'pointer',
-              position: 'relative',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '12px',
-              transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '24px' }}>{bannerConfig.emoji}</span>
-              <div>
-                <h4 style={{ 
-                  color: 'white', 
-                  fontSize: '15px', 
-                  fontWeight: '700', 
-                  margin: '0 0 4px 0' 
-                }}>
-                  {bannerConfig.title}
-                </h4>
-                <p style={{ 
-                  color: 'var(--text-secondary)', 
-                  fontSize: '13px', 
-                  margin: 0,
-                  fontWeight: '500'
-                }}>
-                  {bannerConfig.desc}
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              {bannerConfig.actionText && (
-                <span style={{ 
-                  color: bannerConfig.textColor, 
-                  fontSize: '13px', 
-                  fontWeight: '700',
-                  textDecoration: 'underline'
-                }}>
-                  {bannerConfig.actionText}
-                </span>
-              )}
-              
-              <button 
-                onClick={handleBannerDismiss}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '24px',
-                  height: '24px',
-                  color: 'white',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '11px',
-                  transition: 'background 0.2s ease'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Current Period Timetable Banner */}
       {user?.approvalStatus !== 'pending' && user?.approvalStatus !== 'rejected' && timetableData.length > 0 && (
@@ -2397,9 +2256,12 @@ Remarks: Good academic performance. Keep it up!
                     title="View Profile Settings"
                   />
                   <div>
-                    <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)', display: 'block' }}>Hello👋</span>
-                    <span style={{ fontSize: '20px', fontWeight: '700', color: '#ffffff' }}>
-                      {linkedChild?.fullName || linkedChild?.name || "Kristian Willams"}
+                    <span style={{ fontSize: '14px', color: 'var(--text-secondary)', display: 'block' }}>Hello👋</span>
+                    <span style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', display: 'block' }}>
+                      {linkedChild?.fullName || linkedChild?.name || "Not Assigned"}
+                    </span>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--accent)', display: 'block', marginTop: '2px' }}>
+                      Class {linkedChild?.className || "Not Assigned"} - {linkedChild?.section || "Not Assigned"}
                     </span>
                   </div>
                 </div>
@@ -2432,79 +2294,106 @@ Remarks: Good academic performance. Keep it up!
                 </button>
               </div>
 
-              {/* Featured Card */}
+              {/* School Promo Media Player */}
               <div>
-                <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#ffffff', marginBottom: '16px' }}>Today Class</h3>
-                <div 
-                  className="featured-class-card"
-                  style={{
-                    position: 'relative',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    borderRadius: '30px',
-                    padding: '28px',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    minHeight: '200px',
-                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)'
-                  }}
-                >
-                  <div style={{ flex: 1, zIndex: 2 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div 
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          padding: '4px 8px',
-                          borderRadius: '12px',
-                          fontSize: '11px',
-                          fontWeight: '700',
-                          letterSpacing: '0.05em',
-                          background: featuredClass.statusText === 'ONGOING' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(124, 58, 237, 0.15)',
-                          color: featuredClass.statusText === 'ONGOING' ? '#34d399' : '#a78bfa',
-                          border: featuredClass.statusText === 'ONGOING' ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(124, 58, 237, 0.25)'
-                        }}
-                      >
-                        {featuredClass.statusText || 'TODAY'}
-                      </div>
-                      <span className="live-time-desc">{featuredClass.timeDesc}</span>
-                    </div>
-                    
-                    <h2 className="live-subject-title">{featuredClass.subject}</h2>
-                    <p className="live-details-text">{featuredClass.details}</p>
-                    
-                    <button 
-                      className="live-join-btn"
-                      onClick={() => document.querySelector('.mockup-schedule-container')?.scrollIntoView({ behavior: 'smooth' })}
+                {schoolDetails?.promoType === 'video' && schoolDetails?.promoVideoUrl ? (
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#ffffff', marginBottom: '16px' }}>School Broadcast Video</h3>
+                    <div 
+                      style={{
+                        position: 'relative',
+                        borderRadius: '24px',
+                        overflow: 'hidden',
+                        aspectRatio: '16/9',
+                        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)'
+                      }}
                     >
-                      View Timetable
-                    </button>
+                      <video 
+                        src={schoolDetails.promoVideoUrl}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
                   </div>
-                  
-                  <div style={{ position: 'absolute', right: '10px', top: '10px', bottom: '10px', width: '45%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, pointerEvents: 'none' }}>
-                    <img 
-                      src="/assets/class_hero_illustration.png" 
-                      alt="Class Illustration"
-                      style={{ maxHeight: '140%', objectFit: 'contain', transform: 'rotate(-5deg)' }}
-                    />
+                ) : schoolDetails?.promoType === 'slideshow' && schoolDetails?.promoImages?.length > 0 ? (
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#ffffff', marginBottom: '16px' }}>School Highlights</h3>
+                    <div 
+                      style={{
+                        position: 'relative',
+                        borderRadius: '24px',
+                        overflow: 'hidden',
+                        aspectRatio: '16/9',
+                        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        background: '#000'
+                      }}
+                    >
+                      {schoolDetails.promoImages.map((imgUrl, idx) => (
+                        <img 
+                          key={imgUrl}
+                          src={imgUrl}
+                          alt={`Slide ${idx + 1}`}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            transition: 'opacity 0.8s ease-in-out',
+                            opacity: idx === promoSlideIndex ? 1 : 0
+                          }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '16px' }}>Welcome</h3>
+                    <div 
+                      style={{
+                        position: 'relative',
+                        background: 'var(--bg-card)',
+                        border: '1.5px solid var(--border)',
+                        borderRadius: '30px',
+                        padding: '30px 24px',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        minHeight: '180px',
+                        boxShadow: 'var(--shadow)'
+                      }}
+                    >
+                      <h2 style={{ color: 'var(--text-primary)', fontSize: '24px', fontWeight: '800', margin: '0 0 8px 0' }}>Welcome to {schoolDetails?.name || 'Greenwood High School'}</h2>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0, maxWidth: '80%', lineHeight: '1.5' }}>
+                        {schoolDetails?.address || 'We connect parents and school smoothly.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Today's Daily Attendance Status Card */}
+              {renderTodayAttendanceStatusCard()}
 
               {/* Quick Portals Strip */}
               <div className="scrollbar-none" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '4px', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
-                <button onClick={() => setActiveTab('marks')} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '8px 16px', color: '#60a5fa', fontSize: '12.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'} onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}>
+                <button onClick={() => setActiveTab('marks')} style={{ flexShrink: 0, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '8px 16px', color: '#2563EB', fontSize: '12.5px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: 'var(--shadow)' }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'} onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-card)'}>
                   <Award size={14} /> Marks Report
                 </button>
-                <button onClick={() => setActiveTab('chat')} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '8px 16px', color: '#f472b6', fontSize: '12.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'} onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}>
+                <button onClick={() => setActiveTab('chat')} style={{ flexShrink: 0, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '8px 16px', color: '#DB2777', fontSize: '12.5px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: 'var(--shadow)' }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'} onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-card)'}>
                   <Mail size={14} /> Direct Chat
                 </button>
-                <button onClick={() => setActiveTab('clubs')} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '8px 16px', color: '#34d399', fontSize: '12.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'} onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}>
+                <button onClick={() => setActiveTab('clubs')} style={{ flexShrink: 0, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '8px 16px', color: '#059669', fontSize: '12.5px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: 'var(--shadow)' }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'} onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-card)'}>
                   <GraduationCap size={14} /> Activity Clubs
                 </button>
-                <button onClick={() => setActiveTab('fees')} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '8px 16px', color: '#fbbf24', fontSize: '12.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'} onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}>
+                <button onClick={() => setActiveTab('fees')} style={{ flexShrink: 0, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '8px 16px', color: '#D97706', fontSize: '12.5px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: 'var(--shadow)' }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'} onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-card)'}>
                   <DollarSign size={14} /> Fee Dues
                 </button>
               </div>
@@ -2513,8 +2402,8 @@ Remarks: Good academic performance. Keep it up!
               <div className="calendar-strip-container" style={{ marginTop: '16px', marginBottom: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', padding: '0 4px' }}>
                   <div>
-                    <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '2px' }}>Selected Date</span>
-                    <span style={{ fontSize: '16px', fontWeight: '800', color: '#ffffff' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '2px' }}>Selected Date</span>
+                    <span style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)' }}>
                       {selectedOverviewDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                     </span>
                   </div>
@@ -2552,17 +2441,17 @@ Remarks: Good academic performance. Keep it up!
                         width: '38px',
                         height: '38px',
                         borderRadius: '10px',
-                        background: 'rgba(255, 255, 255, 0.04)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#ffffff',
+                        color: 'var(--text-primary)',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-card)'}
                       title="Select date"
                     >
                       <Calendar size={16} />
@@ -2576,14 +2465,66 @@ Remarks: Good academic performance. Keep it up!
                     const dayName = date.toLocaleDateString('en-US', { weekday: 'narrow' });
                     const dateNum = date.getDate();
                     
+                    const dayRecords = attendanceRecords.filter(r => {
+                      const d = new Date(r.date);
+                      return d.getFullYear() === date.getFullYear() &&
+                             d.getMonth() === date.getMonth() &&
+                             d.getDate() === date.getDate();
+                    });
+
+                    let attBadge = null;
+                    if (dayRecords.length > 0) {
+                      const presentCount = dayRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
+                      if (dayRecords.length === 2) {
+                        if (presentCount === 2) {
+                          attBadge = { text: 'P', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' };
+                        } else if (presentCount === 0) {
+                          attBadge = { text: 'A', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' };
+                        } else {
+                          attBadge = { text: '1/2', color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.15)' };
+                        }
+                      } else {
+                        // Only 1 shift taken
+                        if (presentCount === 1) {
+                          attBadge = { text: '1/2', color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.15)' };
+                        } else {
+                          attBadge = { text: 'A', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' };
+                        }
+                      }
+                    }
+                    
                     return (
                       <div 
                         key={idx}
                         className={`calendar-strip-item ${isSelected ? 'selected' : ''}`}
                         onClick={() => setSelectedOverviewDate(date)}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          padding: '8px 4px',
+                          position: 'relative',
+                          minWidth: '45px',
+                          cursor: 'pointer'
+                        }}
                       >
                         <span className="calendar-strip-day">{dayName}</span>
-                        <span className="calendar-strip-date">{dateNum}</span>
+                        <span className="calendar-strip-date" style={{ fontWeight: 'bold' }}>{dateNum}</span>
+                        {attBadge && (
+                          <span style={{ 
+                            fontSize: '9px', 
+                            fontWeight: 'bold', 
+                            color: attBadge.color,
+                            background: attBadge.bg,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            marginTop: '4px',
+                            lineHeight: '1',
+                            display: 'inline-block'
+                          }}>
+                            {attBadge.text}
+                          </span>
+                        )}
                       </div>
                     );
                   })}
@@ -2865,6 +2806,7 @@ Remarks: Good academic performance. Keep it up!
 
               {/* Right Column: Remaining Space for Attendance and Class Details */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {renderTodayAttendanceStatusCard()}
                 {/* Attendance Summary */}
                 <div className="glass-card" style={{ padding: '24px' }}>
                   <h3 style={{ marginBottom: '16px' }}>Child Attendance</h3>
@@ -2879,15 +2821,15 @@ Remarks: Good academic performance. Keep it up!
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center' }}>
                         <div style={{ background: 'rgba(52, 211, 153, 0.08)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.15)' }}>
                           <span style={{ fontSize: '10px', color: '#34d399', fontWeight: 'bold' }}>PRESENT</span>
-                          <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'white', marginTop: '2px' }}>{attendanceStats.present}</div>
+                          <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'white', marginTop: '2px' }}>{formatDays(attendanceStats.present)}</div>
                         </div>
                         <div style={{ background: 'rgba(245, 158, 11, 0.08)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.15)' }}>
                           <span style={{ fontSize: '10px', color: '#fbbf24', fontWeight: 'bold' }}>LATE</span>
-                          <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'white', marginTop: '2px' }}>{attendanceStats.late}</div>
+                          <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'white', marginTop: '2px' }}>{formatDays(attendanceStats.late)}</div>
                         </div>
                         <div style={{ background: 'rgba(239, 68, 68, 0.08)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
                           <span style={{ fontSize: '10px', color: '#f87171', fontWeight: 'bold' }}>ABSENT</span>
-                          <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'white', marginTop: '2px' }}>{attendanceStats.absent}</div>
+                          <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'white', marginTop: '2px' }}>{formatDays(attendanceStats.absent)}</div>
                         </div>
                       </div>
                     </div>
@@ -2902,26 +2844,18 @@ Remarks: Good academic performance. Keep it up!
                 <div className="glass-card" style={{ padding: '24px' }}>
                   <h3 style={{ marginBottom: '16px' }}>Class & School Details</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px' }}>
-                    {linkedChild ? (
-                      <>
-                        <div style={{ display: 'flex', justifyBlock: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
-                          <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>Student Name:</span>
-                          <strong style={{ color: 'white', marginLeft: 'auto' }}>{linkedChild.name}</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyBlock: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
-                          <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>Assigned Class:</span>
-                          <strong style={{ color: 'white', marginLeft: 'auto' }}>Class {linkedChild.className} - {linkedChild.section}</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyBlock: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
-                          <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>Admission Number:</span>
-                          <span style={{ color: 'var(--accent)', fontWeight: 'bold', marginLeft: 'auto' }}>{linkedChild.admissionNumber}</span>
-                        </div>
-                      </>
-                    ) : (
-                      <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: '8px' }}>
-                        No child linked profile found.
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', justifyBlock: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>Student Name:</span>
+                      <strong style={{ color: 'white', marginLeft: 'auto' }}>{linkedChild?.fullName || linkedChild?.name || "Not Assigned"}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyBlock: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>Assigned Class:</span>
+                      <strong style={{ color: 'white', marginLeft: 'auto' }}>{linkedChild ? `Class ${linkedChild.className || "Not Assigned"} - ${linkedChild.section || "Not Assigned"}` : "Not Assigned"}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyBlock: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>Admission Number:</span>
+                      <span style={{ color: 'var(--accent)', fontWeight: 'bold', marginLeft: 'auto' }}>{linkedChild?.admissionNumber || "Not Assigned"}</span>
+                    </div>
                     {schoolDetails && (
                       <>
                         <div style={{ display: 'flex', justifyBlock: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
@@ -3410,7 +3344,9 @@ Remarks: Good academic performance. Keep it up!
 
       {/* Attendance Tracker Tab */}
       {activeTab === 'attendance' && (
-        <div className="dashboard-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+          {renderTodayAttendanceStatusCard()}
+          <div className="dashboard-grid">
           {/* Summary Stats */}
           <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', height: 'fit-content' }}>
             <h3>Attendance summary</h3>
@@ -3428,15 +3364,15 @@ Remarks: Good academic performance. Keep it up!
                 <div className="responsive-grid-1-1-1" style={{ gap: '10px', textAlign: 'center' }}>
                   <div style={{ background: 'rgba(52, 211, 153, 0.1)', padding: '10px', borderRadius: '6px' }}>
                     <span style={{ fontSize: '11px', color: '#34d399' }}>PRESENT</span>
-                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginTop: '4px' }}>{attendanceStats.present}</div>
+                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginTop: '4px' }}>{formatDays(attendanceStats.present)}</div>
                   </div>
                   <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '10px', borderRadius: '6px' }}>
                     <span style={{ fontSize: '11px', color: '#fbbf24' }}>LATE</span>
-                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginTop: '4px' }}>{attendanceStats.late}</div>
+                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginTop: '4px' }}>{formatDays(attendanceStats.late)}</div>
                   </div>
                   <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '6px' }}>
                     <span style={{ fontSize: '11px', color: '#f87171' }}>ABSENT</span>
-                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginTop: '4px' }}>{attendanceStats.absent}</div>
+                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginTop: '4px' }}>{formatDays(attendanceStats.absent)}</div>
                   </div>
                 </div>
               </div>
@@ -3466,12 +3402,54 @@ Remarks: Good academic performance. Keep it up!
                   ) : (
                     attendanceRecords.map(r => (
                       <tr key={r._id}>
-                        <td><strong>{new Date(r.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong></td>
-                        <td>Class ID {r.class}</td>
-                        <td>{r.section}</td>
-                        <td>
+                        <td data-label="Date logged"><strong>{new Date(r.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong></td>
+                        <td data-label="Classroom">{r.class?.name || (r.class && typeof r.class === 'object' ? r.class.name : '') || (linkedChild ? 'Class ' + linkedChild.className : 'Class ID ' + (r.class?._id || r.class))}</td>
+                        <td data-label="Section">{r.section}</td>
+                        <td data-label="Status">
                           <span className={`badge ${r.status === 'Present' ? 'badge-active' : r.status === 'Late' ? 'badge-role teacher' : 'badge-inactive'}`}>
                             {r.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Month-wise Attendance Report Card */}
+          <div className="glass-card" style={{ padding: '24px', gridColumn: 'span 2' }}>
+            <h3>Month-wise Attendance Report</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              Track attendance counts calculated month-by-month.
+            </p>
+            <div className="dashboard-table-container" style={{ margin: 0 }}>
+              <table className="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Total Days</th>
+                    <th>Days Present</th>
+                    <th>Days Absent</th>
+                    <th>Attendance Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!attendanceStats?.monthly || attendanceStats.monthly.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No monthly records found.</td>
+                    </tr>
+                  ) : (
+                    attendanceStats.monthly.map((m, idx) => (
+                      <tr key={idx}>
+                        <td data-label="Month"><strong>{m.month}</strong></td>
+                        <td data-label="Total Days">{formatDays(m.totalDays)} days</td>
+                        <td data-label="Days Present" style={{ color: '#34d399', fontWeight: '600' }}>{formatDays(m.presentDays)} days</td>
+                        <td data-label="Days Absent" style={{ color: '#f87171', fontWeight: '600' }}>{formatDays(m.absentDays)} days</td>
+                        <td data-label="Attendance Rate">
+                          <span className={`badge ${m.presentRate >= 85 ? 'badge-active' : 'badge-inactive'}`} style={{ fontWeight: 'bold' }}>
+                            {m.presentRate}%
                           </span>
                         </td>
                       </tr>
@@ -3588,6 +3566,7 @@ Remarks: Good academic performance. Keep it up!
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* Marks Report Card Tab */}
@@ -3733,17 +3712,17 @@ Remarks: Good academic performance. Keep it up!
                       y: {
                         min: 0,
                         max: 100,
-                        ticks: { color: 'rgba(255, 255, 255, 0.6)' },
-                        grid: { color: 'rgba(255, 255, 255, 0.08)' }
+                        ticks: { color: '#6B7280' },
+                        grid: { color: 'rgba(31, 41, 55, 0.08)' }
                       },
                       x: {
-                        ticks: { color: 'rgba(255, 255, 255, 0.6)' },
+                        ticks: { color: '#6B7280' },
                         grid: { color: 'transparent' }
                       }
                     },
                     plugins: {
                       legend: {
-                        labels: { color: 'white' }
+                        labels: { color: '#1F2937' }
                       }
                     }
                   }} 
@@ -4190,8 +4169,8 @@ Remarks: Good academic performance. Keep it up!
             <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(124, 58, 237, 0.1)', border: '1px solid rgba(124, 58, 237, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontWeight: 'bold' }}>SJ</div>
             <div>
               <h4 style={{ margin: 0 }}>Mrs. Sarah Jenkins</h4>
-              <span style={{ fontSize: '11px', color: '#34d399', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ width: '6px', height: '6px', background: '#10b981', borderRadius: '50%' }}></span> Online (Class Teacher)
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                Class Teacher
               </span>
             </div>
           </div>
@@ -4202,31 +4181,32 @@ Remarks: Good academic performance. Keep it up!
                 key={msg.id} 
                 style={{ 
                   alignSelf: msg.sender === 'parent' ? 'flex-end' : 'flex-start',
-                  background: msg.sender === 'parent' ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
-                  color: 'white',
+                  background: msg.sender === 'parent' ? 'var(--accent)' : 'color-mix(in srgb, var(--accent) 8%, var(--bg-card))',
+                  color: msg.sender === 'parent' ? 'white' : 'var(--text-primary)',
                   padding: '12px 16px',
                   borderRadius: msg.sender === 'parent' ? '18px 18px 0 18px' : '18px 18px 18px 0',
                   maxWidth: '75%',
-                  border: msg.sender === 'parent' ? 'none' : '1px solid var(--border)'
+                  border: msg.sender === 'parent' ? 'none' : '1px solid var(--border)',
+                  boxShadow: 'var(--shadow)'
                 }}
               >
                 <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.4' }}>{msg.text}</p>
-                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', display: 'block', marginTop: '4px', textAlign: 'right' }}>
+                <span style={{ fontSize: '10px', color: msg.sender === 'parent' ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)', display: 'block', marginTop: '4px', textAlign: 'right' }}>
                   {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
             ))}
             {isTeacherTyping && (
-              <div style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.05)', padding: '12px 16px', borderRadius: '18px 18px 18px 0', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div style={{ alignSelf: 'flex-start', background: 'color-mix(in srgb, var(--accent) 8%, var(--bg-card))', padding: '12px 16px', borderRadius: '18px 18px 18px 0', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: 'var(--shadow)' }}>
                 <style>{`
                   @keyframes bounce-typing {
                     0% { transform: translateY(0); }
                     100% { transform: translateY(-4px); }
                   }
                 `}</style>
-                <span style={{ width: '6px', height: '6px', background: 'white', borderRadius: '50%', animation: 'bounce-typing 0.6s infinite alternate' }}></span>
-                <span style={{ width: '6px', height: '6px', background: 'white', borderRadius: '50%', animation: 'bounce-typing 0.6s infinite alternate 0.2s' }}></span>
-                <span style={{ width: '6px', height: '6px', background: 'white', borderRadius: '50%', animation: 'bounce-typing 0.6s infinite alternate 0.4s' }}></span>
+                <span style={{ width: '6px', height: '6px', background: 'var(--text-primary)', borderRadius: '50%', animation: 'bounce-typing 0.6s infinite alternate' }}></span>
+                <span style={{ width: '6px', height: '6px', background: 'var(--text-primary)', borderRadius: '50%', animation: 'bounce-typing 0.6s infinite alternate 0.2s' }}></span>
+                <span style={{ width: '6px', height: '6px', background: 'var(--text-primary)', borderRadius: '50%', animation: 'bounce-typing 0.6s infinite alternate 0.4s' }}></span>
               </div>
             )}
           </div>

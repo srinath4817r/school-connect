@@ -19,6 +19,10 @@ router.get('/student', authorize('parent'), attendanceController.getStudentAtten
 // @desc    Get daily attendance logs for class/section
 router.get('/class', authorize(['teacher', 'school_admin', 'principal', 'super_admin']), attendanceController.getClassAttendance);
 
+// @route   GET /api/attendance/class-report
+// @desc    Get class attendance report showing overall and month-wise summaries (Teacher only)
+router.get('/class-report', authorize('teacher'), attendanceController.getClassAttendanceReport);
+
 // @route   GET /api/attendance/stats
 // @desc    Get school-wide daily attendance summary rates
 router.get('/stats', authorize(['school_admin', 'principal']), attendanceController.getSchoolAttendanceStats);

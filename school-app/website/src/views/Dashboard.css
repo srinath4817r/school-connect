@@ -1622,8 +1622,60 @@ button:active,
 }
 
 
+/* Parent Dashboard Overview Mockup styles under Light Theme */
+.theme-parent .mockup-schedule-item {
+  background: var(--bg-card) !important;
+  border: 1.5px solid var(--border) !important;
+  box-shadow: var(--shadow) !important;
+}
 
+.theme-parent .schedule-icon-container {
+  background: #FFEEDC !important;
+  border: 1px solid #FFD9B3 !important;
+  color: #FF8A00 !important;
+}
 
+.theme-parent .schedule-item-time {
+  color: var(--text-primary) !important;
+}
 
+.theme-parent .schedule-item-detail {
+  color: var(--text-secondary) !important;
+}
 
+.theme-parent .schedule-item-more {
+  color: var(--text-muted) !important;
+}
 
+/* Parent Dashboard Calendar Strip Overrides */
+.theme-parent .calendar-strip-item {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.theme-parent .calendar-strip-item:hover {
+  background: rgba(255, 138, 0, 0.05) !important;
+  border-color: var(--accent) !important;
+}
+
+.theme-parent .calendar-strip-item.selected {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 6px 16px rgba(255, 138, 0, 0.25) !important;
+}
+
+.theme-parent .calendar-strip-day {
+  color: var(--text-secondary) !important;
+}
+
+.theme-parent .calendar-strip-item.selected .calendar-strip-day {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.theme-parent .calendar-strip-date {
+  color: var(--text-primary) !important;
+}
+
+.theme-parent .calendar-strip-item.selected .calendar-strip-date {
+  color: #ffffff !important;
+}

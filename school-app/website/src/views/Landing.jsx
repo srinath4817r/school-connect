@@ -28,13 +28,11 @@ const Landing = () => {
 
   const handleDownloadApp = () => {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const downloadFileName = isMobile ? 'school-connect.apk' : 'school-connect-setup.exe';
+    const downloadFileName = isMobile ? 'schoolconnect.apk' : 'school-connect-setup.exe';
+    const downloadUrl = isMobile ? '/downloads/schoolconnect.apk' : '/downloads/school-connect-setup.exe';
     
-    // Create a mock binary file setup
-    const mockContent = new Uint8Array([80, 75, 3, 4, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-    const blob = new Blob([mockContent], { type: 'application/octet-stream' });
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    link.href = downloadUrl;
     link.download = downloadFileName;
     document.body.appendChild(link);
     link.click();
@@ -634,7 +632,7 @@ const Landing = () => {
                 </li>
                 <li className="animate-hover-mail" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                   <Mail size={16} style={{ color: 'var(--accent)', transition: 'color 0.2s, transform 0.2s' }} />
-                  <span>Email: <a href="mailto:thinkerslab001@gmail.com" style={{ color: 'inherit', textDecoration: 'none' }}>thinkerslab001@gmail.com</a></span>
+                  <span>Email: <a href="https://mail.google.com/mail/?view=cm&fs=1&to=thinkerslab001@gmail.com" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>thinkerslab001@gmail.com</a></span>
                 </li>
                 <li className="animate-hover-building" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                   <Building size={16} style={{ color: 'var(--accent)', transition: 'color 0.2s, transform 0.2s' }} />
@@ -672,7 +670,7 @@ const Landing = () => {
                     <p className="contact-detail">+91 93460 22857</p>
                   </div>
                 </a>
-                <a href="mailto:thinkerslab001@gmail.com?subject=School%20Connect%20Registration%20Request" className="contact-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <a href="https://mail.google.com/mail/?view=cm&fs=1&to=thinkerslab001@gmail.com&su=Request%20of%20Onboarding%20Code" target="_blank" rel="noopener noreferrer" className="contact-card" style={{ textDecoration: 'none', color: 'inherit' }}>
                   <span className="contact-icon"><Mail size={20} /></span>
                   <div>
                     <h4>Email Onboarding</h4>
@@ -692,7 +690,7 @@ const Landing = () => {
               </p>
             </div>
             <div className="landing-modal-actions">
-              <a href="mailto:thinkerslab001@gmail.com?subject=School%20Connect%20Registration%20Request" className="btn btn-primary modal-action-btn">
+              <a href="https://mail.google.com/mail/?view=cm&fs=1&to=thinkerslab001@gmail.com&su=Request%20of%20Onboarding%20Code" target="_blank" rel="noopener noreferrer" className="btn btn-primary modal-action-btn">
                 Request Onboarding Code
               </a>
               <button className="btn btn-secondary modal-action-btn" onClick={() => setShowContactModal(false)}>
@@ -740,7 +738,7 @@ const Landing = () => {
                     {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'Mobile Edition Detected' : 'PC Desktop Edition Detected'}
                   </h4>
                   <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
-                    {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'Package: school-connect.apk' : 'Package: school-connect-setup.exe'}
+                    {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'Package: schoolconnect.apk' : 'Package: school-connect-setup.exe'}
                   </p>
                 </div>
               </div>

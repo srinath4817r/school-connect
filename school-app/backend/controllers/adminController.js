@@ -508,6 +508,28 @@ exports.assignClass = async (req, res) => {
 
     await user.save();
 
+    // If user is a parent, also find and update their pre-registered student's className and section
+    if (user.role === 'parent') {
+      let classNameStr = '';
+      if (classId) {
+        const Class = require('../models/Class');
+        const targetClass = await Class.findById(classId);
+        if (targetClass) {
+          classNameStr = targetClass.name;
+        }
+      }
+      if (classNameStr) {
+        const PreRegisteredStudent = require('../models/PreRegisteredStudent');
+        await PreRegisteredStudent.updateMany(
+          { parent: user._id },
+          { 
+            className: classNameStr,
+            section: section || 'A'
+          }
+        );
+      }
+    }
+
     const populatedUser = await User.findById(userId).populate('classAssigned', 'name').select('-password');
 
     res.status(200).json({ 
@@ -849,6 +871,95 @@ exports.updateSchoolLogo = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Invalid image format. Expected base64 Data URI.' });
     }
   } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// 24. Update School Promotional Media (Super Admin, School Admin, Principal)
+exports.updateSchoolPromoMedia = async (req, res) => {
+  try {
+    const { promoType, promoVideo, promoImages, schoolId } = req.body;
+    
+    let targetSchoolId = req.user.school;
+    if (req.user.role === 'super_admin') {
+      if (!schoolId) {
+        return res.status(400).json({ status: 'error', message: 'School ID is required for Super Admin' });
+      }
+      targetSchoolId = schoolId;
+    }
+
+    if (!targetSchoolId) {
+      return res.status(400).json({ status: 'error', message: 'No school associated with this user' });
+    }
+
+    const school = await School.findById(targetSchoolId);
+    if (!school) {
+      return res.status(404).json({ status: 'error', message: 'School not found' });
+    }
+
+    if (promoType && !['none', 'video', 'slideshow'].includes(promoType)) {
+      return res.status(400).json({ status: 'error', message: 'Invalid promo type' });
+    }
+
+    if (promoType === 'video') {
+      if (promoVideo && promoVideo.startsWith('data:video')) {
+        // Upload video to Cloudinary
+        console.log('[CLOUDINARY] Uploading promotional video...');
+        const result = await cloudinary.uploader.upload(promoVideo, {
+          folder: 'school_connect/school-promos',
+          resource_type: 'video'
+        });
+        
+        // Delete old video if present
+        if (school.promoVideoUrl) {
+          await deleteFromCloudinary(school.promoVideoUrl);
+        }
+        
+        school.promoVideoUrl = result.secure_url;
+      } else if (!school.promoVideoUrl && !promoVideo) {
+        return res.status(400).json({ status: 'error', message: 'Video file is required for video promo type' });
+      }
+      school.promoType = 'video';
+    } else if (promoType === 'slideshow') {
+      if (promoImages && Array.isArray(promoImages) && promoImages.length > 0) {
+        const uploadedUrls = [];
+        for (const imgBase64 of promoImages) {
+          if (imgBase64.startsWith('data:image')) {
+            const uploadedUrl = await uploadToCloudinary(imgBase64, 'school-promos');
+            uploadedUrls.push(uploadedUrl);
+          } else if (imgBase64.startsWith('http')) {
+            // Keep existing image url
+            uploadedUrls.push(imgBase64);
+          }
+        }
+        
+        // Delete old images not present in new list
+        if (school.promoImages && school.promoImages.length > 0) {
+          for (const oldImg of school.promoImages) {
+            if (!uploadedUrls.includes(oldImg)) {
+              await deleteFromCloudinary(oldImg);
+            }
+          }
+        }
+        
+        school.promoImages = uploadedUrls;
+      } else if ((!school.promoImages || school.promoImages.length === 0) && (!promoImages || promoImages.length === 0)) {
+        return res.status(400).json({ status: 'error', message: 'At least one image is required for slideshow' });
+      }
+      school.promoType = 'slideshow';
+    } else {
+      school.promoType = 'none';
+    }
+
+    await school.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Promotional media updated successfully',
+      school
+    });
+  } catch (error) {
+    console.error('[PROMO] Error updating promo media:', error);
     res.status(500).json({ status: 'error', message: error.message });
   }
 };

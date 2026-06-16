@@ -122,29 +122,173 @@ exports.getStudentAttendance = async (req, res) => {
   try {
     const studentId = req.user._id;
 
-    const records = await Attendance.find({ student: studentId })
-      .sort({ date: -1 })
-      .limit(30); // get last 30 entries
+    // Fetch all records to calculate overall and monthly stats
+    const allRecords = await Attendance.find({ student: studentId })
+      .populate('class', 'name')
+      .sort({ date: -1 });
 
-    // Calculate stats
-    const total = await Attendance.countDocuments({ student: studentId });
-    const present = await Attendance.countDocuments({ student: studentId, status: 'Present' });
-    const late = await Attendance.countDocuments({ student: studentId, status: 'Late' });
-    const absent = await Attendance.countDocuments({ student: studentId, status: 'Absent' });
+    const records = allRecords.slice(0, 60); // get last 60 entries
 
-    // Present + Late counts as present, late is a minor warning.
-    const presentRate = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+    let totalShifts = allRecords.length;
+    let presentShifts = 0;
+    let lateShifts = 0;
+    let absentShifts = 0;
+
+    const monthlyStats = {};
+
+    allRecords.forEach(r => {
+      if (r.status === 'Present') presentShifts++;
+      else if (r.status === 'Late') lateShifts++;
+      else if (r.status === 'Absent') absentShifts++;
+
+      const dateObj = new Date(r.date);
+      const monthKey = dateObj.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+      if (!monthlyStats[monthKey]) {
+        monthlyStats[monthKey] = {
+          presentShifts: 0,
+          lateShifts: 0,
+          absentShifts: 0,
+          totalShifts: 0
+        };
+      }
+
+      monthlyStats[monthKey].totalShifts++;
+      if (r.status === 'Present') monthlyStats[monthKey].presentShifts++;
+      else if (r.status === 'Late') monthlyStats[monthKey].lateShifts++;
+      else if (r.status === 'Absent') monthlyStats[monthKey].absentShifts++;
+    });
+
+    const overallPresentDays = (presentShifts + lateShifts) * 0.5;
+    const overallAbsentDays = absentShifts * 0.5;
+    const overallTotalDays = totalShifts * 0.5;
+    const overallPresentRate = overallTotalDays > 0 ? Math.round((overallPresentDays / overallTotalDays) * 100) : 0;
+
+    const formattedMonthly = Object.keys(monthlyStats).map(monthKey => {
+      const ms = monthlyStats[monthKey];
+      const presentDays = (ms.presentShifts + ms.lateShifts) * 0.5;
+      const absentDays = ms.absentShifts * 0.5;
+      const totalDays = ms.totalShifts * 0.5;
+      const presentRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+      return {
+        month: monthKey,
+        presentDays,
+        absentDays,
+        totalDays,
+        presentRate
+      };
+    });
 
     res.status(200).json({
       status: 'success',
       stats: {
-        total,
-        present,
-        absent,
-        late,
-        presentRate
+        total: overallTotalDays,
+        present: overallPresentDays,
+        absent: overallAbsentDays,
+        late: lateShifts * 0.5,
+        presentRate: overallPresentRate,
+        monthly: formattedMonthly
       },
       records
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// Get class-wide month-wise and overall attendance reports (Teacher only)
+exports.getClassAttendanceReport = async (req, res) => {
+  try {
+    const classId = req.user.classAssigned;
+    const section = req.user.sectionAssigned;
+
+    if (!classId || !section) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'You must have an assigned class and section to view reports.' 
+      });
+    }
+
+    // Find all students in this class/section
+    const students = await User.find({
+      school: req.user.school,
+      classAssigned: classId,
+      sectionAssigned: section.toUpperCase(),
+      role: 'parent'
+    }).select('fullName email').sort({ fullName: 1 });
+
+    const reportData = [];
+
+    // For each student, get attendance stats
+    for (const student of students) {
+      const records = await Attendance.find({ student: student._id });
+
+      let presentShifts = 0;
+      let lateShifts = 0;
+      let absentShifts = 0;
+      const monthlyStats = {};
+
+      records.forEach(r => {
+        if (r.status === 'Present') presentShifts++;
+        else if (r.status === 'Late') lateShifts++;
+        else if (r.status === 'Absent') absentShifts++;
+
+        const dateObj = new Date(r.date);
+        const monthKey = dateObj.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+        if (!monthlyStats[monthKey]) {
+          monthlyStats[monthKey] = {
+            presentShifts: 0,
+            lateShifts: 0,
+            absentShifts: 0,
+            totalShifts: 0
+          };
+        }
+
+        monthlyStats[monthKey].totalShifts++;
+        if (r.status === 'Present') monthlyStats[monthKey].presentShifts++;
+        else if (r.status === 'Late') monthlyStats[monthKey].lateShifts++;
+        else if (r.status === 'Absent') monthlyStats[monthKey].absentShifts++;
+      });
+
+      const overallPresentDays = (presentShifts + lateShifts) * 0.5;
+      const overallAbsentDays = absentShifts * 0.5;
+      const overallTotalDays = records.length * 0.5;
+      const overallPresentRate = overallTotalDays > 0 ? Math.round((overallPresentDays / overallTotalDays) * 100) : 0;
+
+      const formattedMonthly = Object.keys(monthlyStats).map(monthKey => {
+        const ms = monthlyStats[monthKey];
+        const presentDays = (ms.presentShifts + ms.lateShifts) * 0.5;
+        const absentDays = ms.absentShifts * 0.5;
+        const totalDays = ms.totalShifts * 0.5;
+        const presentRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+        return {
+          month: monthKey,
+          presentDays,
+          absentDays,
+          totalDays,
+          presentRate
+        };
+      });
+
+      reportData.push({
+        studentId: student._id,
+        fullName: student.fullName,
+        email: student.email,
+        stats: {
+          total: overallTotalDays,
+          present: overallPresentDays,
+          absent: overallAbsentDays,
+          late: lateShifts * 0.5,
+          presentRate: overallPresentRate,
+          monthly: formattedMonthly
+        }
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      report: reportData
     });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
