@@ -13,6 +13,13 @@ exports.getStudentFee = async (req, res) => {
       return res.status(200).json({ status: 'success', fee: null });
     }
 
+    // Auto-correct pendingAmount if there is a mismatch
+    const calculatedPending = fee.totalAmount - fee.paidAmount;
+    if (fee.pendingAmount !== calculatedPending) {
+      fee.pendingAmount = calculatedPending;
+      await fee.save();
+    }
+
     res.status(200).json({ status: 'success', fee });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
@@ -117,21 +124,44 @@ exports.getSchoolFeesList = async (req, res) => {
     const fees = await Fee.find({ school: schoolId });
 
     // Combine them
-    const studentBills = students.map(student => {
+    const studentBills = [];
+    for (const student of students) {
       const bill = fees.find(f => f.student.toString() === student._id.toString());
-      return {
+      
+      let totalAmount = 0;
+      let paidAmount = 0;
+      let pendingAmount = 0;
+      let dueDate = null;
+      let officePhone = '+91 80 2345 6789';
+
+      if (bill) {
+        totalAmount = bill.totalAmount;
+        paidAmount = bill.paidAmount;
+        dueDate = bill.dueDate;
+        officePhone = bill.officePhone;
+        
+        // Auto-correct pendingAmount if there is a mismatch
+        const calculatedPending = bill.totalAmount - bill.paidAmount;
+        if (bill.pendingAmount !== calculatedPending) {
+          bill.pendingAmount = calculatedPending;
+          await bill.save();
+        }
+        pendingAmount = bill.pendingAmount;
+      }
+
+      studentBills.push({
         studentId: student._id,
         fullName: student.fullName,
         email: student.email,
         class: student.classAssigned ? student.classAssigned.name : 'N/A',
         section: student.sectionAssigned || 'N/A',
-        totalAmount: bill ? bill.totalAmount : 0,
-        paidAmount: bill ? bill.paidAmount : 0,
-        pendingAmount: bill ? bill.pendingAmount : 0,
-        dueDate: bill ? bill.dueDate : null,
-        officePhone: bill ? bill.officePhone : '+91 80 2345 6789'
-      };
-    });
+        totalAmount,
+        paidAmount,
+        pendingAmount,
+        dueDate,
+        officePhone
+      });
+    }
 
     res.status(200).json({ status: 'success', fees: studentBills });
   } catch (error) {

@@ -39,9 +39,8 @@ const FeeSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Pre-save hook to calculate pending amount
-FeeSchema.pre('save', function(next) {
+FeeSchema.pre('save', function() {
   this.pendingAmount = this.totalAmount - this.paidAmount;
-  next();
 });
 
 module.exports = mongoose.model('Fee', FeeSchema);
