@@ -3827,13 +3827,24 @@ Remarks: Good academic performance. Keep it up!
 
             {feeLoaded && feeDetails && (
               feeDetails.pendingAmount > 0 ? (
-                <button 
-                  onClick={() => setShowPayModal(true)} 
-                  className="dashboard-btn-primary" 
-                  style={{ width: '100%', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                >
-                  <DollarSign size={16} /> Pay Dues Online
-                </button>
+                <div style={{ 
+                  background: 'rgba(245, 158, 11, 0.08)', 
+                  border: '1px solid rgba(245, 158, 11, 0.2)', 
+                  padding: '16px', 
+                  borderRadius: '12px', 
+                  color: '#fbbf24', 
+                  textAlign: 'center', 
+                  fontWeight: '600', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: '8px',
+                  width: '100%',
+                  margin: 0
+                }}>
+                  <Building size={16} />
+                  <span>Visit and pay at the school office.</span>
+                </div>
               ) : (
                 <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '14px', borderRadius: '8px', color: '#34d399', textAlign: 'center', fontWeight: '500', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -3870,43 +3881,6 @@ Remarks: Good academic performance. Keep it up!
       {/* Class Timetable Tab */}
       {activeTab === 'timetable' && (
         <ClassTimetableModule viewOnly={true} />
-      )}
-
-      {/* Pay Online Modal */}
-      {showPayModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3 className="dashboard-form-title">Pay Dues Online</h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-              Enter payment amount. Dues will update immediately on successful submission.
-            </p>
-
-            <form onSubmit={handleOnlinePayment}>
-              <div className="form-group" style={{ marginBottom: '20px' }}>
-                <label className="form-label">Payment Amount (₹)</label>
-                <input
-                  type="number"
-                  className="form-input"
-                  placeholder={`Max ₹${feeDetails?.pendingAmount}`}
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                  max={feeDetails?.pendingAmount}
-                  min={1}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowPayModal(false)} className="code-action-btn" style={{ padding: '10px 20px' }}>
-                  Cancel
-                </button>
-                <button type="submit" className="dashboard-btn-primary" disabled={loading} style={{ margin: 0 }}>
-                  {loading ? 'Processing payment...' : 'Pay Amount'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
       )}
       </>
       )}
