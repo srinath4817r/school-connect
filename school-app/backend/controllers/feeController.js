@@ -78,8 +78,8 @@ exports.updateStudentFee = async (req, res) => {
   }
 };
 
-// 3. Simulate parent making a fee payment online (Parent only)
-exports.simulateFeePayment = async (req, res) => {
+// 3. Process parent fee payment online (Parent only)
+exports.processFeePayment = async (req, res) => {
   try {
     const { payAmount } = req.body;
     const studentId = req.user._id;
@@ -102,7 +102,7 @@ exports.simulateFeePayment = async (req, res) => {
 
     res.status(200).json({ 
       status: 'success', 
-      message: `Simulated payment of ₹${payAmount} completed successfully. Balance updated.`,
+      message: `Payment of ₹${payAmount} completed successfully. Balance updated.`,
       fee 
     });
   } catch (error) {

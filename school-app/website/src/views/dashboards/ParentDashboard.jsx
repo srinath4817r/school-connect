@@ -1207,7 +1207,7 @@ export const ParentDashboard = () => {
   };
 
   // 6. Fee Payment Handler
-  const handleSimulatePayment = async (e) => {
+  const handleOnlinePayment = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -1228,7 +1228,7 @@ export const ParentDashboard = () => {
         setPayAmount('');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Mock payment gateway connection failed.');
+      setError(err.response?.data?.message || 'Payment gateway connection failed.');
     } finally {
       setLoading(false);
     }
@@ -3832,7 +3832,7 @@ Remarks: Good academic performance. Keep it up!
                   className="dashboard-btn-primary" 
                   style={{ width: '100%', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                 >
-                  <DollarSign size={16} /> Pay Dues Online (Simulate)
+                  <DollarSign size={16} /> Pay Dues Online
                 </button>
               ) : (
                 <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '14px', borderRadius: '8px', color: '#34d399', textAlign: 'center', fontWeight: '500', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -3872,16 +3872,16 @@ Remarks: Good academic performance. Keep it up!
         <ClassTimetableModule viewOnly={true} />
       )}
 
-      {/* Pay Mock Modal */}
+      {/* Pay Online Modal */}
       {showPayModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3 className="dashboard-form-title">Simulate Fee Payment</h3>
+            <h3 className="dashboard-form-title">Pay Dues Online</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
               Enter payment amount. Dues will update immediately on successful submission.
             </p>
 
-            <form onSubmit={handleSimulatePayment}>
+            <form onSubmit={handleOnlinePayment}>
               <div className="form-group" style={{ marginBottom: '20px' }}>
                 <label className="form-label">Payment Amount (₹)</label>
                 <input

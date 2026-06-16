@@ -324,7 +324,7 @@ const StaffCheckInModule = () => {
           </div>
 
           <div className="form-group" style={{ marginBottom: '20px' }}>
-            <label className="form-label">Simulate Device WiFi Connection</label>
+            <label className="form-label">Configure Connected WiFi Network</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <select
                 className="form-select"

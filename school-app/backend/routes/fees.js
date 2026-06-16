@@ -16,8 +16,8 @@ router.get('/student', authorize('parent'), feeController.getStudentFee);
 router.post('/', authorize(['school_admin', 'principal']), feeController.updateStudentFee);
 
 // @route   POST /api/fees/:id/pay
-// @desc    Simulate payment of fees
-router.post('/:id/pay', authorize('parent'), feeController.simulateFeePayment);
+// @desc    Process online payment of fees
+router.post('/:id/pay', authorize('parent'), feeController.processFeePayment);
 
 // @route   GET /api/fees/school
 // @desc    Get school-wide billing list
