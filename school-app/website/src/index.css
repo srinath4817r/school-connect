@@ -178,6 +178,13 @@
   background: var(--card-hover) !important;
 }
 
+/* High contrast chat bubble text color under parent light theme */
+.theme-parent .chat-bubble-parent,
+.theme-parent .chat-bubble-parent p,
+.theme-parent .chat-bubble-parent span {
+  color: white !important;
+}
+
 
 
 /* Reset & Base Styles */

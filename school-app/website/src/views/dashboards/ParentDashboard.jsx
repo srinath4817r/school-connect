@@ -160,7 +160,19 @@ export const ParentDashboard = () => {
   };
 
   // 1. Bus Tracking States
-  const [busNumber, setBusNumber] = useState('');
+  const [busNumber, setBusNumber] = useState(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        const storedBus = localStorage.getItem(`parent_last_tracked_bus_${u.id || u._id}`);
+        if (storedBus) return storedBus;
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+    return '';
+  });
   const [inputBusNum, setInputBusNum] = useState(() => {
     try {
       const userStr = localStorage.getItem('user');
@@ -175,7 +187,19 @@ export const ParentDashboard = () => {
     return '';
   });
   const [tripData, setTripData] = useState(null);
-  const [isSearching, setIsSearching] = useState(true);
+  const [isSearching, setIsSearching] = useState(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        const storedBus = localStorage.getItem(`parent_last_tracked_bus_${u.id || u._id}`);
+        if (storedBus) return false;
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+    return true;
+  });
 
   const [selectedHistoryTrip, setSelectedHistoryTrip] = useState(null);
   const [parentLocation, setParentLocation] = useState(() => {
@@ -312,12 +336,19 @@ export const ParentDashboard = () => {
 
   // Geofencing and watchlist states
   const [trackedBuses, setTrackedBuses] = useState(() => {
-    const stored = localStorage.getItem(`parent_tracked_buses_${user?.id}`);
-    if (stored) return JSON.parse(stored);
+    const userId = user?.id || user?._id;
+    const stored = userId ? localStorage.getItem(`parent_tracked_buses_${userId}`) : null;
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {}
+    }
     return ['BUS-40']; // default bus to start with
   });
   const [geofenceRadius, setGeofenceRadius] = useState(() => {
-    return parseFloat(localStorage.getItem(`parent_geofence_radius_${user?.id}`) || '1.0');
+    const userId = user?.id || user?._id;
+    const stored = userId ? localStorage.getItem(`parent_geofence_radius_${userId}`) : null;
+    return parseFloat(stored || '1.0');
   });
   const [enableGeofence, setEnableGeofence] = useState(true);
   const [hasNotifiedGeofence, setHasNotifiedGeofence] = useState(false);
@@ -890,13 +921,43 @@ export const ParentDashboard = () => {
     let intervalId = null;
 
     if (busNumber && !isSearching && activeTab === 'bus') {
-      const checkBusStatus = () => {
+      const checkBusStatus = async () => {
+        // Try fetching from backend first
+        try {
+          const res = await axios.get(`${API_URL}/auth/bus/${busNumber}/trip`);
+          if (res.data.status === 'success' && res.data.trip) {
+            const trip = res.data.trip;
+            // Dynamic activity check based on server-side timestamp to prevent client clock skew issues (60s offline threshold)
+            const serverTime = res.data.serverTime || Date.now();
+            trip.active = trip.active && (serverTime - new Date(trip.lastUpdated).getTime() < 60000);
+            
+            setTripData(prev => {
+              if (prev && 
+                  prev.active === trip.active && 
+                  prev.speed === trip.speed && 
+                  prev.distance === trip.distance && 
+                  prev.currentCoords?.lat === trip.currentCoords?.lat && 
+                  prev.currentCoords?.lng === trip.currentCoords?.lng && 
+                  prev.alertStatus === trip.alertStatus && 
+                  prev.lastUpdated === trip.lastUpdated && 
+                  prev.path?.length === trip.path?.length) {
+                return prev;
+              }
+              return trip;
+            });
+            return;
+          }
+        } catch (err) {
+          console.warn("Backend bus tracking fetch failed, using local storage fallback:", err);
+        }
+
+        // Local storage fallback
         const stored = localStorage.getItem(`bus_${busNumber}_trip`);
         if (stored) {
           try {
             const parsed = JSON.parse(stored);
-            // Dynamic activity check based on lastUpdated timestamp (15 seconds offline threshold)
-            parsed.active = parsed.active && (Date.now() - (parsed.lastUpdated || 0) < 15000);
+            // Dynamic activity check based on lastUpdated timestamp (60 seconds offline threshold)
+            parsed.active = parsed.active && (Date.now() - (parsed.lastUpdated || 0) < 60000);
             
             // Avoid unnecessary state updates if values are identical
             setTripData(prev => {
@@ -2583,7 +2644,7 @@ Remarks: Good academic performance. Keep it up!
                           <p style={{ fontStyle: 'italic', fontSize: '14px', color: 'var(--text-secondary)' }}>No homework assigned today.</p>
                         ) : (
                           todayDiary.homework.map((hw, idx) => {
-                            const isDone = hw.completedByParents.includes(user.id);
+                            const isDone = hw.completedByParents.includes(user.id || user._id);
                             return (
                               <div 
                                 key={idx} 
@@ -2939,7 +3000,7 @@ Remarks: Good academic performance. Keep it up!
                             e.stopPropagation();
                             setTrackedBuses(prev => {
                               const updated = prev.filter(b => b !== busNum);
-                              localStorage.setItem(`parent_tracked_buses_${user?.id}`, JSON.stringify(updated));
+                              localStorage.setItem(`parent_tracked_buses_${user?.id || user?._id}`, JSON.stringify(updated));
                               if (busNumber === busNum && updated.length > 0) {
                                 setBusNumber(updated[0]);
                                 setInputBusNum(updated[0]);
@@ -3156,7 +3217,7 @@ Remarks: Good academic performance. Keep it up!
                                   onChange={(e) => {
                                     const val = parseFloat(e.target.value);
                                     setGeofenceRadius(val);
-                                    localStorage.setItem(`parent_geofence_radius_${user?.id}`, val.toString());
+                                    localStorage.setItem(`parent_geofence_radius_${user?.id || user?._id}`, val.toString());
                                   }} 
                                   style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
                                 />
@@ -4151,7 +4212,8 @@ Remarks: Good academic performance. Keep it up!
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '6px', marginBottom: '16px' }}>
             {chatMessages.map(msg => (
               <div 
-                key={msg.id} 
+                key={msg.id}
+                className={msg.sender === 'parent' ? 'chat-bubble-parent' : 'chat-bubble-teacher'}
                 style={{ 
                   alignSelf: msg.sender === 'parent' ? 'flex-end' : 'flex-start',
                   background: msg.sender === 'parent' ? 'var(--accent)' : 'color-mix(in srgb, var(--accent) 8%, var(--bg-card))',
@@ -4189,9 +4251,26 @@ Remarks: Good academic performance. Keep it up!
               type="button"
               onClick={() => handleSendQuickAction("Request Callback", "I would like to request a callback from the teacher.")}
               className="code-action-btn"
-              style={{ fontSize: '12.5px', padding: '8px 14px', borderRadius: '12px', margin: 0, cursor: 'pointer', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'white', transition: 'all 0.2s ease' }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+              style={{
+                fontSize: '12.5px',
+                padding: '8px 14px',
+                borderRadius: '12px',
+                margin: 0,
+                cursor: 'pointer',
+                background: 'var(--accent-glow)',
+                border: '1.5px solid var(--accent)',
+                color: 'var(--accent)',
+                fontWeight: '600',
+                transition: 'all 0.25s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--accent)';
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--accent-glow)';
+                e.currentTarget.style.color = 'var(--accent)';
+              }}
             >
               📞 Request Callback
             </button>
@@ -4199,9 +4278,26 @@ Remarks: Good academic performance. Keep it up!
               type="button"
               onClick={() => handleSendQuickAction("Inquire Child Progress", "I would like to inquire about my child's progress.")}
               className="code-action-btn"
-              style={{ fontSize: '12.5px', padding: '8px 14px', borderRadius: '12px', margin: 0, cursor: 'pointer', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'white', transition: 'all 0.2s ease' }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+              style={{
+                fontSize: '12.5px',
+                padding: '8px 14px',
+                borderRadius: '12px',
+                margin: 0,
+                cursor: 'pointer',
+                background: 'var(--accent-glow)',
+                border: '1.5px solid var(--accent)',
+                color: 'var(--accent)',
+                fontWeight: '600',
+                transition: 'all 0.25s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--accent)';
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--accent-glow)';
+                e.currentTarget.style.color = 'var(--accent)';
+              }}
             >
               📊 Inquire Child Progress
             </button>
@@ -4209,9 +4305,26 @@ Remarks: Good academic performance. Keep it up!
               type="button"
               onClick={() => handleSendQuickAction("Homework Query", "I have a question about the recent homework assignments.")}
               className="code-action-btn"
-              style={{ fontSize: '12.5px', padding: '8px 14px', borderRadius: '12px', margin: 0, cursor: 'pointer', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'white', transition: 'all 0.2s ease' }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+              style={{
+                fontSize: '12.5px',
+                padding: '8px 14px',
+                borderRadius: '12px',
+                margin: 0,
+                cursor: 'pointer',
+                background: 'var(--accent-glow)',
+                border: '1.5px solid var(--accent)',
+                color: 'var(--accent)',
+                fontWeight: '600',
+                transition: 'all 0.25s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--accent)';
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--accent-glow)';
+                e.currentTarget.style.color = 'var(--accent)';
+              }}
             >
               📝 Homework Query
             </button>

@@ -50,13 +50,73 @@ const RootRoute = () => {
   return isNativeApp ? <DownloadPage /> : <Landing />;
 };
 
-function App() {
-  useEffect(() => {
-    document.title = 'School Connect';
-  }, []);
+const AppContent = () => {
+  const { isSchoolDeactivated } = useContext(AuthContext);
 
   return (
-    <AuthProvider>
+    <>
+      {isSchoolDeactivated && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(10, 10, 20, 0.95)',
+          backdropFilter: 'blur(20px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999999,
+          color: 'white',
+          padding: '24px',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1.5px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '24px',
+            padding: '40px 30px',
+            maxWidth: '450px',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px'
+          }}>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.15)',
+              color: '#ef4444',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '10px',
+              boxShadow: '0 0 20px rgba(239, 68, 68, 0.2)'
+            }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <h2 style={{ fontSize: '24px', fontWeight: '800', margin: 0, color: '#f87171', fontFamily: 'system-ui, sans-serif' }}>School Access Blocked</h2>
+            <p style={{ fontSize: '15px', color: '#cbd5e1', lineHeight: '1.6', margin: 0 }}>
+              Your school has been deactivated. Please contact the school administration for more information.
+            </p>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              fontSize: '12px', 
+              color: '#94a3b8',
+              marginTop: '10px'
+            }}>
+              <span className="live-pulse" style={{ background: '#60a5fa', width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block' }}></span>
+              <span>Reconnecting to verify status...</span>
+            </div>
+          </div>
+        </div>
+      )}
       <Router>
         <Routes>
           {/* Public Auth Routes */}
@@ -121,6 +181,18 @@ function App() {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
+    </>
+  );
+};
+
+function App() {
+  useEffect(() => {
+    document.title = 'School Connect';
+  }, []);
+
+  return (
+    <AuthProvider>
+      <AppContent />
     </AuthProvider>
   );
 }

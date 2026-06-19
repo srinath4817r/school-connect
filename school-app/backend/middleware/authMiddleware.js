@@ -31,6 +31,19 @@ const protect = async (req, res, next) => {
         return res.status(403).json({ status: 'error', message: 'Account is temporarily locked. Access denied.' });
       }
 
+      // Check if school is active (for non-super-admins)
+      if (req.user.role !== 'super_admin' && req.user.school) {
+        const School = require('../models/School');
+        const schoolObj = await School.findById(req.user.school);
+        if (!schoolObj || !schoolObj.isActive) {
+          return res.status(403).json({ 
+            status: 'error', 
+            code: 'SCHOOL_DEACTIVATED', 
+            message: 'School has been deactivated, please contact school for more information' 
+          });
+        }
+      }
+
       next();
     } catch (error) {
       console.error(`Token authentication error: ${error.message}`);

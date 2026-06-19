@@ -294,7 +294,10 @@ export const DriverDashboard = () => {
   const navigate = useNavigate();
 
   const [activeSubTab, setActiveSubTab] = useState(() => sessionStorage.getItem('activeSubTab_driver') || 'drive'); // 'drive' or 'history'
-  const [busNumber, setBusNumber] = useState(localStorage.getItem(`driver_bus_num_${user?.id}`) || '');
+  const [busNumber, setBusNumber] = useState(() => {
+    const userId = user?.id || user?._id;
+    return user?.vehicleNumber || (userId ? localStorage.getItem(`driver_bus_num_${userId}`) : '') || '';
+  });
   const [inputBusNum, setInputBusNum] = useState('');
   
   // Trip Live States
@@ -314,12 +317,13 @@ export const DriverDashboard = () => {
 
   // History & Metrics
   const [history, setHistory] = useState(() => {
-    const raw = localStorage.getItem(`driver_trip_history_${user?.id}`) || '[]';
+    const userId = user?.id || user?._id;
+    const raw = userId ? localStorage.getItem(`driver_trip_history_${userId}`) || '[]' : '[]';
     try {
       const parsed = JSON.parse(raw);
       const filtered = filterRecentThreeMonths(parsed);
-      if (filtered.length !== parsed.length) {
-        localStorage.setItem(`driver_trip_history_${user?.id}`, JSON.stringify(filtered));
+      if (filtered.length !== parsed.length && userId) {
+        localStorage.setItem(`driver_trip_history_${userId}`, JSON.stringify(filtered));
       }
       return filtered;
     } catch (e) {
@@ -440,7 +444,7 @@ export const DriverDashboard = () => {
     }
   }, [isTripActive, activeSubTab]);
 
-  // Heartbeat to keep trip active and update lastUpdated in localStorage
+  // Heartbeat to keep trip active and update lastUpdated in localStorage and backend
   useEffect(() => {
     let heartbeatInterval = null;
     if (isTripActive && busNumber) {
@@ -451,6 +455,15 @@ export const DriverDashboard = () => {
             const parsed = JSON.parse(stored);
             parsed.lastUpdated = Date.now();
             localStorage.setItem(`bus_${busNumber}_trip`, JSON.stringify(parsed));
+            // Heartbeat update to backend API
+            axios.post(`${API_URL}/auth/driver/update-trip`, {
+              coords: parsed.currentCoords,
+              speed: parsed.speed,
+              distance: parsed.distance,
+              path: parsed.path,
+              alertStatus: parsed.alertStatus,
+              incidentCoords: parsed.incidentCoords
+            }).catch(err => console.warn("Backend trip heartbeat update failed:", err.message));
           } catch (e) {
             console.error(e);
           }
@@ -481,6 +494,18 @@ export const DriverDashboard = () => {
       parsed.incidentCoords = coords;
       parsed.lastUpdated = Date.now();
       localStorage.setItem(`bus_${busNumber}_trip`, JSON.stringify(parsed));
+      
+      // Update alert status on the backend
+      if (isTripActive) {
+        axios.post(`${API_URL}/auth/driver/update-trip`, {
+          coords: currentLocation || parsed.currentCoords,
+          speed: speed,
+          distance: distance,
+          path: travelPath,
+          alertStatus: newStatus,
+          incidentCoords: coords
+        }).catch(err => console.warn("Backend trip alert status update failed:", err.message));
+      }
     }
   };
 
@@ -525,6 +550,10 @@ export const DriverDashboard = () => {
             })
           );
 
+          // Start trip on the backend
+          axios.post(`${API_URL}/auth/driver/start-trip`, { coords: initialCoord })
+            .catch(err => console.warn("Backend trip start failed:", err.message));
+
           // Watch actual device movements
           watchIdRef.current = navigator.geolocation.watchPosition(
             (movement) => {
@@ -555,6 +584,16 @@ export const DriverDashboard = () => {
                   })
                 );
 
+                // Update coordinates on the backend
+                axios.post(`${API_URL}/auth/driver/update-trip`, {
+                  coords: newCoord,
+                  speed: mSpeed,
+                  distance: calculatedDist,
+                  path: updated,
+                  alertStatus: alertStatusRef.current,
+                  incidentCoords: incidentCoordsRef.current
+                }).catch(err => console.warn("Backend trip update failed:", err.message));
+
                 return updated;
               });
             },
@@ -584,6 +623,10 @@ export const DriverDashboard = () => {
               incidentCoords: null
             })
           );
+
+          // Start trip on the backend with fallback coords
+          axios.post(`${API_URL}/auth/driver/start-trip`, { coords: defaultLoc })
+            .catch(err => console.warn("Backend trip start with fallback failed:", err.message));
         },
         { enableHighAccuracy: true }
       );
@@ -625,7 +668,10 @@ export const DriverDashboard = () => {
 
     const updatedHistory = filterRecentThreeMonths([tripLog, ...history]);
     setHistory(updatedHistory);
-    localStorage.setItem(`driver_trip_history_${user?.id}`, JSON.stringify(updatedHistory));
+    const userId = user?.id || user?._id;
+    if (userId) {
+      localStorage.setItem(`driver_trip_history_${userId}`, JSON.stringify(updatedHistory));
+    }
 
     // Save globally to shared bus history in localStorage so parent can read it!
     const sharedHistory = JSON.parse(localStorage.getItem(`bus_${busNumber}_history`) || '[]');
@@ -648,6 +694,13 @@ export const DriverDashboard = () => {
       })
     );
 
+    // End trip on the backend
+    axios.post(`${API_URL}/auth/driver/end-trip`, {
+      coords: currentLocation,
+      distance,
+      path: travelPath
+    }).catch(err => console.warn("Backend trip end failed:", err.message));
+
     setAlertStatus('normal');
     alertStatusRef.current = 'normal';
     setIncidentCoords(null);
@@ -662,7 +715,10 @@ export const DriverDashboard = () => {
     if (inputBusNum.trim()) {
       const formatted = inputBusNum.trim().toUpperCase();
       setBusNumber(formatted);
-      localStorage.setItem(`driver_bus_num_${user?.id}`, formatted);
+      const userId = user?.id || user?._id;
+      if (userId) {
+        localStorage.setItem(`driver_bus_num_${userId}`, formatted);
+      }
     }
   };
 
@@ -673,7 +729,10 @@ export const DriverDashboard = () => {
     }
     setBusNumber('');
     setInputBusNum('');
-    localStorage.removeItem(`driver_bus_num_${user?.id}`);
+    const userId = user?.id || user?._id;
+    if (userId) {
+      localStorage.removeItem(`driver_bus_num_${userId}`);
+    }
   };
 
   // Clear button removed. Logs automatically purge older than 3 months.

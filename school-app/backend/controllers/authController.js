@@ -896,5 +896,118 @@ exports.getClassTeacher = async (req, res) => {
   }
 };
 
+// Start driver shift/trip
+exports.startDriverTrip = async (req, res) => {
+  try {
+    const { coords } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user || user.role !== 'driver') {
+      return res.status(403).json({ status: 'error', message: 'Only drivers can start a trip' });
+    }
+
+    user.isTripActive = true;
+    user.tripCurrentCoords = coords;
+    user.tripPath = coords ? [coords] : [];
+    user.tripSpeed = 0;
+    user.tripDistance = 0;
+    user.tripAlertStatus = 'normal';
+    user.tripIncidentCoords = null;
+    user.tripLastUpdated = new Date();
+
+    await user.save();
+    res.status(200).json({ status: 'success', message: 'Trip started successfully', user });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// Update active driver trip coordinates
+exports.updateDriverTrip = async (req, res) => {
+  try {
+    const { coords, speed, distance, path, alertStatus, incidentCoords } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user || user.role !== 'driver') {
+      return res.status(403).json({ status: 'error', message: 'Only drivers can update a trip' });
+    }
+
+    if (coords !== undefined) user.tripCurrentCoords = coords;
+    if (speed !== undefined) user.tripSpeed = speed;
+    if (distance !== undefined) user.tripDistance = distance;
+    if (path !== undefined) user.tripPath = path;
+    if (alertStatus !== undefined) user.tripAlertStatus = alertStatus;
+    if (incidentCoords !== undefined) user.tripIncidentCoords = incidentCoords;
+    user.tripLastUpdated = new Date();
+
+    await user.save();
+    res.status(200).json({ status: 'success', message: 'Trip updated successfully' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// End driver shift/trip
+exports.endDriverTrip = async (req, res) => {
+  try {
+    const { coords, distance, path } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user || user.role !== 'driver') {
+      return res.status(403).json({ status: 'error', message: 'Only drivers can end a trip' });
+    }
+
+    user.isTripActive = false;
+    if (coords !== undefined) user.tripCurrentCoords = coords;
+    if (distance !== undefined) user.tripDistance = distance;
+    if (path !== undefined) user.tripPath = path;
+    user.tripSpeed = 0;
+    user.tripAlertStatus = 'normal';
+    user.tripIncidentCoords = null;
+    user.tripLastUpdated = new Date();
+
+    await user.save();
+    res.status(200).json({ status: 'success', message: 'Trip ended successfully' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// Get active bus trip status (for parents/admins/teachers)
+exports.getBusTrip = async (req, res) => {
+  try {
+    const { busNumber } = req.params;
+    if (!busNumber) {
+      return res.status(400).json({ status: 'error', message: 'Bus number is required' });
+    }
+
+    // Find active driver associated with the same school and vehicle number
+    const driver = await User.findOne({
+      role: 'driver',
+      school: req.user.school,
+      vehicleNumber: busNumber.toUpperCase()
+    });
+
+    if (!driver) {
+      return res.status(200).json({ status: 'success', trip: null });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      serverTime: Date.now(),
+      trip: {
+        active: driver.isTripActive,
+        busNumber: driver.vehicleNumber,
+        speed: driver.tripSpeed,
+        distance: driver.tripDistance,
+        currentCoords: driver.tripCurrentCoords,
+        path: driver.tripPath,
+        lastUpdated: driver.tripLastUpdated ? driver.tripLastUpdated.getTime() : Date.now(),
+        alertStatus: driver.tripAlertStatus,
+        incidentCoords: driver.tripIncidentCoords
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
 
 

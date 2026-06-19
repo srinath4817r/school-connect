@@ -38,6 +38,7 @@ export const AuthProvider = ({ children }) => {
   });
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
+  const [isSchoolDeactivated, setIsSchoolDeactivated] = useState(false);
   const isInitialLoad = React.useRef(true);
 
   // Set default authorization header
@@ -65,9 +66,14 @@ export const AuthProvider = ({ children }) => {
         const res = await axios.get(`${API_URL}/auth/me`);
         setUser(res.data.user);
         saveUserToLocalStorage(res.data.user);
+        setIsSchoolDeactivated(false);
       } catch (err) {
-        console.error('Failed to load user profile on boot', err.message);
-        logout();
+        if (err.response && err.response.status === 403 && err.response.data && err.response.data.code === 'SCHOOL_DEACTIVATED') {
+          setIsSchoolDeactivated(true);
+        } else {
+          console.error('Failed to load user profile on boot', err.message);
+          logout();
+        }
       } finally {
         setLoading(false);
       }
@@ -81,8 +87,12 @@ export const AuthProvider = ({ children }) => {
     const interceptor = axios.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response && error.response.status === 401) {
-          logout();
+        if (error.response) {
+          if (error.response.status === 401) {
+            logout();
+          } else if (error.response.status === 403 && error.response.data && error.response.data.code === 'SCHOOL_DEACTIVATED') {
+            setIsSchoolDeactivated(true);
+          }
         }
         return Promise.reject(error);
       }
@@ -92,6 +102,30 @@ export const AuthProvider = ({ children }) => {
       axios.interceptors.response.eject(interceptor);
     };
   }, []);
+
+  // Poll to check if deactivated school is activated again
+  useEffect(() => {
+    let checkInterval = null;
+    if (isSchoolDeactivated && token) {
+      checkInterval = setInterval(async () => {
+        try {
+          const res = await axios.get(`${API_URL}/auth/me`);
+          if (res.data.status === 'success') {
+            setIsSchoolDeactivated(false);
+          }
+        } catch (err) {
+          if (err.response && err.response.status === 403 && err.response.data && err.response.data.code === 'SCHOOL_DEACTIVATED') {
+            setIsSchoolDeactivated(true);
+          } else if (err.response && err.response.status === 401) {
+            logout();
+          }
+        }
+      }, 5000); // Poll every 5 seconds
+    }
+    return () => {
+      if (checkInterval) clearInterval(checkInterval);
+    };
+  }, [isSchoolDeactivated, token]);
 
   const login = async (email, password) => {
     try {
@@ -149,7 +183,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, setUser, token, loading, login, register, logout, isSchoolDeactivated, setIsSchoolDeactivated }}>
       {children}
     </AuthContext.Provider>
   );

@@ -121,6 +121,37 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  isTripActive: {
+    type: Boolean,
+    default: false
+  },
+  tripSpeed: {
+    type: Number,
+    default: 0
+  },
+  tripDistance: {
+    type: Number,
+    default: 0
+  },
+  tripCurrentCoords: {
+    lat: Number,
+    lng: Number
+  },
+  tripPath: {
+    type: [{ lat: Number, lng: Number }],
+    default: []
+  },
+  tripLastUpdated: {
+    type: Date
+  },
+  tripAlertStatus: {
+    type: String,
+    default: 'normal'
+  },
+  tripIncidentCoords: {
+    lat: Number,
+    lng: Number
+  },
   loginAttempts: {
     type: Number,
     required: true,

@@ -62,5 +62,25 @@ router.put('/update-profile', protect, authController.updateProfile);
 // @access  Private
 router.post('/logout-all', protect, authController.logoutAll);
 
+// @route   POST /api/auth/driver/start-trip
+// @desc    Start driver trip tracking
+// @access  Private (Driver only)
+router.post('/driver/start-trip', protect, authController.startDriverTrip);
+
+// @route   POST /api/auth/driver/update-trip
+// @desc    Update driver trip tracking coordinates/metrics
+// @access  Private (Driver only)
+router.post('/driver/update-trip', protect, authController.updateDriverTrip);
+
+// @route   POST /api/auth/driver/end-trip
+// @desc    End driver trip tracking
+// @access  Private (Driver only)
+router.post('/driver/end-trip', protect, authController.endDriverTrip);
+
+// @route   GET /api/auth/bus/:busNumber/trip
+// @desc    Get active bus trip details
+// @access  Private
+router.get('/bus/:busNumber/trip', protect, authController.getBusTrip);
+
 module.exports = router;
 
