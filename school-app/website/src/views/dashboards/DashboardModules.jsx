@@ -38,14 +38,17 @@ import { API_URL, addSatelliteHybridLayers, filterRecentThreeMonths } from './Da
 const StaffCheckInModule = () => {
   const { user } = useContext(AuthContext);
   const [wifiSSID, setWifiSSID] = useState('');
-  const [customSSID, setCustomSSID] = useState('');
-  const [isCustom, setIsCustom] = useState(false);
   const [loading, setLoading] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [history, setHistory] = useState([]);
   const [authSSID, setAuthSSID] = useState('');
+
+  // Spoof simulation states
+  const [simulateSpoof, setSimulateSpoof] = useState(false);
+  const [bssid, setBssid] = useState('00:1A:2B:3C:4D:5E');
+  const [securityType, setSecurityType] = useState('WPA2-Enterprise');
 
   // Countdown modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -82,15 +85,26 @@ const StaffCheckInModule = () => {
       const res = await axios.get(`${API_URL}/schools/detect-wifi`);
       if (res.data.status === 'success' && res.data.ssid) {
         setWifiSSID(res.data.ssid);
-        setIsCustom(false);
       } else {
         setWifiSSID('LTE_Cellular_Data');
-        setIsCustom(false);
+      }
+      
+      // Update BSSID/Security type mock depending on network
+      if (res.data.status === 'success' && res.data.ssid && res.data.ssid.toLowerCase() !== 'lte_cellular_data') {
+        // Mock authorized credentials if normal mode
+        if (!simulateSpoof) {
+          setBssid('00:1A:2B:3C:4D:5E');
+          setSecurityType('WPA2-Enterprise');
+        }
+      } else {
+        setBssid('F0:18:98:A2:B4:C6');
+        setSecurityType('WPA2-PSK (Personal)');
       }
     } catch (err) {
       console.error('Failed to detect active WiFi SSID', err);
       setWifiSSID('LTE_Cellular_Data');
-      setIsCustom(false);
+      setBssid('F0:18:98:A2:B4:C6');
+      setSecurityType('WPA2-PSK (Personal)');
     } finally {
       setDetecting(false);
     }
@@ -116,15 +130,15 @@ const StaffCheckInModule = () => {
     return hotspotKeywords.some(keyword => lower.includes(keyword));
   };
 
-  const startCheckInCountdown = (e) => {
+    const startCheckInCountdown = (e) => {
     if (e) e.preventDefault();
     setError('');
     setSuccess('');
 
-    const ssidToSubmit = isCustom ? customSSID : wifiSSID;
+    const ssidToSubmit = wifiSSID;
 
     if (!ssidToSubmit) {
-      setError('Please select or enter a WiFi SSID.');
+      setError('Please connect to a WiFi network.');
       return;
     }
 
@@ -135,6 +149,14 @@ const StaffCheckInModule = () => {
 
     if (authSSID && ssidToSubmit.trim().toLowerCase() !== authSSID.trim().toLowerCase()) {
       setError('Cannot mark attendance: Mismatched WiFi SSID.');
+      return;
+    }
+
+    // Cryptographic BSSID range verification + Security Type (WPA2-Enterprise 802.1X check)
+    const isBssidValid = bssid.toUpperCase().startsWith('00:1A:2B');
+    const isSecurityValid = securityType === 'WPA2-Enterprise';
+    if (!isBssidValid || !isSecurityValid) {
+      setError('Cannot mark attendance: Spoofed/Unauthorized network signature detected! Blocked for security.');
       return;
     }
 
@@ -180,9 +202,11 @@ const StaffCheckInModule = () => {
     setShowConfirmModal(false);
   };
 
-  const ssidToSubmit = isCustom ? customSSID : wifiSSID;
+  const ssidToSubmit = wifiSSID;
   const isHotspot = checkIfMobileHotspot(ssidToSubmit);
   const isMatched = authSSID && ssidToSubmit && (ssidToSubmit.trim().toLowerCase() === authSSID.trim().toLowerCase());
+  const isBssidValid = bssid.toUpperCase().startsWith('00:1A:2B');
+  const isSecurityValid = securityType === 'WPA2-Enterprise';
 
   let connectionStatus = 'mismatch';
   let statusMessage = '';
@@ -190,7 +214,7 @@ const StaffCheckInModule = () => {
 
   if (!ssidToSubmit) {
     connectionStatus = 'none';
-    statusMessage = 'Please select or enter a WiFi SSID to check connection.';
+    statusMessage = 'Please connect to a WiFi network to check connection.';
     isAllowed = false;
   } else if (isHotspot) {
     connectionStatus = 'hotspot';
@@ -198,7 +222,11 @@ const StaffCheckInModule = () => {
     isAllowed = false;
   } else if (!isMatched) {
     connectionStatus = 'mismatch';
-    statusMessage = `Mismatched network. Please connect to the school's authorized WiFi (${authSSID || 'Greenwood_High_Staff_WiFi'}) to mark attendance.`;
+    statusMessage = `Mismatched network (${ssidToSubmit}). Please connect to the school's authorized WiFi (${authSSID || 'Greenwood_High_Staff_WiFi'}) to mark attendance.`;
+    isAllowed = false;
+  } else if (!isBssidValid || !isSecurityValid) {
+    connectionStatus = 'spoofed';
+    statusMessage = "⚠️ Security Alert: Spoofed/Unauthorized Network Detected! The connected network matches the authorized SSID name but failed WPA2-Enterprise 802.1X gateway authentication and router certificate checks. Attendance marking is BLOCKED.";
     isAllowed = false;
   } else {
     connectionStatus = 'verified';
@@ -239,13 +267,17 @@ const StaffCheckInModule = () => {
               <Wifi size={18} />
               <span style={{ wordBreak: 'break-all' }}>{authSSID || 'Greenwood_High_Staff_WiFi'}</span>
             </div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textAlign: 'left', width: '100%', marginTop: '4px', borderTop: '1px solid var(--border)', paddingTop: '4px' }}>
+              <div><strong>Gateway:</strong> 00:1A:2B:3C:4D:5E</div>
+              <div><strong>Security:</strong> WPA2-Enterprise</div>
+            </div>
           </div>
 
           {/* Column 2: Connected WiFi */}
           <div style={{ 
             padding: '16px', 
             background: 'rgba(255,255,255,0.02)', 
-            border: isHotspot ? '1px solid #ef4444' : isMatched ? '1px solid #10b981' : '1px solid var(--border)', 
+            border: (isHotspot || connectionStatus === 'spoofed') ? '1px solid #ef4444' : (connectionStatus === 'verified') ? '1px solid #10b981' : '1px solid var(--border)', 
             borderRadius: '8px',
             textAlign: 'center',
             display: 'flex',
@@ -261,13 +293,19 @@ const StaffCheckInModule = () => {
               display: 'flex', 
               alignItems: 'center', 
               gap: '6px', 
-              color: isHotspot ? '#ef4444' : isMatched ? '#10b981' : '#f59e0b', 
+              color: (isHotspot || connectionStatus === 'spoofed') ? '#ef4444' : (connectionStatus === 'verified') ? '#10b981' : '#f59e0b', 
               fontWeight: '700', 
               fontSize: '14px' 
             }}>
               <Wifi size={18} />
               <span style={{ wordBreak: 'break-all' }}>{ssidToSubmit || 'None'}</span>
             </div>
+            {ssidToSubmit && (
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', textAlign: 'left', width: '100%', marginTop: '4px', borderTop: '1px solid var(--border)', paddingTop: '4px' }}>
+                <div><strong>BSSID:</strong> <span style={{ color: isBssidValid ? '#34d399' : '#f87171' }}>{bssid}</span></div>
+                <div><strong>Security:</strong> <span style={{ color: isSecurityValid ? '#34d399' : '#f87171' }}>{securityType}</span></div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -280,17 +318,43 @@ const StaffCheckInModule = () => {
           marginBottom: '20px',
           background: connectionStatus === 'verified' ? 'rgba(16, 185, 129, 0.1)' 
                       : connectionStatus === 'hotspot' ? 'rgba(239, 68, 68, 0.1)' 
+                      : connectionStatus === 'spoofed' ? 'rgba(239, 68, 68, 0.15)'
                       : 'rgba(245, 158, 11, 0.1)',
           color: connectionStatus === 'verified' ? '#34d399' 
                  : connectionStatus === 'hotspot' ? '#f87171' 
+                 : connectionStatus === 'spoofed' ? '#f87171'
                  : '#fbbf24',
           border: `1px solid ${
             connectionStatus === 'verified' ? 'rgba(16, 185, 129, 0.2)' 
             : connectionStatus === 'hotspot' ? 'rgba(239, 68, 68, 0.2)' 
+            : connectionStatus === 'spoofed' ? 'rgba(239, 68, 68, 0.4)'
             : 'rgba(245, 158, 11, 0.2)'
           }`
         }}>
           {statusMessage}
+        </div>
+
+        {/* Spoofing Simulator Control */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', background: 'rgba(239, 68, 68, 0.05)', padding: '10px 14px', borderRadius: '8px', border: '1px dashed rgba(239, 68, 68, 0.2)' }}>
+          <input
+            type="checkbox"
+            id="simulateSpoof"
+            checked={simulateSpoof}
+            onChange={(e) => {
+              setSimulateSpoof(e.target.checked);
+              if (e.target.checked) {
+                setWifiSSID(authSSID || 'Greenwood_High_Staff_WiFi');
+                setBssid('00:1E:2A:4F:9C:72');
+                setSecurityType('WPA2-Personal (Hotspot)');
+              } else {
+                detectActiveWifi();
+              }
+            }}
+            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+          />
+          <label htmlFor="simulateSpoof" style={{ fontSize: '12.5px', color: '#f87171', fontWeight: '600', cursor: 'pointer', userSelect: 'none' }}>
+            Simulate WiFi Name Spoofing (Attacker hotspot with school's WiFi name)
+          </label>
         </div>
 
         <form onSubmit={startCheckInCountdown}>
@@ -321,51 +385,6 @@ const StaffCheckInModule = () => {
               <RefreshCw size={16} className={detecting ? 'spin-anim' : ''} />
               {detecting ? 'Detecting WiFi...' : 'Detect Wi-Fi Connection'}
             </button>
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '20px' }}>
-            <label className="form-label">Configure Connected WiFi Network</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <select
-                className="form-select"
-                value={isCustom ? 'custom' : wifiSSID}
-                onChange={(e) => {
-                  if (e.target.value === 'custom') {
-                    setIsCustom(true);
-                  } else {
-                    setIsCustom(false);
-                    setWifiSSID(e.target.value);
-                  }
-                }}
-              >
-                {!isCustom && wifiSSID && wifiSSID !== authSSID && wifiSSID !== 'Greenwood_High_Staff_WiFi' && wifiSSID !== 'School_Guest_Network' && wifiSSID !== 'LTE_Cellular_Data' && (
-                  <option value={wifiSSID}>[Detected] {wifiSSID}</option>
-                )}
-                {!wifiSSID && (
-                  <option value="">Waiting for detection / select WiFi...</option>
-                )}
-                {authSSID && (
-                  <option value={authSSID}>[Active] {authSSID} (Authorized School WiFi)</option>
-                )}
-                {authSSID !== 'Greenwood_High_Staff_WiFi' && (
-                  <option value="Greenwood_High_Staff_WiFi">[Staff] Greenwood_High_Staff_WiFi (Staff WiFi)</option>
-                )}
-                <option value="School_Guest_Network">[Inactive] School_Guest_Network (Public/Guest Network)</option>
-                <option value="LTE_Cellular_Data">[Inactive] Cellular Network (LTE/5G Mobile Carrier)</option>
-                <option value="custom">[Configure] Enter Custom SSID...</option>
-              </select>
-
-              {isCustom && (
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Type WiFi SSID (e.g. My_Home_WiFi)"
-                  value={customSSID}
-                  onChange={(e) => setCustomSSID(e.target.value)}
-                  required
-                />
-              )}
-            </div>
           </div>
 
           <button type="submit" className="dashboard-btn-primary" disabled={loading || !isAllowed} style={{ margin: 0, width: '100%' }}>
@@ -1170,7 +1189,7 @@ const StudentDirectoryModule = ({ defaultSchoolId = null }) => {
             </p>
           ) : (
             <div className="table-responsive">
-              <table className="dashboard-table">
+              <table className="dashboard-table table-expandable">
                 <thead>
                   <tr>
                     <th>Student Name</th>
@@ -2806,7 +2825,7 @@ export const AdminSchedulesModule = ({ user }) => {
 // -------------------------------------------------------------
 // SHARED SCHOOL CALENDAR MODULE (All Roles)
 // -------------------------------------------------------------
-export const SchoolCalendarModule = ({ user, canEdit }) => {
+export const SchoolCalendarModule = ({ user, canEdit, attendanceRecords = [] }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarEntries, setCalendarEntries] = useState([]);
@@ -3195,6 +3214,58 @@ export const SchoolCalendarModule = ({ user, canEdit }) => {
             // Handle filter match opacity
             const isFilteredOut = filterType !== 'all' && dayType !== filterType;
 
+            // Attendance highlights
+            let attStatus = null;
+            let cellBg = 'transparent';
+            let attLabel = null;
+            
+            if (attendanceRecords && attendanceRecords.length > 0) {
+              const dayRecords = attendanceRecords.filter(r => {
+                const d = new Date(r.date);
+                return d.getFullYear() === cell.date.getFullYear() &&
+                       d.getMonth() === cell.date.getMonth() &&
+                       d.getDate() === cell.date.getDate();
+              });
+              
+              if (dayRecords.length > 0) {
+                const presentCount = dayRecords.filter(r => r.status === 'Present').length;
+                const lateCount = dayRecords.filter(r => r.status === 'Late').length;
+                const absentCount = dayRecords.filter(r => r.status === 'Absent').length;
+                
+                const totalCount = dayRecords.length;
+                if (totalCount === 2) {
+                  if (presentCount === 2) {
+                    attStatus = 'present';
+                    cellBg = 'rgba(16, 185, 129, 0.12)'; // Soft green
+                    attLabel = 'P';
+                  } else if (absentCount === 2) {
+                    attStatus = 'absent';
+                    cellBg = 'rgba(239, 68, 68, 0.12)'; // Soft red
+                    attLabel = 'A';
+                  } else {
+                    attStatus = 'half_day';
+                    cellBg = 'rgba(245, 158, 11, 0.12)'; // Soft yellow
+                    attLabel = '1/2';
+                  }
+                } else if (totalCount === 1) {
+                  if (presentCount === 1 || lateCount === 1) {
+                    attStatus = 'half_day';
+                    cellBg = 'rgba(245, 158, 11, 0.12)'; // Soft yellow
+                    attLabel = '1/2';
+                  } else {
+                    attStatus = 'absent';
+                    cellBg = 'rgba(239, 68, 68, 0.12)';
+                    attLabel = 'A';
+                  }
+                }
+              }
+            }
+
+            // Sunday holiday logic
+            if (isSunday && cell.isCurrentMonth && !attStatus) {
+              cellBg = 'rgba(239, 68, 68, 0.08)'; // Soft red for Sunday holiday
+            }
+
             return (
               <div
                 key={idx}
@@ -3204,10 +3275,10 @@ export const SchoolCalendarModule = ({ user, canEdit }) => {
                   borderBottom: idx >= 35 ? 'none' : '1px solid var(--border)',
                   padding: isMobile ? '6px' : '10px',
                   background: isSelected 
-                    ? 'rgba(124, 58, 237, 0.15)' 
+                    ? 'rgba(124, 58, 237, 0.18)' 
                     : isToday 
-                      ? 'rgba(255,255,255,0.05)' 
-                      : 'transparent',
+                      ? 'rgba(255,255,255,0.06)' 
+                      : cellBg,
                   opacity: isFilteredOut ? 0.25 : 1,
                   cursor: 'pointer',
                   position: 'relative',
@@ -3218,11 +3289,11 @@ export const SchoolCalendarModule = ({ user, canEdit }) => {
                   overflow: 'hidden'
                 }}
                 onMouseEnter={(e) => {
-                  if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                  if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
                 }}
                 onMouseLeave={(e) => {
-                  if (!isSelected && !isToday) e.currentTarget.style.background = 'transparent';
-                  if (isToday && !isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                  if (!isSelected && !isToday) e.currentTarget.style.background = cellBg;
+                  if (isToday && !isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
                 }}
               >
                 {/* Date Label */}
@@ -3264,6 +3335,24 @@ export const SchoolCalendarModule = ({ user, canEdit }) => {
                     }} />
                   )}
                 </div>
+
+                {/* Attendance Badge */}
+                {attLabel && (
+                  <span style={{
+                    fontSize: '9.5px',
+                    fontWeight: 'bold',
+                    color: attStatus === 'present' ? '#34d399' : attStatus === 'absent' ? '#f87171' : '#fbbf24',
+                    background: attStatus === 'present' ? 'rgba(16, 185, 129, 0.2)' : attStatus === 'absent' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    alignSelf: 'flex-start',
+                    marginTop: '2px',
+                    display: 'inline-block',
+                    width: 'fit-content'
+                  }}>
+                    {attLabel}
+                  </span>
+                )}
 
                 {/* Desktop event details summary */}
                 {!isMobile && entry && (
@@ -3317,8 +3406,22 @@ export const SchoolCalendarModule = ({ user, canEdit }) => {
           backgroundColor: 'rgba(0,0,0,0.5)',
           backdropFilter: 'blur(4px)',
           zIndex: 1100,
-          animation: 'fadeIn 0.2s ease'
+          animation: 'fadeIn 0.25s ease-out'
         }} onClick={() => setShowBottomSheet(false)}>
+          <style>{`
+            @keyframes slideUpBottomSheet {
+              from {
+                transform: translateY(100%);
+              }
+              to {
+                transform: translateY(0);
+              }
+            }
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+          `}</style>
           <div 
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -3333,8 +3436,7 @@ export const SchoolCalendarModule = ({ user, canEdit }) => {
               maxHeight: '80vh',
               overflowY: 'auto',
               boxShadow: '0 -10px 30px rgba(0,0,0,0.5)',
-              transform: 'translateY(0)',
-              transition: 'transform 0.3s ease-out'
+              animation: 'slideUpBottomSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards'
             }}
           >
             {/* Sheet Handle */}

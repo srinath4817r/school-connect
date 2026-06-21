@@ -35,6 +35,18 @@ import { DashboardLayout, API_URL, addSatelliteHybridLayers, LogoutConfirmationM
 import { ClassTimetableModule, SchoolCalendarModule } from './DashboardModules';
 import { TripPlaybackPanel } from './DriverDashboard';
 
+const calculateGrade = (percentage) => {
+  const pct = parseFloat(percentage);
+  if (isNaN(pct)) return 'N/A';
+  if (pct >= 90) return 'A+';
+  if (pct >= 80) return 'A';
+  if (pct >= 70) return 'B';
+  if (pct >= 60) return 'C';
+  if (pct >= 50) return 'D';
+  if (pct >= 40) return 'E';
+  return 'F';
+};
+
 export const ParentDashboard = () => {
   const { user, setUser, logout } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -68,24 +80,7 @@ export const ParentDashboard = () => {
   });
 
   // Leave Requests State
-  const [leaveRequests, setLeaveRequests] = useState(() => {
-    try {
-      const stored = localStorage.getItem(`parent_leave_requests_${user?.id || user?._id}`);
-      return stored ? JSON.parse(stored) : [
-        {
-          id: '1',
-          startDate: '2026-06-02',
-          endDate: '2026-06-03',
-          leaveType: 'Sick Leave',
-          reason: 'Fever and cold. Doctor advised bed rest.',
-          status: 'Approved',
-          appliedOn: '2026-06-01T08:30:00.000Z'
-        }
-      ];
-    } catch (e) {
-      return [];
-    }
-  });
+  const [leaveRequests, setLeaveRequests] = useState([]);
 
   const [leaveForm, setLeaveForm] = useState({
     startDate: '',
@@ -95,23 +90,102 @@ export const ParentDashboard = () => {
   });
 
   // Direct Chat State
-  const [chatMessages, setChatMessages] = useState(() => {
-    try {
-      const stored = localStorage.getItem(`parent_chat_messages_${user?.id || user?._id}`);
-      return stored ? JSON.parse(stored) : [
-        {
-          id: '1',
-          sender: 'teacher',
-          text: "Hello! I am Mrs. Sarah Jenkins, your child's class teacher. Let me know if you have any questions about today's diary, attendance, or academic progress.",
-          timestamp: new Date(Date.now() - 3600000).toISOString()
-        }
-      ];
-    } catch (e) {
-      return [];
-    }
-  });
+  const pruneOldMessages = (messages) => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return messages.filter(msg => {
+      const timestampStr = msg.timestamp || msg.time;
+      if (!timestampStr) return true;
+      const msgTime = new Date(timestampStr).getTime();
+      return msgTime >= sevenDaysAgo;
+    });
+  };
+  const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isTeacherTyping, setIsTeacherTyping] = useState(false);
+  const [classTeacher, setClassTeacher] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const messagesEndRef = useRef(null);
+
+  const fetchClassTeacher = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/auth/class-teacher`);
+      if (res.data.status === 'success') {
+        setClassTeacher(res.data.teacher);
+      }
+    } catch (err) {
+      console.error('Failed to fetch class teacher:', err);
+    }
+  };
+
+  // Sync parent messages or unread counts from DB in real-time
+  useEffect(() => {
+    const syncChat = async () => {
+      try {
+        if (activeTab === 'chat') {
+          const res = await axios.get(`${API_URL}/messages`);
+          if (res.data.status === 'success') {
+            const dbMsgs = res.data.messages || [];
+            const formatted = dbMsgs.map(msg => ({
+              id: msg._id,
+              sender: msg.sender,
+              text: msg.text,
+              timestamp: msg.createdAt || msg.timestamp,
+              linkToTab: msg.linkToTab
+            }));
+            
+            let finalMsgs = formatted;
+            if (formatted.length === 0) {
+              finalMsgs = [
+                {
+                  id: '1',
+                  sender: 'teacher',
+                  text: "Hello! Let know if you have any questions about today's diary, attendance, or academic progress.",
+                  timestamp: new Date(Date.now() - 3600000).toISOString()
+                }
+              ];
+            }
+            
+            const hasChanged = finalMsgs.length !== chatMessages.length || 
+              (finalMsgs.length > 0 && chatMessages.length > 0 && finalMsgs[finalMsgs.length - 1].id !== chatMessages[chatMessages.length - 1].id);
+            
+            if (hasChanged) {
+              setChatMessages(finalMsgs);
+            }
+            if (unreadCount !== 0) {
+              setUnreadCount(0);
+            }
+          }
+        } else {
+          // Poll for unread count
+          const res = await axios.get(`${API_URL}/messages/unread`);
+          if (res.data.status === 'success') {
+            const count = res.data.count || 0;
+            if (count !== unreadCount) {
+              setUnreadCount(count);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to sync chat status from server:', err);
+      }
+    };
+
+    syncChat();
+    const interval = setInterval(syncChat, 2000);
+    return () => clearInterval(interval);
+  }, [activeTab, chatMessages.length, unreadCount]);
+
+  // Load teacher info on tab change
+  useEffect(() => {
+    if (activeTab === 'chat' && !classTeacher) {
+      fetchClassTeacher();
+    }
+  }, [activeTab, classTeacher]);  // Auto-scroll to bottom of chat
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, activeTab]);
 
   // Activity Clubs State
   const [clubRegistrations, setClubRegistrations] = useState(() => {
@@ -160,11 +234,23 @@ export const ParentDashboard = () => {
   };
 
   // 1. Bus Tracking States
+  const [dailyBus, setDailyBus] = useState(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        return localStorage.getItem(`parent_daily_bus_${u.id || u._id}`) || '';
+      }
+    } catch (e) {}
+    return '';
+  });
   const [busNumber, setBusNumber] = useState(() => {
     try {
       const userStr = localStorage.getItem('user');
       if (userStr) {
         const u = JSON.parse(userStr);
+        const daily = localStorage.getItem(`parent_daily_bus_${u.id || u._id}`);
+        if (daily) return daily;
         const storedBus = localStorage.getItem(`parent_last_tracked_bus_${u.id || u._id}`);
         if (storedBus) return storedBus;
       }
@@ -178,6 +264,8 @@ export const ParentDashboard = () => {
       const userStr = localStorage.getItem('user');
       if (userStr) {
         const u = JSON.parse(userStr);
+        const daily = localStorage.getItem(`parent_daily_bus_${u.id || u._id}`);
+        if (daily) return daily;
         const storedBus = localStorage.getItem(`parent_last_tracked_bus_${u.id || u._id}`);
         if (storedBus) return storedBus;
       }
@@ -192,6 +280,8 @@ export const ParentDashboard = () => {
       const userStr = localStorage.getItem('user');
       if (userStr) {
         const u = JSON.parse(userStr);
+        const daily = localStorage.getItem(`parent_daily_bus_${u.id || u._id}`);
+        if (daily) return false;
         const storedBus = localStorage.getItem(`parent_last_tracked_bus_${u.id || u._id}`);
         if (storedBus) return false;
       }
@@ -200,6 +290,50 @@ export const ParentDashboard = () => {
     }
     return true;
   });
+
+  const [isDailyPreferred, setIsDailyPreferred] = useState(false);
+  const [notify3km, setNotify3km] = useState(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        return localStorage.getItem(`parent_notify_3km_${u.id || u._id}`) === 'true';
+      }
+    } catch (e) {}
+    return false;
+  });
+
+  const [showPermissionExplanation, setShowPermissionExplanation] = useState(false);
+  const [permissionErrorType, setPermissionErrorType] = useState(''); // 'location', 'notifications', or 'both'
+
+  // Account Switcher States
+  const [parentAccounts, setParentAccounts] = useState(() => {
+    try {
+      const activeUser = JSON.parse(localStorage.getItem('user'));
+      const activeToken = localStorage.getItem('token');
+      const stored = localStorage.getItem('parent_accounts');
+      let accounts = stored ? JSON.parse(stored) : [];
+      if (activeUser && activeToken && activeUser.role === 'parent') {
+        const exists = accounts.find(acc => acc.email === activeUser.email);
+        if (!exists) {
+          accounts.push({
+            email: activeUser.email,
+            token: activeToken,
+            user: activeUser
+          });
+          localStorage.setItem('parent_accounts', JSON.stringify(accounts));
+        }
+      }
+      return accounts;
+    } catch (e) {
+      return [];
+    }
+  });
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
+  const [newAccountEmail, setNewAccountEmail] = useState('');
+  const [newAccountPassword, setNewAccountPassword] = useState('');
+  const [switchError, setSwitchError] = useState('');
+  const [switchLoading, setSwitchLoading] = useState(false);
 
   const [selectedHistoryTrip, setSelectedHistoryTrip] = useState(null);
   const [parentLocation, setParentLocation] = useState(() => {
@@ -618,6 +752,134 @@ export const ParentDashboard = () => {
     };
   }, [parentLocation, tripData?.currentCoords, tripData?.active, geofenceRadius, enableGeofence, hasNotifiedGeofence]);
 
+  useEffect(() => {
+    if (notify3km) {
+      setGeofenceRadius(3.0);
+      localStorage.setItem(`parent_geofence_radius_${user?.id || user?._id}`, '3.0');
+    }
+  }, [notify3km, user]);
+
+  useEffect(() => {
+    const checkAndRequestPermissions = async () => {
+      const isMobileDevice = window.innerWidth < 768 || /Mobi|Android|iPhone/i.test(navigator.userAgent);
+      if (!isMobileDevice) return; // Only request on mobile as requested
+      
+      let geoDenied = false;
+      let notifyDenied = false;
+
+      // 1. Request Geolocation
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          () => {},
+          (err) => {
+            if (err.code === err.PERMISSION_DENIED) {
+              geoDenied = true;
+            }
+          }
+        );
+      }
+
+      // 2. Request Notifications
+      if ('Notification' in window) {
+        if (Notification.permission === 'default') {
+          const result = await Notification.requestPermission();
+          if (result === 'denied') {
+            notifyDenied = true;
+          }
+        } else if (Notification.permission === 'denied') {
+          notifyDenied = true;
+        }
+      }
+
+      // Small timeout to let permissions resolve
+      setTimeout(() => {
+        if (geoDenied || notifyDenied) {
+          setShowPermissionExplanation(true);
+          if (geoDenied && notifyDenied) {
+            setPermissionErrorType('both');
+          } else if (geoDenied) {
+            setPermissionErrorType('location');
+          } else {
+            setPermissionErrorType('notifications');
+          }
+        }
+      }, 3000);
+    };
+
+    checkAndRequestPermissions();
+  }, []);
+
+  const handleSwitchAccount = (account) => {
+    try {
+      localStorage.setItem('token', account.token);
+      localStorage.setItem('user', JSON.stringify(account.user));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${account.token}`;
+      setUser(account.user);
+      setShowAccountSwitcher(false);
+      window.location.reload();
+    } catch (err) {
+      alert("Failed to switch account: " + err.message);
+    }
+  };
+
+  const handleAddAndSwitchAccount = async (e) => {
+    e.preventDefault();
+    setSwitchError('');
+    setSwitchLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/auth/login`, {
+        email: newAccountEmail,
+        password: newAccountPassword
+      });
+
+      if (res.data.status === 'success') {
+        const { token: newToken, user: newUser } = res.data;
+        if (newUser.role !== 'parent') {
+          setSwitchError('Only parent accounts can be added to the switcher.');
+          setSwitchLoading(false);
+          return;
+        }
+
+        const updatedAccounts = [...parentAccounts.filter(acc => acc.user.email !== newUser.email), {
+          email: newUser.email,
+          token: newToken,
+          user: newUser
+        }];
+
+        localStorage.setItem('parent_accounts', JSON.stringify(updatedAccounts));
+        setParentAccounts(updatedAccounts);
+
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('user', JSON.stringify(newUser));
+        axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        setUser(newUser);
+
+        setNewAccountEmail('');
+        setNewAccountPassword('');
+        setShowAccountSwitcher(false);
+        window.location.reload();
+      } else {
+        setSwitchError(res.data.message || 'Login failed.');
+      }
+    } catch (err) {
+      setSwitchError(err.response?.data?.message || 'Invalid credentials or connection error.');
+    } finally {
+      setSwitchLoading(false);
+    }
+  };
+
+  const handleRemoveAccount = (email, e) => {
+    e.stopPropagation();
+    const activeUser = JSON.parse(localStorage.getItem('user'));
+    if (activeUser && activeUser.email === email) {
+      alert("Cannot remove the active logged in account. Switch to another account first.");
+      return;
+    }
+    const updated = parentAccounts.filter(acc => acc.email !== email);
+    localStorage.setItem('parent_accounts', JSON.stringify(updated));
+    setParentAccounts(updated);
+  };
+
   // 2. Classroom Diary States
   const [todayDiary, setTodayDiary] = useState(null);
   const [diaryHistory, setDiaryHistory] = useState([]);
@@ -628,6 +890,8 @@ export const ParentDashboard = () => {
 
   // 5. Marks States
   const [reportCard, setReportCard] = useState([]);
+  const [selectedExamFilter, setSelectedExamFilter] = useState('All');
+  const [expandedExams, setExpandedExams] = useState({});
 
   // 6. Fee States
   const [feeDetails, setFeeDetails] = useState(null);
@@ -652,6 +916,33 @@ export const ParentDashboard = () => {
     childRollNumber: '',
     childDateOfBirth: ''
   });
+
+  // Student Health Profile States
+  const [healthProfile, setHealthProfile] = useState(() => {
+    try {
+      const stored = localStorage.getItem(`parent_health_records_${user?.id || user?._id}`);
+      return stored ? JSON.parse(stored) : {
+        bloodGroup: 'O Positive (O+)',
+        allergies: 'Peanuts, Penicillin',
+        disability: 'None Reported'
+      };
+    } catch (e) {
+      return {
+        bloodGroup: 'O Positive (O+)',
+        allergies: 'Peanuts, Penicillin',
+        disability: 'None Reported'
+      };
+    }
+  });
+  const [isEditingHealth, setIsEditingHealth] = useState(false);
+  const [tempHealth, setTempHealth] = useState({ ...healthProfile });
+
+  const handleSaveHealthProfile = (e) => {
+    e.preventDefault();
+    setHealthProfile(tempHealth);
+    localStorage.setItem(`parent_health_records_${user?.id || user?._id}`, JSON.stringify(tempHealth));
+    setIsEditingHealth(false);
+  };
 
   // Leaflet refs
   const mapInstanceRef = useRef(null);
@@ -743,6 +1034,17 @@ export const ParentDashboard = () => {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const fetchLeaveRequests = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/attendance/leaves`);
+      if (res.data.status === 'success') {
+        setLeaveRequests(res.data.leaves || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch leave requests:', err);
     }
   };
 
@@ -848,6 +1150,7 @@ export const ParentDashboard = () => {
     document.body.className = 'theme-parent';
     fetchSchoolDetails();
     fetchLinkedChild();
+    fetchClassTeacher();
     if (user?.approvalStatus === 'pending' || user?.approvalStatus === 'rejected') {
       fetchPreStudentsDirectory();
     } else {
@@ -857,6 +1160,7 @@ export const ParentDashboard = () => {
       fetchFee();
       fetchTodayTimetable();
       fetchParentCalendarForBanner();
+      fetchLeaveRequests();
 
       // Check home location prompt
       let savedHome = localStorage.getItem(`parent_home_location_${user?.id || user?._id}`);
@@ -900,6 +1204,7 @@ export const ParentDashboard = () => {
         fetchFee();
         fetchTodayTimetable();
         fetchParentCalendarForBanner();
+        fetchLeaveRequests();
       }
     }, 10000);
 
@@ -1062,7 +1367,7 @@ export const ParentDashboard = () => {
         const busIconHtml = `<div style="background-color: ${busColor}; color: white; padding: 6px; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.5); border: 2px solid white;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1 .4-1 1v10c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg></div>`;
         
         if (!mapInstanceRef.current) {
-          const map = L.map('parent-map').setView(busLatLng, 15);
+          const map = L.map('parent-map', { attributionControl: false }).setView(busLatLng, 15);
           addSatelliteHybridLayers(map);
 
           const busIcon = L.divIcon({
@@ -1381,14 +1686,68 @@ export const ParentDashboard = () => {
     };
   }, [fullTimetable]);
 
-  const marksChartData = useMemo(() => {
-    if (!reportCard || reportCard.length === 0) return null;
+  const uniqueExamNames = useMemo(() => {
+    if (!reportCard) return [];
+    const names = reportCard.map(m => m.examName).filter(Boolean);
+    return Array.from(new Set(names));
+  }, [reportCard]);
+
+  const displayedReportCard = useMemo(() => {
+    if (!reportCard) return [];
+    if (selectedExamFilter === 'All') return reportCard;
+    return reportCard.filter(m => m.examName === selectedExamFilter);
+  }, [reportCard, selectedExamFilter]);
+
+  const examSummary = useMemo(() => {
+    if (selectedExamFilter === 'All' || !displayedReportCard || displayedReportCard.length === 0) return null;
+    let totalObtained = 0;
+    let totalMax = 0;
+    displayedReportCard.forEach(m => {
+      totalObtained += m.marksObtained || 0;
+      totalMax += m.totalMarks || 100;
+    });
+    const pct = totalMax > 0 ? Math.round((totalObtained / totalMax) * 100) : 0;
     return {
-      labels: reportCard.map(m => m.subject),
+      totalObtained,
+      totalMax,
+      percentage: pct,
+      grade: calculateGrade(pct)
+    };
+  }, [displayedReportCard, selectedExamFilter]);
+
+  const groupedReportCard = useMemo(() => {
+    const groups = {};
+    displayedReportCard.forEach(m => {
+      if (!groups[m.examName]) {
+        groups[m.examName] = {
+          examName: m.examName,
+          subjects: [],
+          totalObtained: 0,
+          totalMax: 0
+        };
+      }
+      groups[m.examName].subjects.push(m);
+      groups[m.examName].totalObtained += m.marksObtained || 0;
+      groups[m.examName].totalMax += m.totalMarks || 100;
+    });
+    return Object.values(groups);
+  }, [displayedReportCard]);
+
+  const toggleExamExpanded = (examName) => {
+    setExpandedExams(prev => ({
+      ...prev,
+      [examName]: !prev[examName]
+    }));
+  };
+
+  const marksChartData = useMemo(() => {
+    if (!displayedReportCard || displayedReportCard.length === 0) return null;
+    return {
+      labels: displayedReportCard.map(m => m.subject),
       datasets: [
         {
           label: 'Student Grade (%)',
-          data: reportCard.map(m => m.myPercentage),
+          data: displayedReportCard.map(m => m.myPercentage),
           borderColor: '#3b82f6',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
           borderWidth: 2,
@@ -1398,7 +1757,7 @@ export const ParentDashboard = () => {
         },
         {
           label: 'Class Average (%)',
-          data: reportCard.map(m => m.classAveragePercentage),
+          data: displayedReportCard.map(m => m.classAveragePercentage),
           borderColor: '#10b981',
           backgroundColor: 'transparent',
           borderWidth: 2,
@@ -1409,7 +1768,7 @@ export const ParentDashboard = () => {
         }
       ]
     };
-  }, [reportCard]);
+  }, [displayedReportCard]);
 
   const handleSignDiary = (diaryId) => {
     const updated = {
@@ -1423,31 +1782,36 @@ export const ParentDashboard = () => {
     localStorage.setItem(`parent_signed_diaries_${user?.id || user?._id}`, JSON.stringify(updated));
   };
 
-  const handleApplyLeave = (e) => {
+  const handleApplyLeave = async (e) => {
     e.preventDefault();
     if (!leaveForm.startDate || !leaveForm.endDate || !leaveForm.reason.trim()) {
       alert("Please fill in all leave request fields.");
       return;
     }
-    const newReq = {
-      id: Date.now().toString(),
-      startDate: leaveForm.startDate,
-      endDate: leaveForm.endDate,
-      leaveType: leaveForm.leaveType,
-      reason: leaveForm.reason,
-      status: 'Pending',
-      appliedOn: new Date().toISOString()
-    };
-    const updated = [newReq, ...leaveRequests];
-    setLeaveRequests(updated);
-    localStorage.setItem(`parent_leave_requests_${user?.id || user?._id}`, JSON.stringify(updated));
-    setLeaveForm({
-      startDate: '',
-      endDate: '',
-      leaveType: 'Sick Leave',
-      reason: ''
-    });
-    alert("Leave application submitted successfully!");
+    try {
+      setLoading(true);
+      const res = await axios.post(`${API_URL}/attendance/leave`, {
+        startDate: leaveForm.startDate,
+        endDate: leaveForm.endDate,
+        leaveType: leaveForm.leaveType,
+        reason: leaveForm.reason
+      });
+      if (res.data.status === 'success') {
+        alert("Leave application submitted successfully!");
+        setLeaveForm({
+          startDate: '',
+          endDate: '',
+          leaveType: 'Sick Leave',
+          reason: ''
+        });
+        fetchLeaveRequests();
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to submit leave request.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getTodayAttendanceStatus = () => {
@@ -1558,73 +1922,49 @@ export const ParentDashboard = () => {
       </div>
     );
   };
-
-  const handleSendQuickAction = (actionTitle, actionText) => {
-    const userMsg = {
-      id: Date.now().toString(),
-      sender: 'parent',
-      text: actionText,
-      timestamp: new Date().toISOString()
-    };
-    const updated = [...chatMessages, userMsg];
-    setChatMessages(updated);
-    localStorage.setItem(`parent_chat_messages_${user?.id || user?._id}`, JSON.stringify(updated));
-
-    setIsTeacherTyping(true);
-    setTimeout(() => {
-      setIsTeacherTyping(false);
-      let replyText = "We have informed the teacher. She will get back to you with a message or call.";
-      if (actionTitle === "Inquire Child Progress") {
-        replyText = "We have informed the teacher. She will check your child's academic progress and get back to you.";
-      } else if (actionTitle === "Homework Query") {
-        replyText = "We have informed the teacher. She will review your homework query and get back to you.";
+  const handleSendQuickAction = async (actionTitle, actionText) => {
+    try {
+      const res = await axios.post(`${API_URL}/messages`, { text: actionText });
+      if (res.data.status === 'success') {
+        const savedMsg = res.data.message;
+        const newMsg = {
+          id: savedMsg._id,
+          sender: savedMsg.sender,
+          text: savedMsg.text,
+          timestamp: savedMsg.createdAt,
+          linkToTab: savedMsg.linkToTab
+        };
+        const filteredMessages = chatMessages.length === 1 && chatMessages[0].id === '1' ? [] : chatMessages;
+        setChatMessages([...filteredMessages, newMsg]);
       }
-      
-      const teacherMsg = {
-        id: (Date.now() + 1).toString(),
-        sender: 'teacher',
-        text: replyText,
-        timestamp: new Date().toISOString()
-      };
-      setChatMessages(prev => {
-        const next = [...prev, teacherMsg];
-        localStorage.setItem(`parent_chat_messages_${user?.id || user?._id}`, JSON.stringify(next));
-        return next;
-      });
-    }, 1200);
+    } catch (err) {
+      console.error('Failed to send quick action message:', err);
+    }
   };
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
-    const userMsg = {
-      id: Date.now().toString(),
-      sender: 'parent',
-      text: chatInput.trim(),
-      timestamp: new Date().toISOString()
-    };
-    const updated = [...chatMessages, userMsg];
-    setChatMessages(updated);
-    localStorage.setItem(`parent_chat_messages_${user?.id || user?._id}`, JSON.stringify(updated));
+    const textToSend = chatInput.trim();
     setChatInput('');
-    
-    setIsTeacherTyping(true);
-    setTimeout(() => {
-      setIsTeacherTyping(false);
-      const teacherMsg = {
-        id: (Date.now() + 1).toString(),
-        sender: 'teacher',
-        text: "We have informed the teacher. She will get back to you with a message or call.",
-        timestamp: new Date().toISOString()
-      };
-      setChatMessages(prev => {
-        const next = [...prev, teacherMsg];
-        localStorage.setItem(`parent_chat_messages_${user?.id || user?._id}`, JSON.stringify(next));
-        return next;
-      });
-    }, 1200);
+    try {
+      const res = await axios.post(`${API_URL}/messages`, { text: textToSend });
+      if (res.data.status === 'success') {
+        const savedMsg = res.data.message;
+        const newMsg = {
+          id: savedMsg._id,
+          sender: savedMsg.sender,
+          text: savedMsg.text,
+          timestamp: savedMsg.createdAt,
+          linkToTab: savedMsg.linkToTab
+        };
+        const filteredMessages = chatMessages.length === 1 && chatMessages[0].id === '1' ? [] : chatMessages;
+        setChatMessages([...filteredMessages, newMsg]);
+      }
+    } catch (err) {
+      console.error('Failed to send message:', err);
+    }
   };
-
   const handleToggleClub = (clubId) => {
     const updated = {
       ...clubRegistrations,
@@ -1634,48 +1974,273 @@ export const ParentDashboard = () => {
     localStorage.setItem(`parent_club_registrations_${user?.id || user?._id}`, JSON.stringify(updated));
   };
 
-  const handleDownloadReportCard = () => {
-    const studentName = linkedChild?.fullName || linkedChild?.name || 'Kristian Willams';
-    const docContent = `
-=============================================
-         SCHOOL CONNECT REPORT CARD          
-=============================================
-Student Name  : ${studentName}
-Class / Sec   : Class ${linkedChild?.className || ''} - ${linkedChild?.section || ''}
-Roll Number   : ${linkedChild?.rollNumber || ''}
-Date Generated: ${new Date().toLocaleDateString()}
----------------------------------------------
-SUBJECT        EXAM TYPE     SCORE      GRADE
----------------------------------------------
-${reportCard.map(m => `${m.subject.padEnd(14)} ${m.examName.padEnd(13)} ${m.marksObtained}/${m.totalMarks} (${m.myPercentage}%)`.padEnd(40) + ` [${m.grade}]`).join('\n')}
----------------------------------------------
-Result: Passed
-Remarks: Good academic performance. Keep it up!
-=============================================
-`;
-    const blob = new Blob([docContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${studentName.replace(/\s+/g, '_')}_Report_Card.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const loadHtml2Pdf = () => {
+    return new Promise((resolve, reject) => {
+      if (window.html2pdf) {
+        resolve(window.html2pdf);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.onload = () => resolve(window.html2pdf);
+      script.onerror = (e) => reject(e);
+      document.body.appendChild(script);
+    });
   };
 
-  const parentTabs = [
+  const parseProgressReportText = (text) => {
+    if (!text) return [];
+    const lines = text.split('\n');
+    const marks = [];
+    lines.forEach(line => {
+      const match = line.match(/•\s+(.+?)\s*\((.+?)\):\s*(\d+)\s*\/\s*(\d+)\s*\(\s*(\d+)\s*%\)/);
+      if (match) {
+        const subject = match[1].trim();
+        const examName = match[2].trim();
+        const marksObtained = parseInt(match[3], 10);
+        const totalMarks = parseInt(match[4], 10);
+        const percentage = parseInt(match[5], 10);
+        marks.push({
+          _id: Math.random().toString(),
+          subject,
+          examName,
+          marksObtained,
+          totalMarks,
+          myPercentage: percentage,
+          grade: calculateGrade(percentage)
+        });
+      }
+    });
+    return marks;
+  };
+
+  const handleDownloadReportCard = async (specificMarks = null) => {
+    const isSpecific = specificMarks && Array.isArray(specificMarks);
+    const activeMarks = isSpecific ? specificMarks : reportCard;
+    if (!activeMarks || activeMarks.length === 0) {
+      alert("No marks data available to export.");
+      return;
+    }
+
+    const studentName = linkedChild?.fullName || linkedChild?.name || 'Kristian Williams';
+    const classGrade = linkedChild?.className ? (linkedChild?.section ? `Grade ${linkedChild.className} - ${linkedChild.section}` : `Grade ${linkedChild.className}`) : 'Grade 5 - A';
+    const rollNumber = linkedChild?.rollNumber || '15';
+    const section = linkedChild?.section || 'A';
+    const studentPhoto = user?.profilePhoto || user?.profilePhotoUrl || linkedChild?.profilePhoto || linkedChild?.profilePhotoUrl || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80";
+    
+    let dob = '12 March 2014';
+    if (linkedChild?.dateOfBirth) {
+      try {
+        dob = new Date(linkedChild.dateOfBirth).toLocaleDateString('en-US', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    
+    const termName = activeMarks[0]?.examName || 'Term 1';
+    
+    const totalObtainedSum = activeMarks.reduce((sum, m) => sum + (m.marksObtained || 0), 0);
+    const totalMaxSum = activeMarks.reduce((sum, m) => sum + (m.totalMarks || 100), 0);
+    const averagePercentage = totalMaxSum > 0 ? Math.round((totalObtainedSum / totalMaxSum) * 100) : 0;
+    
+    let remarks = '';
+    if (averagePercentage >= 85) {
+      remarks = `"${studentName} is an outstanding, curious, and enthusiastic learner. Shows exemplary participation and consistent academic performance. Keep up the excellent work!"`;
+    } else if (averagePercentage >= 70) {
+      remarks = `"${studentName} shows good progress and is a dedicated learner who consistently participates well. With continued focus, even higher achievements are within reach. Good job!"`;
+    } else if (averagePercentage >= 50) {
+      remarks = `"${studentName} is maintaining satisfactory standing. Continued effort and focus on challenging topics will help improve scores in the future. Keep trying!"`;
+    } else {
+      remarks = `"${studentName} requires significant academic support and focused guidance to improve performance. Regular revision and extra practice in key subjects are highly recommended."`;
+    }
+    
+    const attendanceVal = attendanceStats?.presentRate || 96;
+
+    let logoHtml = '';
+    if (schoolDetails?.logoUrl) {
+      logoHtml = `<img src="${schoolDetails.logoUrl}" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid #1e3a8a;" />`;
+    }
+
+    const totalRowHtml = `
+      <tr style="background-color: #f8fafc; border-top: 2px solid #1e3a8a; font-weight: bold;">
+        <td style="padding: 12px; font-weight: bold; color: #1e293b; text-align: left;">Total / Cumulative</td>
+        <td style="padding: 12px; color: #1e293b; text-align: center;">${totalMaxSum}</td>
+        <td style="padding: 12px; color: #1e293b; font-weight: 600; text-align: center;">${totalObtainedSum}</td>
+        <td style="padding: 12px; color: #1e293b; text-align: center;">${averagePercentage}%</td>
+        <td style="padding: 12px; text-align: center;">
+          <span style="display: inline-block; padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 4px; ${averagePercentage >= 50 ? 'background-color: #dcfce7; color: #15803d;' : 'background-color: #fee2e2; color: #ef4444;'}">
+            ${calculateGrade(averagePercentage)}
+          </span>
+        </td>
+      </tr>
+    `;
+
+    const tableRows = activeMarks.map(m => {
+      const actualGrade = m.grade || calculateGrade(m.myPercentage);
+      const isFail = actualGrade === 'F';
+      return `
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 12px; font-weight: bold; color: #1e293b; text-align: left;">${m.subject}</td>
+          <td style="padding: 12px; color: #475569; text-align: center;">${m.totalMarks || 100}</td>
+          <td style="padding: 12px; color: #1e293b; font-weight: 600; text-align: center;">${m.marksObtained}</td>
+          <td style="padding: 12px; color: #475569; text-align: center;">${m.myPercentage}%</td>
+          <td style="padding: 12px; text-align: center;">
+            <span style="display: inline-block; padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 4px; ${isFail ? 'background-color: #fee2e2; color: #ef4444;' : 'background-color: #dcfce7; color: #15803d;'}">
+              ${actualGrade}
+            </span>
+          </td>
+        </tr>
+      `;
+    }).join('') + totalRowHtml;
+
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'fixed';
+    wrapper.style.top = '100%';
+    wrapper.style.left = '0';
+    wrapper.style.width = '680px';
+    wrapper.style.height = '1px';
+    wrapper.style.overflow = 'hidden';
+    wrapper.style.zIndex = '-9999';
+
+    const container = document.createElement('div');
+    container.style.width = '680px';
+    container.style.backgroundColor = '#ffffff';
+    
+    const htmlContent = `
+      <div style="width: 680px; padding: 30px; box-sizing: border-box; font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif; background-color: #ffffff; border: 4px double #1e3a8a; border-radius: 12px; color: #1f2937; line-height: 1.5;">
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 15px; margin-bottom: 20px; gap: 15px;">
+          <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+            ${logoHtml ? `<div style="display: flex; align-items: center; justify-content: center;">${logoHtml}</div>` : ''}
+            <div>
+              <div style="font-size: 20px; font-weight: 800; color: #1e3a8a; letter-spacing: -0.5px; line-height: 1.2;">${schoolDetails?.name || 'Greenwood High School'}</div>
+              <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 2px;">Academic Excellence</div>
+            </div>
+          </div>
+          <div style="text-align: center; flex: 1;">
+            <div style="font-size: 13px; font-weight: 900; color: #1e3a8a; letter-spacing: 0.5px; text-transform: uppercase;">
+              ${isSpecific ? `PROGRESS CARD - ${termName}` : 'CUMULATIVE PROGRESS CARD'}
+            </div>
+            <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-top: 4px;">Academic Year: ${new Date().getFullYear() - 1}-${new Date().getFullYear()}</div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: flex-end; flex: 0 0 60px;">
+            <img src="${studentPhoto}" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid #1e3a8a;" />
+          </div>
+        </div>
+
+        <!-- Student Details -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; border: 1px solid #e2e8f0; padding: 18px; border-radius: 8px; background-color: #f8fafc; margin-bottom: 25px;">
+          <div>
+            <div style="margin-bottom: 8px;"><span style="color: #64748b; font-weight: 600; width: 110px; display: inline-block; font-size: 13px;">Student Name:</span> <strong style="color: #0f172a; font-size: 14px;">${studentName}</strong></div>
+            <div style="margin-bottom: 8px;"><span style="color: #64748b; font-weight: 600; width: 110px; display: inline-block; font-size: 13px;">Class / Grade:</span> <strong style="color: #0f172a; font-size: 14px;">${classGrade}</strong></div>
+            <div><span style="color: #64748b; font-weight: 600; width: 110px; display: inline-block; font-size: 13px;">Roll Number:</span> <strong style="color: #0f172a; font-size: 14px;">${rollNumber}</strong></div>
+          </div>
+          <div>
+            <div style="margin-bottom: 8px;"><span style="color: #64748b; font-weight: 600; width: 110px; display: inline-block; font-size: 13px;">Date of Birth:</span> <strong style="color: #0f172a; font-size: 14px;">${dob}</strong></div>
+            <div style="margin-bottom: 8px;"><span style="color: #64748b; font-weight: 600; width: 110px; display: inline-block; font-size: 13px;">Term:</span> <strong style="color: #0f172a; font-size: 14px;">${termName}</strong></div>
+            <div><span style="color: #64748b; font-weight: 600; width: 110px; display: inline-block; font-size: 13px;">Section:</span> <strong style="color: #0f172a; font-size: 14px;">${section}</strong></div>
+          </div>
+        </div>
+
+        <!-- Subject Wise Performance Table -->
+        <div style="margin-bottom: 25px;">
+          <div style="background-color: #1e3a8a; color: #ffffff; text-align: center; padding: 8px; font-weight: 800; font-size: 13px; border-radius: 6px 6px 0 0; letter-spacing: 0.5px;">SUBJECT-WISE PERFORMANCE</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid #e2e8f0; border-top: none;">
+            <thead>
+              <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+                <th style="padding: 10px 12px; text-align: left; color: #475569; font-weight: 700;">SUBJECT</th>
+                <th style="padding: 10px 12px; text-align: center; color: #475569; font-weight: 700; width: 100px;">MAX MARKS</th>
+                <th style="padding: 10px 12px; text-align: center; color: #475569; font-weight: 700; width: 130px;">OBTAINED MARKS</th>
+                <th style="padding: 10px 12px; text-align: center; color: #475569; font-weight: 700; width: 110px;">PERCENTAGE</th>
+                <th style="padding: 10px 12px; text-align: center; color: #475569; font-weight: 700; width: 90px;">GRADE</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Bottom Grid: Remarks & Stats -->
+        <div style="display: flex; gap: 20px; align-items: stretch; margin-bottom: 10px;">
+          <!-- Remarks Box -->
+          <div style="flex: 2; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;">
+            <div style="background-color: #1e3a8a; color: #ffffff; padding: 6px 12px; font-weight: 800; font-size: 12px; letter-spacing: 0.5px;">REMARKS</div>
+            <div style="padding: 15px; font-style: italic; font-size: 12.5px; color: #334155; line-height: 1.6; flex: 1; display: flex; align-items: center; background-color: #fafafa;">
+              ${remarks}
+            </div>
+          </div>
+          
+          <!-- Attendance Box -->
+          <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; min-width: 180px; justify-content: center; background-color: #f8fafc; text-align: center; padding: 15px;">
+            <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Attendance Rate</div>
+            <div style="font-size: 32px; font-weight: 900; color: #16a34a;">${attendanceVal}%</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 4px; font-weight: 500;">Academic Standings</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = htmlContent;
+    wrapper.appendChild(container);
+    document.body.appendChild(wrapper);
+
+    try {
+      const html2pdf = await loadHtml2Pdf();
+      const opt = {
+        margin:       [10, 15, 10, 15],
+        filename:     isSpecific 
+          ? `${studentName.replace(/\s+/g, '_')}_${termName.replace(/\s+/g, '_')}_Progress_Card.pdf`
+          : `${studentName.replace(/\s+/g, '_')}_Cumulative_Progress_Card.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2.5, useCORS: true, letterRendering: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      
+      await html2pdf().set(opt).from(container).save();
+    } catch (err) {
+      console.error("Failed to generate PDF:", err);
+      alert("An error occurred during PDF generation.");
+    } finally {
+      document.body.removeChild(wrapper);
+    }
+  };
+
+  const handleDownloadSpecificReportCard = (msgText) => {
+    const marks = parseProgressReportText(msgText);
+    if (marks.length === 0) {
+      alert("No marks found in this progress report message.");
+      return;
+    }
+    handleDownloadReportCard(marks);
+  };
+
+
+  const handleExportProgressCard = () => {
+    if (selectedExamFilter === 'All') {
+      handleDownloadReportCard(null);
+    } else {
+      const filtered = reportCard.filter(m => m.examName === selectedExamFilter);
+      handleDownloadReportCard(filtered);
+    }
+  };
+
+  const parentTabs = useMemo(() => [
     { id: 'overview', label: 'Overview', icon: Compass },
     { id: 'diary', label: 'Class Diary', icon: BookOpen },
     { id: 'attendance', label: 'Attendance Tracker', icon: CheckSquare },
     { id: 'calendar', label: 'School Calendar', icon: Calendar },
     { id: 'bus', label: 'Bus Tracker', icon: Bus },
     { id: 'marks', label: 'Marks Report Card', icon: Award },
-    { id: 'chat', label: 'Direct Chat', icon: Mail },
+    { id: 'chat', label: 'Direct Chat', icon: Mail, badge: unreadCount > 0 ? unreadCount : undefined },
     { id: 'clubs', label: 'Activity Clubs', icon: GraduationCap },
     { id: 'fees', label: 'Fee Statements', icon: DollarSign },
     { id: 'profile', label: 'My Profile', icon: User }
-  ];
-
+  ], [unreadCount]);
   const parentRoleName = schoolDetails 
     ? `Parent (Connect: ${schoolDetails.name})` 
     : 'Parent';
@@ -2317,9 +2882,34 @@ Remarks: Good academic performance. Keep it up!
                   />
                   <div>
                     <span style={{ fontSize: '14px', color: 'var(--text-secondary)', display: 'block' }}>Hello👋</span>
-                    <span style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', display: 'block' }}>
-                      {linkedChild?.fullName || linkedChild?.name || "Not Assigned"}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                        {linkedChild?.fullName || linkedChild?.name || "Not Assigned"}
+                      </span>
+                      <button
+                        onClick={() => setShowAccountSwitcher(true)}
+                        style={{
+                          background: 'rgba(168, 85, 247, 0.1)',
+                          border: '1px solid rgba(168, 85, 247, 0.3)',
+                          borderRadius: '12px',
+                          color: '#a855f7',
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          transition: 'all 0.2s',
+                          marginTop: '2px'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.2)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.1)'}
+                      >
+                        <RefreshCw size={10} />
+                        <span>Switch Account</span>
+                      </button>
+                    </div>
                     <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--accent)', display: 'block', marginTop: '2px' }}>
                       Class {linkedChild?.className || "Not Assigned"} - {linkedChild?.section || "Not Assigned"}
                     </span>
@@ -2946,21 +3536,35 @@ Remarks: Good academic performance. Keep it up!
               <Bus size={48} style={{ color: 'var(--accent)', marginBottom: '20px' }} />
               <h2 style={{ marginBottom: '10px' }}>School Bus Real-Time Tracking</h2>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '14px' }}>
-                Enter your child's assigned Bus Number to see its live route status, speed, and current GPS location.
+                Enter your child's assigned Bus Number to see its live route status and current GPS location.
               </p>
-              <form onSubmit={handleTrackBus} style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                <input
-                  type="text"
-                  placeholder="e.g. BUS-40"
-                  className="form-input"
-                  value={inputBusNum}
-                  onChange={(e) => setInputBusNum(e.target.value)}
-                  required
-                  style={{ maxWidth: '200px' }}
-                />
-                <button type="submit" className="dashboard-btn-primary" style={{ margin: 0 }}>
-                  Track
-                </button>
+              <form onSubmit={handleTrackBus} style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', width: '100%' }}>
+                  <input
+                    type="text"
+                    placeholder="e.g. BUS-40"
+                    className="form-input"
+                    value={inputBusNum}
+                    onChange={(e) => setInputBusNum(e.target.value)}
+                    required
+                    style={{ maxWidth: '200px' }}
+                  />
+                  <button type="submit" className="dashboard-btn-primary" style={{ margin: 0 }}>
+                    Track
+                  </button>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <input 
+                    type="checkbox" 
+                    id="dailyBusCheckbox" 
+                    checked={isDailyPreferred}
+                    onChange={(e) => setIsDailyPreferred(e.target.checked)}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <label htmlFor="dailyBusCheckbox" style={{ fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                    Is this your daily bus?
+                  </label>
+                </div>
               </form>
             </div>
           ) : (
@@ -3086,7 +3690,7 @@ Remarks: Good academic performance. Keep it up!
                       </div>
                       <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                         {tripData?.active 
-                          ? `Broadcasting speed: ${tripData.speed} km/h` 
+                          ? 'Broadcasting live location' 
                           : tripData?.isPlaceholder 
                             ? 'The driver has not started this bus trip yet. Showing default coordinates.'
                             : tripData?.isHistoryFallback
@@ -3096,6 +3700,32 @@ Remarks: Good academic performance. Keep it up!
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {dailyBus === busNumber ? (
+                      <button 
+                        onClick={() => {
+                          localStorage.removeItem(`parent_daily_bus_${user?.id || user?._id}`);
+                          setDailyBus('');
+                        }}
+                        className="code-action-btn"
+                        style={{ margin: 0, padding: '8px 16px', background: 'rgba(245, 158, 11, 0.1)', borderColor: '#fbbf24', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        ★ Daily Bus
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => {
+                          localStorage.setItem(`parent_daily_bus_${user?.id || user?._id}`, busNumber);
+                          setDailyBus(busNumber);
+                          const updated = [busNumber];
+                          setTrackedBuses(updated);
+                          localStorage.setItem(`parent_tracked_buses_${user?.id || user?._id}`, JSON.stringify(updated));
+                        }}
+                        className="code-action-btn"
+                        style={{ margin: 0, padding: '8px 16px', background: 'transparent', borderColor: 'var(--border)', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        ☆ Set as Daily
+                      </button>
+                    )}
                     <button 
                       onClick={handleTrackAnother} 
                       className="code-action-btn track-another-btn"
@@ -3160,12 +3790,6 @@ Remarks: Good academic performance. Keep it up!
                           </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{tripData.active ? 'Live Broadcast Speed:' : 'Last Recorded Speed:'}</span>
-                          <span style={{ fontSize: '13px', fontWeight: 'bold' }}>
-                            {tripData.active ? `${tripData.speed} km/h` : '0 km/h (Stopped)'}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                           <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Distance Covered:</span>
                           <span style={{ fontSize: '13px', fontWeight: 'bold' }}>
                             {tripData.distance ? `${tripData.distance} km` : '0 km'}
@@ -3203,25 +3827,41 @@ Remarks: Good academic performance. Keep it up!
                               />
                             </div>
                             {enableGeofence && (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                                  <span style={{ color: 'var(--text-muted)' }}>Alert Radius</span>
-                                  <span style={{ fontWeight: 'bold', color: 'var(--accent)' }}>{geofenceRadius} km</span>
+                              <>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                                  <label style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                    Notify before 3km Radius
+                                  </label>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={notify3km} 
+                                    onChange={(e) => {
+                                      setNotify3km(e.target.checked);
+                                      localStorage.setItem(`parent_notify_3km_${user?.id || user?._id}`, e.target.checked.toString());
+                                    }} 
+                                    style={{ width: '16px', height: '16px', cursor: 'pointer', margin: 0 }}
+                                  />
                                 </div>
-                                <input 
-                                  type="range" 
-                                  min="0.5" 
-                                  max="5.0" 
-                                  step="0.5" 
-                                  value={geofenceRadius} 
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value);
-                                    setGeofenceRadius(val);
-                                    localStorage.setItem(`parent_geofence_radius_${user?.id || user?._id}`, val.toString());
-                                  }} 
-                                  style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
-                                />
-                              </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Alert Radius</span>
+                                    <span style={{ fontWeight: 'bold', color: 'var(--accent)' }}>{geofenceRadius} km</span>
+                                  </div>
+                                  <input 
+                                    type="range" 
+                                    min="0.5" 
+                                    max="5.0" 
+                                    step="0.5" 
+                                    value={geofenceRadius} 
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value);
+                                      setGeofenceRadius(val);
+                                      localStorage.setItem(`parent_geofence_radius_${user?.id || user?._id}`, val.toString());
+                                    }} 
+                                    style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
+                                  />
+                                </div>
+                              </>
                             )}
                           </div>
                         </div>
@@ -3445,7 +4085,7 @@ Remarks: Good academic performance. Keep it up!
           <div className="glass-card" style={{ padding: '24px' }}>
             <h3>Recent Attendance Logs</h3>
             <div className="dashboard-table-container" style={{ marginTop: '16px', marginBottom: 0 }}>
-              <table className="dashboard-table">
+              <table className="dashboard-table table-expandable">
                 <thead>
                   <tr>
                     <th>Date logged</th>
@@ -3519,6 +4159,7 @@ Remarks: Good academic performance. Keep it up!
               </table>
             </div>
           </div>
+          </div>
 
           {/* Leave Request Panel */}
           <div className="responsive-grid-1-1" style={{ marginTop: '24px' }}>
@@ -3590,7 +4231,7 @@ Remarks: Good academic performance. Keep it up!
             <div className="glass-card" style={{ padding: '24px' }}>
               <h3>Leave Application History</h3>
               <div className="dashboard-table-container" style={{ marginTop: '16px', marginBottom: 0 }}>
-                <table className="dashboard-table">
+                <table className="dashboard-table table-expandable">
                   <thead>
                     <tr>
                       <th>Dates</th>
@@ -3606,7 +4247,7 @@ Remarks: Good academic performance. Keep it up!
                       </tr>
                     ) : (
                       leaveRequests.map(req => (
-                        <tr key={req.id}>
+                        <tr key={req._id || req.id}>
                           <td><strong>{req.startDate} to {req.endDate}</strong></td>
                           <td>{req.leaveType}</td>
                           <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={req.reason}>
@@ -3626,7 +4267,6 @@ Remarks: Good academic performance. Keep it up!
             </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* Marks Report Card Tab */}
@@ -3640,64 +4280,224 @@ Remarks: Good academic performance. Keep it up!
                 Track exam records and progress charts.
               </p>
             </div>
-            {reportCard.length > 0 && (
-              <button
-                type="button"
-                onClick={handleDownloadReportCard}
-                style={{
-                  background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-                  color: 'white',
-                  border: 'none',
-                  padding: '10px 18px',
-                  borderRadius: '8px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)'
-                }}
-              >
-                <Download size={16} /> Export Report Card (.TXT)
-              </button>
-            )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                {uniqueExamNames.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>Select Exam:</span>
+                    <select
+                      className="form-select"
+                      value={selectedExamFilter}
+                      onChange={(e) => setSelectedExamFilter(e.target.value)}
+                      style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '12.5px', background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border)', cursor: 'pointer' }}
+                    >
+                      <option value="All">All Assessments (Cumulative)</option>
+                      {uniqueExamNames.map(name => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={handleExportProgressCard}
+                  style={{
+                    background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)'
+                  }}
+                >
+                  <Download size={16} /> Export Progress Card (PDF)
+                </button>
+              </div>
           </div>
+          {examSummary && (
+            <div className="glass-card" style={{ 
+              padding: '16px 20px', 
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%)',
+              borderColor: 'var(--border)', 
+              borderRadius: '12px', 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}>
+              <div>
+                <span style={{ fontSize: '11px', color: '#475569', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.05em' }}>
+                  Cumulative Exam Result
+                </span>
+                <h4 style={{ margin: '4px 0 0 0', fontSize: '18px', color: '#1e3a8a', fontWeight: 'bold' }}>
+                  {selectedExamFilter} Overview
+                </h4>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '11px', color: '#475569', display: 'block' }}>AGGREGATE SCORE</span>
+                  <strong style={{ fontSize: '20px', color: '#0f172a' }}>
+                    {examSummary.totalObtained} <span style={{ fontSize: '14px', color: '#475569' }}>/ {examSummary.totalMax}</span>
+                  </strong>
+                </div>
+                <div style={{ height: '30px', width: '1px', background: 'var(--border)' }}></div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '11px', color: '#475569', display: 'block' }}>PERCENTAGE & GRADE</span>
+                  <strong style={{ fontSize: '20px', color: examSummary.percentage >= 50 ? '#10b981' : '#ef4444' }}>
+                    {examSummary.percentage}% ({examSummary.grade})
+                  </strong>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="responsive-grid-1-1">
-            {/* Report Card Table */}
+            {/* Grouped Student Performance Report Card */}
             <div className="glass-card" style={{ padding: '24px' }}>
               <h3>Student Performance Report Card</h3>
-              <div className="dashboard-table-container" style={{ marginTop: '16px', marginBottom: 0 }}>
-                <table className="dashboard-table">
-                  <thead>
-                    <tr>
-                      <th>Subject</th>
-                      <th>Assessment type</th>
-                      <th>Marks scored</th>
-                      <th>Grade</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reportCard.length === 0 ? (
-                      <tr>
-                        <td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No exam marks recorded yet.</td>
-                      </tr>
-                    ) : (
-                      reportCard.map(m => (
-                        <tr key={m._id}>
-                          <td><strong>{m.subject}</strong></td>
-                          <td>{m.examName}</td>
-                          <td>{m.marksObtained} / {m.totalMarks} ({m.myPercentage}%)</td>
-                          <td>
-                            <span className={`badge ${m.grade === 'F' ? 'badge-inactive' : 'badge-active'}`} style={{ fontWeight: 'bold' }}>
-                              {m.grade}
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                Expand each exam card to see subject-wise marks details.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                {groupedReportCard.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>No exam marks recorded yet.</div>
+                ) : (
+                  groupedReportCard.map((group, idx) => {
+                    const isExpanded = !!expandedExams[group.examName];
+                    const pct = group.totalMax > 0 ? Math.round((group.totalObtained / group.totalMax) * 100) : 0;
+                    const overallGrade = calculateGrade(pct);
+                    return (
+                      <div 
+                        key={idx} 
+                        style={{ 
+                          background: 'rgba(255, 255, 255, 0.02)', 
+                          border: '1px solid var(--border)', 
+                          borderRadius: '12px',
+                          overflow: 'hidden',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        {/* Summary Header */}
+                        <div 
+                          style={{ 
+                            padding: '16px 20px', 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            flexWrap: 'wrap', 
+                            gap: '12px',
+                            cursor: 'pointer',
+                            background: isExpanded ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                            borderBottom: isExpanded ? '1px solid var(--border)' : 'none'
+                          }}
+                          onClick={() => toggleExamExpanded(group.examName)}
+                        >
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: '16px', color: '#1e3a8a', fontWeight: 'bold' }}>{group.examName}</h4>
+                            <span style={{ fontSize: '12px', color: '#475569' }}>
+                              {group.subjects.length} {group.subjects.length === 1 ? 'Subject' : 'Subjects'}
                             </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                            <div style={{ textAlign: 'right' }}>
+                              <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>TOTAL SCORE</span>
+                              <strong style={{ fontSize: '14px', color: '#0f172a' }}>
+                                {group.totalObtained} / {group.totalMax}
+                              </strong>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>GRADE</span>
+                              <strong style={{ fontSize: '14px', color: pct >= 50 ? '#10b981' : '#ef4444' }}>
+                                {pct}% ({overallGrade})
+                              </strong>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadReportCard(group.subjects)}
+                                style={{
+                                  background: 'rgba(59, 130, 246, 0.15)',
+                                  color: '#1d4ed8',
+                                  border: '1px solid rgba(29, 78, 216, 0.35)',
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  fontWeight: 'bold',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  margin: 0
+                                }}
+                              >
+                                <Download size={13} /> PDF
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toggleExamExpanded(group.examName)}
+                                style={{
+                                  background: '#f1f5f9',
+                                  color: '#1e293b',
+                                  border: '1px solid #cbd5e1',
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  margin: 0
+                                }}
+                              >
+                                {isExpanded ? 'Hide Details' : 'Show Details'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Subject Details Table */}
+                        {isExpanded && (
+                          <div style={{ padding: '16px 20px', overflowX: 'auto' }}>
+                            <table className="dashboard-table" style={{ background: 'transparent', margin: 0, width: '100%' }}>
+                              <thead>
+                                <tr>
+                                  <th style={{ textAlign: 'left', padding: '10px 12px' }}>Subject</th>
+                                  <th style={{ textAlign: 'center', padding: '10px 12px' }}>Max Marks</th>
+                                  <th style={{ textAlign: 'center', padding: '10px 12px' }}>Marks Scored</th>
+                                  <th style={{ textAlign: 'center', padding: '10px 12px' }}>Percentage</th>
+                                  <th style={{ textAlign: 'center', padding: '10px 12px' }}>Grade</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {group.subjects.map(sub => {
+                                  const subGrade = sub.grade || calculateGrade(sub.myPercentage);
+                                  return (
+                                    <tr key={sub._id}>
+                                      <td style={{ textAlign: 'left', padding: '10px 12px' }}><strong>{sub.subject}</strong></td>
+                                      <td style={{ textAlign: 'center', padding: '10px 12px' }}>{sub.totalMarks || 100}</td>
+                                      <td style={{ textAlign: 'center', padding: '10px 12px' }}>{sub.marksObtained}</td>
+                                      <td style={{ textAlign: 'center', padding: '10px 12px' }}>{sub.myPercentage}%</td>
+                                      <td style={{ textAlign: 'center', padding: '10px 12px' }}>
+                                        <span className={`badge ${subGrade === 'F' ? 'badge-inactive' : 'badge-active'}`} style={{ fontWeight: 'bold' }}>
+                                          {subGrade}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 
@@ -3707,13 +4507,13 @@ Remarks: Good academic performance. Keep it up!
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '8px 0 20px 0' }}>
                 Compares child's score (Blue) against class average (Green) side-by-side.
               </p>
-              {reportCard.length === 0 ? (
+              {displayedReportCard.length === 0 ? (
                 <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-muted)' }}>
                   No performance data available to map.
                 </div>
               ) : (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', justifyContent: 'center' }}>
-                  {reportCard.map(m => (
+                  {displayedReportCard.map(m => (
                     <div key={m._id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                         <span><strong>{m.subject}</strong> ({m.examName})</span>
@@ -3922,6 +4722,291 @@ Remarks: Good academic performance. Keep it up!
         onClose={() => setShowLogoutModal(false)} 
         onConfirm={confirmLogout} 
       />
+
+      {/* MOBILE PERMISSION EXPLANATION MODAL */}
+      {showPermissionExplanation && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 15, 26, 0.9)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          zIndex: 10003,
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <div className="glass-card" style={{
+            width: '90%',
+            maxWidth: '500px',
+            padding: '30px',
+            border: '1.5px solid rgba(245, 158, 11, 0.3)',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+            animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#fbbf24' }}>
+              <ShieldAlert size={28} />
+              <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-title)', margin: 0 }}>
+                Permissions Required
+              </h3>
+            </div>
+            
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0, lineHeight: '1.6' }}>
+              To provide a seamless experience, School Connect needs additional permissions. Some features are currently disabled because:
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {(permissionErrorType === 'location' || permissionErrorType === 'both') && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '16px', borderRadius: '12px', display: 'flex', gap: '12px' }}>
+                  <MapPin size={20} style={{ color: '#f87171', flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <strong style={{ color: '#f87171', display: 'block', fontSize: '14px', marginBottom: '4px' }}>Location Permission Blocked</strong>
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      We use your location to show your house on the live map relative to the school bus and calculate accurate arrival ETAs.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {(permissionErrorType === 'notifications' || permissionErrorType === 'both') && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '16px', borderRadius: '12px', display: 'flex', gap: '12px' }}>
+                  <Bell size={20} style={{ color: '#f87171', flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <strong style={{ color: '#f87171', display: 'block', fontSize: '14px', marginBottom: '4px' }}>Notification Permission Blocked</strong>
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      We need notifications to alert you when the school bus is within a 3km radius of your stop.
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border)', padding: '14px', borderRadius: '8px', fontSize: '12.5px', color: 'var(--text-muted)' }}>
+              <strong>How to resolve:</strong> Click the lock/settings icon next to the URL in your browser's address bar and set Location and Notifications to "Allow".
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+              <button 
+                type="button" 
+                onClick={() => setShowPermissionExplanation(false)} 
+                className="dashboard-btn-primary"
+                style={{ margin: 0, padding: '10px 24px', background: 'var(--accent)', borderColor: 'var(--accent)', fontWeight: 'bold' }}
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PARENT MULTI-ACCOUNT SWITCHER MODAL */}
+      {showAccountSwitcher && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 15, 26, 0.9)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          zIndex: 10002,
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <div className="glass-card" style={{
+            width: '90%',
+            maxWidth: '500px',
+            padding: '30px',
+            border: '1px solid var(--border)',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+            animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '20px', fontFamily: 'var(--font-title)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users style={{ color: 'var(--accent)' }} size={22} />
+                <span>Switch Parent Account</span>
+              </h3>
+              <button 
+                onClick={() => {
+                  setShowAccountSwitcher(false);
+                  setSwitchError('');
+                }} 
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Saved Profiles
+              </span>
+              
+              {parentAccounts.map((acc) => {
+                const isActive = acc.email === user?.email;
+                return (
+                  <div 
+                    key={acc.email}
+                    onClick={() => !isActive && handleSwitchAccount(acc)}
+                    style={{
+                      background: isActive ? 'var(--accent-glow)' : 'rgba(255,255,255,0.02)',
+                      border: isActive ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: isActive ? 'default' : 'pointer',
+                      transition: 'all 0.2s',
+                      opacity: isActive ? 1 : 0.85
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                      }
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ 
+                        width: '36px', 
+                        height: '36px', 
+                        borderRadius: '50%', 
+                        background: 'rgba(168, 85, 247, 0.1)', 
+                        color: 'var(--accent)', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        fontWeight: 'bold',
+                        fontSize: '13px'
+                      }}>
+                        {acc.user?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'P'}
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: 'white', display: 'block' }}>
+                          {acc.user?.fullName}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          {acc.email}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {isActive ? (
+                        <span style={{ 
+                          fontSize: '11px', 
+                          fontWeight: 'bold', 
+                          color: 'var(--accent)', 
+                          background: 'rgba(168, 85, 247, 0.15)',
+                          padding: '2px 8px',
+                          borderRadius: '8px'
+                        }}>
+                          Active
+                        </span>
+                      ) : (
+                        <button
+                          onClick={(e) => handleRemoveAccount(acc.email, e)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            opacity: 0.8
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
+                          onMouseLeave={(e) => e.currentTarget.style.opacity = 0.8}
+                          title="Remove Profile"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <form onSubmit={handleAddAndSwitchAccount} style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Add Another Parent Profile
+              </span>
+
+              {switchError && <div className="error-banner" style={{ margin: 0 }}>{switchError}</div>}
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: '11px' }}>Email Address</label>
+                <input 
+                  type="email" 
+                  className="form-input" 
+                  value={newAccountEmail} 
+                  onChange={(e) => setNewAccountEmail(e.target.value)} 
+                  placeholder="parent2@school.com"
+                  required
+                />
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: '11px' }}>Password</label>
+                <input 
+                  type="password" 
+                  className="form-input" 
+                  value={newAccountPassword} 
+                  onChange={(e) => setNewAccountPassword(e.target.value)} 
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={switchLoading}
+                className="dashboard-btn-primary"
+                style={{ 
+                  margin: 0, 
+                  padding: '12px', 
+                  background: 'var(--accent)', 
+                  borderColor: 'var(--accent)', 
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                {switchLoading ? 'Verifying & Switching...' : 'Verify & Switch Profile'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* HOME LOCATION PROMPT MODAL */}
       {showHomePromptModal && (
         <div className="modal-overlay" style={{
@@ -4194,17 +5279,19 @@ Remarks: Good academic performance. Keep it up!
         </div>
       )}
       {activeTab === 'calendar' && (
-        <SchoolCalendarModule user={user} canEdit={false} />
+        <SchoolCalendarModule user={user} canEdit={false} attendanceRecords={attendanceRecords} />
       )}
       {/* Direct Chat Tab */}
       {activeTab === 'chat' && (
         <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '550px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '16px', marginBottom: '16px' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(124, 58, 237, 0.1)', border: '1px solid rgba(124, 58, 237, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontWeight: 'bold' }}>SJ</div>
+            <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(124, 58, 237, 0.1)', border: '1px solid rgba(124, 58, 237, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontWeight: 'bold' }}>
+              {classTeacher?.fullName ? classTeacher.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'CT'}
+            </div>
             <div>
-              <h4 style={{ margin: 0 }}>Mrs. Sarah Jenkins</h4>
+              <h4 style={{ margin: 0 }}>{classTeacher?.fullName || 'Class Teacher'}</h4>
               <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                Class Teacher
+                {classTeacher?.email ? `Class Teacher (${classTeacher.email})` : 'Class Teacher'}
               </span>
             </div>
           </div>
@@ -4225,7 +5312,46 @@ Remarks: Good academic performance. Keep it up!
                   boxShadow: 'var(--shadow)'
                 }}
               >
-                <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.4' }}>{msg.text}</p>
+                <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.4', whiteSpace: 'pre-line' }}>{msg.text}</p>
+                {msg.linkToTab === 'marks' && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => setActiveTab('marks')}
+                      style={{
+                        background: 'var(--accent)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      View Detailed Marks
+                    </button>
+                    <button
+                      onClick={() => handleDownloadSpecificReportCard(msg.text)}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '8px',
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                    >
+                      📥 Download PDF
+                    </button>
+                  </div>
+                )}
                 <span style={{ fontSize: '10px', color: msg.sender === 'parent' ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)', display: 'block', marginTop: '4px', textAlign: 'right' }}>
                   {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
@@ -4244,6 +5370,7 @@ Remarks: Good academic performance. Keep it up!
                 <span style={{ width: '6px', height: '6px', background: 'var(--text-primary)', borderRadius: '50%', animation: 'bounce-typing 0.6s infinite alternate 0.4s' }}></span>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
           {/* Quick Actions / Request Actions */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
@@ -4393,26 +5520,91 @@ Remarks: Good academic performance. Keep it up!
       {activeTab === 'profile' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <ProfileSettingsTab />
-          
           {/* Student Health Log & Allergy Card */}
           <div className="glass-card" style={{ padding: '24px' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
               <GraduationCap style={{ color: 'var(--accent)' }} /> Student Health & Medical Profile
             </h3>
-            <div className="responsive-grid-1-1-1" style={{ gap: '16px', marginBottom: '20px' }}>
-              <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', padding: '16px', borderRadius: '12px' }}>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>BLOOD GROUP</span>
-                <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#ef4444' }}>O Positive (O+)</span>
-              </div>
-              <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', padding: '16px', borderRadius: '12px' }}>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>KNOWN ALLERGIES</span>
-                <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#fbbf24' }}>Peanuts, Penicillin</span>
-              </div>
-              <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', padding: '16px', borderRadius: '12px' }}>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>MEDICAL DISABILITY</span>
-                <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#34d399' }}>None Reported</span>
-              </div>
-            </div>
+            
+            {isEditingHealth ? (
+              <form onSubmit={handleSaveHealthProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold' }}>BLOOD GROUP</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={tempHealth.bloodGroup}
+                      onChange={(e) => setTempHealth({ ...tempHealth, bloodGroup: e.target.value })}
+                      placeholder="e.g. O+, A-, B+"
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold' }}>KNOWN ALLERGIES</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={tempHealth.allergies}
+                      onChange={(e) => setTempHealth({ ...tempHealth, allergies: e.target.value })}
+                      placeholder="e.g. Peanuts, Penicillin"
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold' }}>MEDICAL DISABILITY</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={tempHealth.disability}
+                      onChange={(e) => setTempHealth({ ...tempHealth, disability: e.target.value })}
+                      placeholder="e.g. None, Asthma"
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="submit" className="dashboard-btn-primary" style={{ margin: 0, padding: '8px 16px', fontSize: '13px' }}>Save Health Details</button>
+                  <button type="button" className="logout-btn" onClick={() => setIsEditingHealth(false)} style={{ margin: 0, padding: '8px 16px', fontSize: '13px' }}>Cancel</button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div className="responsive-grid-1-1-1" style={{ gap: '16px', marginBottom: '20px' }}>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', padding: '16px', borderRadius: '12px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>BLOOD GROUP</span>
+                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#ef4444' }}>{healthProfile.bloodGroup || 'Not Specified'}</span>
+                  </div>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', padding: '16px', borderRadius: '12px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>KNOWN ALLERGIES</span>
+                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#fbbf24' }}>{healthProfile.allergies || 'None'}</span>
+                  </div>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border)', padding: '16px', borderRadius: '12px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>MEDICAL DISABILITY</span>
+                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#34d399' }}>{healthProfile.disability || 'None Reported'}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTempHealth({ ...healthProfile });
+                    setIsEditingHealth(true);
+                  }}
+                  className="code-action-btn"
+                  style={{
+                    fontSize: '12.5px',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    marginBottom: '20px',
+                    cursor: 'pointer',
+                    background: 'var(--accent-glow)',
+                    border: '1.5px solid var(--accent)',
+                    color: 'var(--accent)',
+                    fontWeight: '600'
+                  }}
+                >
+                  ✏️ Edit Health Details
+                </button>
+              </>
+            )}
+
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>EMERGENCY MEDICAL CONTACT</span>
               <p style={{ fontSize: '14px', margin: 0 }}>

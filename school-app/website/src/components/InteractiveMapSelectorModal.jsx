@@ -19,7 +19,7 @@ const InteractiveMapSelectorModal = ({ isOpen, onClose, onSelect, initialLat, in
     const timer = setTimeout(() => {
       try {
         if (!mapContainerRef.current) return;
-        const map = L.map(mapContainerRef.current).setView([defaultLat, defaultLng], 13);
+        const map = L.map(mapContainerRef.current, { attributionControl: false }).setView([defaultLat, defaultLng], 13);
         mapRef.current = map;
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

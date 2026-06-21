@@ -49,22 +49,10 @@ const addSatelliteHybridLayers = (map) => {
   const L = window.L;
   if (!L) return;
   
-  // Satellite Base Layer
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-  }).addTo(map);
-
-  // Roads & Street Labels overlay
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
-    attribution: 'Tiles &copy; Esri'
-  }).addTo(map);
-
-  // Place names, boundaries and labels overlay
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
-    attribution: 'Tiles &copy; Esri'
+  // Google Hybrid Satellite + Labels Layer
+  L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    attribution: 'Map data &copy; Google'
   }).addTo(map);
 };
 
@@ -595,7 +583,7 @@ const ParentDetailsModal = ({ isOpen, onClose, parent, onApprove, onReject, user
     const timer = setTimeout(() => {
       try {
         if (!mapContainerRef.current) return;
-        const map = L.map(mapContainerRef.current, { zoomControl: false }).setView([coords.lat, coords.lng], 15);
+        const map = L.map(mapContainerRef.current, { zoomControl: false, attributionControl: false }).setView([coords.lat, coords.lng], 15);
         mapRef.current = map;
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -2479,7 +2467,7 @@ const DashboardLayout = ({
   // Automatic mobile table row expander and cell labeler
   useEffect(() => {
     const handleTableClick = (e) => {
-      const tr = e.target.closest('.dashboard-table tr');
+      const tr = e.target.closest('.dashboard-table.table-expandable tr');
       if (!tr) return;
       
       // Skip empty placeholder rows containing colspan/colSpan
@@ -3534,7 +3522,7 @@ const DashboardLayout = ({
                   ? 'justify-around px-2' 
                   : 'justify-start overflow-x-auto px-4 gap-2 scrollbar-none'
               }`
-            : `lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-transparent backdrop-blur-md border-t border-white/8 flex items-center z-45 ${
+            : `lg:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-[#0c0c16]/80 backdrop-blur-md border-t border-white/8 flex items-center z-45 ${
                 mobileTabs.length <= 5 
                   ? 'justify-around px-2' 
                   : 'justify-start overflow-x-auto px-4 gap-2 scrollbar-none'
@@ -3545,9 +3533,24 @@ const DashboardLayout = ({
                 backgroundColor: 'rgba(255, 255, 255, 0.45)', 
                 backdropFilter: 'blur(20px)', 
                 WebkitBackdropFilter: 'blur(20px)',
+                position: 'fixed',
+                bottom: '12px',
+                left: '12px',
+                right: '12px',
+                zIndex: 10000,
                 ...(mobileTabs.length > 5 ? { WebkitOverflowScrolling: 'touch' } : {})
               } 
-            : (mobileTabs.length > 5 ? { WebkitOverflowScrolling: 'touch' } : {})
+            : {
+                backgroundColor: 'rgba(12, 12, 22, 0.85)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                position: 'fixed',
+                bottom: '0',
+                left: '0',
+                right: '0',
+                zIndex: 10000,
+                ...(mobileTabs.length > 5 ? { WebkitOverflowScrolling: 'touch' } : {})
+              }
           }
         >
           {mobileTabs.map((tab) => {

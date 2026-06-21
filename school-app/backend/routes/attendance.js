@@ -43,4 +43,20 @@ router.get('/staff-logs', authorize(['super_admin', 'school_admin', 'principal']
 // @desc    Request classroom attendance retake
 router.post('/retake', authorize(['super_admin', 'school_admin', 'principal']), attendanceController.retakeAttendance);
 
+// @route   POST /api/attendance/leave
+// @desc    Submit daily student leave request (Parent only)
+router.post('/leave', authorize('parent'), attendanceController.submitLeaveRequest);
+
+// @route   GET /api/attendance/leaves
+// @desc    Get leave requests (Parent sees their own, Teacher sees their class)
+router.get('/leaves', authorize(['parent', 'teacher']), attendanceController.getLeaveRequests);
+
+// @route   POST /api/attendance/leave/:id/approve
+// @desc    Approve student leave request (Teacher only)
+router.post('/leave/:id/approve', authorize('teacher'), attendanceController.approveLeaveRequest);
+
+// @route   POST /api/attendance/leave/:id/reject
+// @desc    Reject student leave request (Teacher only)
+router.post('/leave/:id/reject', authorize('teacher'), attendanceController.rejectLeaveRequest);
+
 module.exports = router;

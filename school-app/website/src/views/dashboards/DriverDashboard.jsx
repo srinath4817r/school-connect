@@ -31,7 +31,7 @@ ChartJS.register(
   Legend,
   Filler
 );
-import { DashboardLayout, API_URL, addSatelliteHybridLayers, LogoutConfirmationModal, ProfileSettingsTab } from './DashboardLayout';
+import { DashboardLayout, API_URL, addSatelliteHybridLayers, filterRecentThreeMonths, LogoutConfirmationModal, ProfileSettingsTab } from './DashboardLayout';
 
 export const TripPlaybackPanel = ({ trip, onClose }) => {
   const [playbackIndex, setPlaybackIndex] = useState(0);
@@ -69,7 +69,7 @@ export const TripPlaybackPanel = ({ trip, onClose }) => {
         const endPt = path[path.length - 1];
 
         // Init map
-        const map = L.map('playback-map-container').setView([startPt.lat, startPt.lng], 14);
+        const map = L.map('playback-map-container', { attributionControl: false }).setView([startPt.lat, startPt.lng], 14);
         addSatelliteHybridLayers(map);
 
         // Start Pin
@@ -312,6 +312,7 @@ export const DriverDashboard = () => {
   const alertStatusRef = useRef('normal');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [incidentCoords, setIncidentCoords] = useState(null);
+  const [showBgPermissionModal, setShowBgPermissionModal] = useState(false);
   const incidentCoordsRef = useRef(null);
   const incidentMarkerRef = useRef(null);
 
@@ -376,7 +377,7 @@ export const DriverDashboard = () => {
       if (container) {
         if (!mapInstanceRef.current) {
           // Init Leaflet map
-          const map = L.map('driver-map').setView([currentLocation.lat, currentLocation.lng], 16);
+          const map = L.map('driver-map', { attributionControl: false }).setView([currentLocation.lat, currentLocation.lng], 16);
           addSatelliteHybridLayers(map);
           
           const busIcon = L.divIcon({
@@ -443,6 +444,45 @@ export const DriverDashboard = () => {
       cleanupMap();
     }
   }, [isTripActive, activeSubTab]);
+
+  // Prompt background permission (always-on) once driver is logged in
+  useEffect(() => {
+    if (user && user.role === 'driver') {
+      const hasSeenBgPrompt = localStorage.getItem(`driver_bg_prompt_seen_${user?.id || user?._id}`);
+      if (!hasSeenBgPrompt) {
+        // Delay slightly for smooth rendering after mount
+        const timer = setTimeout(() => {
+          setShowBgPermissionModal(true);
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user]);
+
+  // Background Location Service notification simulator
+  useEffect(() => {
+    let notificationInterval = null;
+    if (isTripActive && busNumber) {
+      const showNotification = () => {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification("Background Location Active", {
+            body: `School Connect: Bus ${busNumber} (${user?.school || 'Greenwood High School'}) is actively broadcasting location in the background.`,
+            tag: 'driver-tracking-bg',
+            silent: true
+          });
+        }
+      };
+
+      // Show immediately on start
+      showNotification();
+
+      // Repeat notification/heartbeat simulation every 15 seconds
+      notificationInterval = setInterval(showNotification, 15000);
+    }
+    return () => {
+      if (notificationInterval) clearInterval(notificationInterval);
+    };
+  }, [isTripActive, busNumber, user?.school]);
 
   // Heartbeat to keep trip active and update lastUpdated in localStorage and backend
   useEffect(() => {
@@ -853,6 +893,25 @@ export const DriverDashboard = () => {
                       {isTripActive ? `${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}` : 'N/A'}
                     </span>
                   </div>
+                  {isTripActive && (
+                    <div style={{ 
+                      marginTop: '16px',
+                      background: 'rgba(168, 85, 247, 0.08)', 
+                      border: '1.5px dashed var(--accent)', 
+                      padding: '12px', 
+                      borderRadius: '8px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px',
+                      fontSize: '12px',
+                      color: 'var(--text-primary)'
+                    }}>
+                      <Wifi size={14} className="spin-anim" style={{ color: 'var(--accent)' }} />
+                      <span>
+                        <strong>Background Service Active:</strong> Even if you close the app or lock your screen, location updates will broadcast live under Bus: <strong>{busNumber}</strong> - <strong>{user?.school || 'Greenwood High School'}</strong>.
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1157,7 +1216,88 @@ export const DriverDashboard = () => {
   {activeSubTab === 'profile' && (
     <ProfileSettingsTab />
   )}
-</DashboardLayout>
+
+  {/* ALWAYS-ON BACKGROUND LOCATION PERMISSION MODAL */}
+  {showBgPermissionModal && (
+    <div className="modal-overlay" style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(15, 15, 26, 0.9)',
+      backdropFilter: 'blur(10px)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px',
+      zIndex: 10003,
+      animation: 'fadeIn 0.2s ease'
+    }}>
+      <div className="glass-card" style={{
+        width: '90%',
+        maxWidth: '500px',
+        padding: '30px',
+        border: '1.5px solid var(--accent)',
+        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+        animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        textAlign: 'center'
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', color: 'var(--accent)' }}>
+          <Navigation size={48} style={{ animation: 'bounce 2s infinite' }} />
+          <h3 style={{ fontSize: '22px', fontFamily: 'var(--font-title)', margin: 0 }}>
+            Always-On Location Permission
+          </h3>
+        </div>
+        
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14.5px', margin: 0, lineHeight: '1.6' }}>
+          School Connect requires **"Allow all the time"** location access. This allows parents to track the school bus live even if you lock your screen, close the app, or use other navigation apps during your trip.
+        </p>
+
+        <div style={{ background: 'rgba(124, 58, 237, 0.05)', border: '1px solid rgba(124, 58, 237, 0.15)', padding: '16px', borderRadius: '12px', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>
+          <strong style={{ color: 'white', display: 'block', marginBottom: '4px' }}>Simulation details:</strong>
+          • Active background service runs via local tracking notifications.<br/>
+          • Details include: **Bus {busNumber || user?.vehicleNumber || 'N/A'}** and **{user?.school || 'Greenwood High School'}**.
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '10px' }}>
+          <button 
+            type="button" 
+            onClick={() => {
+              setShowBgPermissionModal(false);
+              localStorage.setItem(`driver_bg_prompt_seen_${user?.id || user?._id}`, 'true');
+            }} 
+            className="code-action-btn"
+            style={{ margin: 0, padding: '10px 20px' }}
+          >
+            Deny
+          </button>
+          <button 
+            type="button" 
+            onClick={() => {
+              setShowBgPermissionModal(false);
+              localStorage.setItem(`driver_bg_prompt_seen_${user?.id || user?._id}`, 'true');
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification("Location Service Active", {
+                  body: `Bus ${busNumber || user?.vehicleNumber} - ${user?.school || 'Greenwood High School'} tracking is running in the background.`,
+                  tag: 'driver-tracking-bg',
+                  silent: true
+                });
+              }
+            }} 
+            className="dashboard-btn-primary"
+            style={{ margin: 0, padding: '10px 24px', background: 'var(--accent)', borderColor: 'var(--accent)', fontWeight: 'bold' }}
+          >
+            Allow Always
+          </button>
+        </div>
+      </div>
+    </div>
+  )}</DashboardLayout>
   );
 };
 

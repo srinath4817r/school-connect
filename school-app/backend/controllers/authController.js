@@ -900,21 +900,26 @@ exports.getClassTeacher = async (req, res) => {
 exports.startDriverTrip = async (req, res) => {
   try {
     const { coords } = req.body;
-    const user = await User.findById(req.user._id);
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $set: {
+          isTripActive: true,
+          tripCurrentCoords: coords,
+          tripPath: coords ? [coords] : [],
+          tripSpeed: 0,
+          tripDistance: 0,
+          tripAlertStatus: 'normal',
+          tripIncidentCoords: null,
+          tripLastUpdated: new Date()
+        }
+      },
+      { new: true }
+    );
     if (!user || user.role !== 'driver') {
       return res.status(403).json({ status: 'error', message: 'Only drivers can start a trip' });
     }
 
-    user.isTripActive = true;
-    user.tripCurrentCoords = coords;
-    user.tripPath = coords ? [coords] : [];
-    user.tripSpeed = 0;
-    user.tripDistance = 0;
-    user.tripAlertStatus = 'normal';
-    user.tripIncidentCoords = null;
-    user.tripLastUpdated = new Date();
-
-    await user.save();
     res.status(200).json({ status: 'success', message: 'Trip started successfully', user });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
@@ -925,20 +930,26 @@ exports.startDriverTrip = async (req, res) => {
 exports.updateDriverTrip = async (req, res) => {
   try {
     const { coords, speed, distance, path, alertStatus, incidentCoords } = req.body;
-    const user = await User.findById(req.user._id);
+    
+    const updateFields = {
+      tripLastUpdated: new Date()
+    };
+    if (coords !== undefined) updateFields.tripCurrentCoords = coords;
+    if (speed !== undefined) updateFields.tripSpeed = speed;
+    if (distance !== undefined) updateFields.tripDistance = distance;
+    if (path !== undefined) updateFields.tripPath = path;
+    if (alertStatus !== undefined) updateFields.tripAlertStatus = alertStatus;
+    if (incidentCoords !== undefined) updateFields.tripIncidentCoords = incidentCoords;
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: updateFields },
+      { new: true }
+    );
     if (!user || user.role !== 'driver') {
       return res.status(403).json({ status: 'error', message: 'Only drivers can update a trip' });
     }
 
-    if (coords !== undefined) user.tripCurrentCoords = coords;
-    if (speed !== undefined) user.tripSpeed = speed;
-    if (distance !== undefined) user.tripDistance = distance;
-    if (path !== undefined) user.tripPath = path;
-    if (alertStatus !== undefined) user.tripAlertStatus = alertStatus;
-    if (incidentCoords !== undefined) user.tripIncidentCoords = incidentCoords;
-    user.tripLastUpdated = new Date();
-
-    await user.save();
     res.status(200).json({ status: 'success', message: 'Trip updated successfully' });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
@@ -949,21 +960,26 @@ exports.updateDriverTrip = async (req, res) => {
 exports.endDriverTrip = async (req, res) => {
   try {
     const { coords, distance, path } = req.body;
-    const user = await User.findById(req.user._id);
+    
+    const updateFields = {
+      isTripActive: false,
+      tripSpeed: 0,
+      tripAlertStatus: 'normal',
+      tripIncidentCoords: null,
+      tripLastUpdated: new Date()
+    };
+    if (coords !== undefined) updateFields.tripCurrentCoords = coords;
+    if (distance !== undefined) updateFields.tripDistance = distance;
+    if (path !== undefined) updateFields.tripPath = path;
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: updateFields },
+      { new: true }
+    );
     if (!user || user.role !== 'driver') {
       return res.status(403).json({ status: 'error', message: 'Only drivers can end a trip' });
     }
-
-    user.isTripActive = false;
-    if (coords !== undefined) user.tripCurrentCoords = coords;
-    if (distance !== undefined) user.tripDistance = distance;
-    if (path !== undefined) user.tripPath = path;
-    user.tripSpeed = 0;
-    user.tripAlertStatus = 'normal';
-    user.tripIncidentCoords = null;
-    user.tripLastUpdated = new Date();
-
-    await user.save();
     res.status(200).json({ status: 'success', message: 'Trip ended successfully' });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });

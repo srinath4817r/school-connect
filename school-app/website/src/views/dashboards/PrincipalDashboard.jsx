@@ -300,7 +300,7 @@ export const PrincipalDashboard = () => {
         if (!principalMapRef.current) {
           const firstBus = activeBuses[0];
           const centerLatLng = [firstBus.currentCoords.lat, firstBus.currentCoords.lng];
-          const map = L.map('principal-fleet-map').setView(centerLatLng, 13);
+          const map = L.map('principal-fleet-map', { attributionControl: false }).setView(centerLatLng, 13);
           addSatelliteHybridLayers(map);
           principalMapRef.current = map;
         }

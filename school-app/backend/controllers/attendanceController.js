@@ -3,6 +3,7 @@ const User = require('../models/User');
 const StaffAttendance = require('../models/StaffAttendance');
 const School = require('../models/School');
 const Notification = require('../models/Notification');
+const LeaveRequest = require('../models/LeaveRequest');
 
 // Helper to get start and end of a specific date
 const getDateRange = (dateString) => {
@@ -217,11 +218,26 @@ exports.getClassAttendanceReport = async (req, res) => {
       role: 'parent'
     }).select('fullName email').sort({ fullName: 1 });
 
+    const studentIds = students.map(s => s._id);
+
+    // Fetch all attendance records for these students in a single query
+    const allRecords = await Attendance.find({ student: { $in: studentIds } });
+
+    // Group records by student ID
+    const recordsByStudent = {};
+    allRecords.forEach(r => {
+      const sId = r.student.toString();
+      if (!recordsByStudent[sId]) {
+        recordsByStudent[sId] = [];
+      }
+      recordsByStudent[sId].push(r);
+    });
+
     const reportData = [];
 
     // For each student, get attendance stats
     for (const student of students) {
-      const records = await Attendance.find({ student: student._id });
+      const records = recordsByStudent[student._id.toString()] || [];
 
       let presentShifts = 0;
       let lateShifts = 0;
@@ -254,6 +270,10 @@ exports.getClassAttendanceReport = async (req, res) => {
       const overallPresentDays = (presentShifts + lateShifts) * 0.5;
       const overallAbsentDays = absentShifts * 0.5;
       const overallTotalDays = records.length * 0.5;
+
+      // Filter out students who have 0 present days (either only absent or no records)
+      if (overallPresentDays === 0) continue;
+
       const overallPresentRate = overallTotalDays > 0 ? Math.round((overallPresentDays / overallTotalDays) * 100) : 0;
 
       const formattedMonthly = Object.keys(monthlyStats).map(monthKey => {
@@ -556,6 +576,149 @@ exports.retakeAttendance = async (req, res) => {
       status: 'success',
       message: `Successfully requested attendance retake for ${targetShift} shift. Deleted ${deleteResult.deletedCount} student logs.`
     });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// Submit daily student leave request (Parent only)
+exports.submitLeaveRequest = async (req, res) => {
+  try {
+    const { startDate, endDate, leaveType, reason } = req.body;
+    if (!startDate || !endDate || !reason) {
+      return res.status(400).json({ status: 'error', message: 'Start date, end date, and reason are required' });
+    }
+
+    if (!req.user.classAssigned || !req.user.sectionAssigned) {
+      return res.status(400).json({ status: 'error', message: 'No class/section assigned. Link a child first.' });
+    }
+
+    const leave = new LeaveRequest({
+      parent: req.user._id,
+      school: req.user.school,
+      class: req.user.classAssigned,
+      section: req.user.sectionAssigned,
+      startDate,
+      endDate,
+      leaveType,
+      reason,
+      status: 'Pending'
+    });
+
+    await leave.save();
+
+    // Notify the class teacher
+    try {
+      const teacher = await User.findOne({
+        role: 'teacher',
+        school: req.user.school,
+        classAssigned: req.user.classAssigned,
+        sectionAssigned: req.user.sectionAssigned
+      });
+      if (teacher) {
+        const newNotification = new Notification({
+          school: req.user.school,
+          sender: req.user._id,
+          recipient: teacher._id,
+          type: 'general',
+          message: `Leave Application: Parent of ${req.user.fullName} applied for ${leaveType} from ${startDate} to ${endDate}.`
+        });
+        await newNotification.save();
+      }
+    } catch (err) {
+      console.error('Failed to notify teacher of leave application:', err.message);
+    }
+
+    res.status(201).json({ status: 'success', message: 'Leave application submitted successfully', leave });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// Get leave requests (Parent sees their own, Teacher sees their class)
+exports.getLeaveRequests = async (req, res) => {
+  try {
+    let query = {};
+    if (req.user.role === 'parent') {
+      query.parent = req.user._id;
+    } else if (req.user.role === 'teacher') {
+      if (!req.user.classAssigned || !req.user.sectionAssigned) {
+        return res.status(200).json({ status: 'success', leaves: [] });
+      }
+      query.school = req.user.school;
+      query.class = req.user.classAssigned;
+      query.section = req.user.sectionAssigned;
+    } else {
+      return res.status(403).json({ status: 'error', message: 'Unauthorized role to query leaves' });
+    }
+
+    const leaves = await LeaveRequest.find(query)
+      .populate('parent', 'fullName email')
+      .sort({ appliedOn: -1 });
+
+    res.status(200).json({ status: 'success', leaves });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// Approve leave request (Teacher only)
+exports.approveLeaveRequest = async (req, res) => {
+  try {
+    const leave = await LeaveRequest.findById(req.params.id);
+    if (!leave) {
+      return res.status(404).json({ status: 'error', message: 'Leave request not found' });
+    }
+
+    leave.status = 'Approved';
+    await leave.save();
+
+    // Notify parent
+    try {
+      const newNotification = new Notification({
+        school: leave.school,
+        sender: req.user._id,
+        recipient: leave.parent,
+        type: 'general',
+        message: `Leave Application Approved: Your leave request for ${leave.leaveType} (${leave.startDate} to ${leave.endDate}) has been APPROVED by the class teacher.`
+      });
+      await newNotification.save();
+    } catch (err) {
+      console.error('Failed to notify parent of leave approval:', err.message);
+    }
+
+    res.status(200).json({ status: 'success', message: 'Leave request approved successfully', leave });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// Reject leave request (Teacher only)
+exports.rejectLeaveRequest = async (req, res) => {
+  try {
+    const leave = await LeaveRequest.findById(req.params.id);
+    if (!leave) {
+      return res.status(404).json({ status: 'error', message: 'Leave request not found' });
+    }
+
+    leave.status = 'Rejected';
+    await leave.save();
+
+    // Notify parent
+    try {
+      const newNotification = new Notification({
+        school: leave.school,
+        sender: req.user._id,
+        recipient: leave.parent,
+        type: 'general',
+        message: `Leave Application Rejected: Your leave request for ${leave.leaveType} (${leave.startDate} to ${leave.endDate}) has been REJECTED by the class teacher.`
+      });
+      await newNotification.save();
+    } catch (err) {
+      console.error('Failed to notify parent of leave rejection:', err.message);
+    }
+
+    res.status(200).json({ status: 'success', message: 'Leave request rejected successfully', leave });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
   }

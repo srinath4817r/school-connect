@@ -546,25 +546,25 @@
     box-shadow: none !important;
   }
   
-  .dashboard-table {
+  .dashboard-table.table-expandable {
     display: block !important;
     width: 100% !important;
     border: none !important;
     min-width: 0 !important;
   }
   
-  .dashboard-table thead {
+  .dashboard-table.table-expandable thead {
     display: none !important;
   }
   
-  .dashboard-table tbody {
+  .dashboard-table.table-expandable tbody {
     display: flex !important;
     flex-direction: column !important;
     gap: 12px !important;
     width: 100% !important;
   }
   
-  .dashboard-table tr {
+  .dashboard-table.table-expandable tr {
     display: block !important;
     background: var(--card-bg) !important;
     border: 1px solid var(--border) !important;
@@ -579,13 +579,13 @@
     backdrop-filter: var(--blur) !important;
   }
 
-  .dashboard-table tr:hover {
+  .dashboard-table.table-expandable tr:hover {
     background: var(--card-hover) !important;
     border-color: rgba(255, 255, 255, 0.12) !important;
   }
   
   /* Show detail toggle label on the right */
-  .dashboard-table tr::after {
+  .dashboard-table.table-expandable tr::after {
     content: 'Details ▼' !important;
     position: absolute !important;
     right: 14px !important;
@@ -600,14 +600,14 @@
     border: 1px solid rgba(255, 255, 255, 0.05) !important;
   }
   
-  .dashboard-table tr.row-expanded::after {
+  .dashboard-table.table-expandable tr.row-expanded::after {
     content: 'Close ▲' !important;
     background: rgba(239, 68, 68, 0.1) !important;
     color: #f87171 !important;
     border-color: rgba(239, 68, 68, 0.2) !important;
   }
   
-  .dashboard-table td {
+  .dashboard-table.table-expandable td {
     display: flex !important; /* Always flex so height transitions work */
     align-items: center !important;
     flex-wrap: wrap !important;
@@ -626,12 +626,12 @@
                 margin 0.4s ease !important;
   }
 
-  .dashboard-table tr:hover td {
+  .dashboard-table.table-expandable tr:hover td {
     background: transparent !important;
   }
   
   /* Primary Info is always visible and stands out */
-  .dashboard-table td:nth-child(1) {
+  .dashboard-table.table-expandable td:nth-child(1) {
     display: block !important;
     max-height: none !important;
     opacity: 1 !important;
@@ -646,7 +646,7 @@
   }
 
   /* Secondary key status is also visible on row 1 right next to title */
-  .dashboard-table td:nth-child(2) {
+  .dashboard-table.table-expandable td:nth-child(2) {
     display: inline-block !important;
     max-height: none !important;
     opacity: 1 !important;
@@ -659,7 +659,7 @@
   }
   
   /* Show all columns when expanded */
-  .dashboard-table tr.row-expanded td {
+  .dashboard-table.table-expandable tr.row-expanded td {
     display: flex !important;
     align-items: center !important;
     flex-wrap: wrap !important;
@@ -670,14 +670,14 @@
   }
 
   /* Keep first and second cell specific style adjustments when expanded */
-  .dashboard-table tr.row-expanded td:nth-child(1) {
+  .dashboard-table.table-expandable tr.row-expanded td:nth-child(1) {
     display: block !important;
     max-height: none !important;
     border-bottom: none !important;
     padding-top: 0 !important;
     padding-bottom: 4px !important;
   }
-  .dashboard-table tr.row-expanded td:nth-child(2) {
+  .dashboard-table.table-expandable tr.row-expanded td:nth-child(2) {
     display: inline-block !important;
     max-height: none !important;
     border-bottom: none !important;
@@ -686,7 +686,7 @@
   }
 
   /* Insert labels using injected data-label attribute for details section */
-  .dashboard-table td[data-label]:not(:first-child):not(:nth-child(2))::before {
+  .dashboard-table.table-expandable td[data-label]:not(:first-child):not(:nth-child(2))::before {
     content: attr(data-label) ': ' !important;
     font-weight: 600 !important;
     color: var(--text-muted) !important;
@@ -699,20 +699,20 @@
   }
 
   /* Disable expansion details and pointer cursor for empty/placeholder rows containing a single td spanning columns */
-  .dashboard-table tr:has(td[colspan]),
-  .dashboard-table tr:has(td[colSpan]) {
+  .dashboard-table.table-expandable tr:has(td[colspan]),
+  .dashboard-table.table-expandable tr:has(td[colSpan]) {
     cursor: default !important;
     min-height: auto !important;
     padding: 16px !important;
   }
   
-  .dashboard-table tr:has(td[colspan])::after,
-  .dashboard-table tr:has(td[colSpan])::after {
+  .dashboard-table.table-expandable tr:has(td[colspan])::after,
+  .dashboard-table.table-expandable tr:has(td[colSpan])::after {
     display: none !important;
   }
   
-  .dashboard-table tr:has(td[colspan]) td,
-  .dashboard-table tr:has(td[colSpan]) td {
+  .dashboard-table.table-expandable tr:has(td[colspan]) td,
+  .dashboard-table.table-expandable tr:has(td[colSpan]) td {
     display: block !important;
     max-height: none !important;
     opacity: 1 !important;
